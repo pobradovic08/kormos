@@ -46,7 +46,17 @@ export default function UserMenu() {
           radius="xl"
           size="sm"
           color="blue"
-          style={{ cursor: 'pointer' }}
+          style={{
+            cursor: 'pointer',
+            border: '2px solid var(--mantine-color-dark-3)',
+            transition: 'border-color 150ms ease',
+          }}
+          onMouseEnter={(e: React.MouseEvent<HTMLDivElement>) => {
+            e.currentTarget.style.borderColor = 'var(--mantine-color-blue-5)';
+          }}
+          onMouseLeave={(e: React.MouseEvent<HTMLDivElement>) => {
+            e.currentTarget.style.borderColor = 'var(--mantine-color-dark-3)';
+          }}
         >
           {initials}
         </Avatar>

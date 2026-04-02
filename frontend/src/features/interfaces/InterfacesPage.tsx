@@ -6,7 +6,6 @@ import {
   Table,
   TextInput,
   Text,
-  Alert,
   Stack,
   Skeleton,
   Modal,
@@ -14,8 +13,8 @@ import {
 import {
   IconPlus,
   IconSearch,
-  IconAlertCircle,
   IconRouter,
+  IconNetwork,
 } from '@tabler/icons-react';
 import { notifications } from '@mantine/notifications';
 import { useRouterStore } from '../../stores/useRouterStore';
@@ -26,6 +25,8 @@ import InterfaceDetail from './InterfaceDetail';
 import InterfaceForm from './InterfaceForm';
 import InterfaceTypeSelector from './InterfaceTypeSelector';
 import ConfirmDialog from '../../components/common/ConfirmDialog';
+import EmptyState from '../../components/common/EmptyState';
+import ErrorBanner from '../../components/common/ErrorBanner';
 import type { InterfaceTypeOption } from './InterfaceTypeSelector';
 import type { RouterInterface } from '../../api/types';
 
@@ -64,7 +65,7 @@ type CreateStep = 'select-type' | 'fill-form';
 export default function InterfacesPage() {
   const selectedRouterId = useRouterStore((s) => s.selectedRouterId);
   const stageChange = useCommitStore((s) => s.stageChange);
-  const { data: interfaces, isLoading, error } = useInterfaces(selectedRouterId);
+  const { data: interfaces, isLoading, error, refetch } = useInterfaces(selectedRouterId);
 
   const [search, setSearch] = useState('');
   const [selectedInterface, setSelectedInterface] =
@@ -172,7 +173,7 @@ export default function InterfacesPage() {
     return (
       <>
         <Group justify="space-between" mb="md">
-          <Title order={2}>Interfaces</Title>
+          <Title order={2} mb="lg">Interfaces</Title>
         </Group>
         <LoadingSkeleton />
       </>
@@ -181,21 +182,17 @@ export default function InterfacesPage() {
 
   if (error) {
     return (
-      <Alert
-        icon={<IconAlertCircle size={16} />}
-        title="Error"
-        color="red"
-        mt="md"
-      >
-        Failed to load interfaces. Please try again later.
-      </Alert>
+      <ErrorBanner
+        message="Failed to load interfaces. Please try again later."
+        onRetry={() => void refetch()}
+      />
     );
   }
 
   return (
     <>
       <Group justify="space-between" mb="md">
-        <Title order={2}>Interfaces</Title>
+        <Title order={2} mb="lg">Interfaces</Title>
         <Button leftSection={<IconPlus size={16} />} onClick={handleNewClick}>
           New Interface
         </Button>
@@ -238,11 +235,15 @@ export default function InterfacesPage() {
           </Table.Tbody>
         </Table>
       ) : (
-        <Text c="dimmed" ta="center" mt="xl">
-          {search.trim()
-            ? 'No interfaces match your search.'
-            : 'No interfaces found on this router.'}
-        </Text>
+        <EmptyState
+          icon={IconNetwork}
+          title={search.trim() ? 'No matching interfaces' : 'No interfaces found'}
+          description={
+            search.trim()
+              ? 'No interfaces match your search.'
+              : 'No interfaces found on this router.'
+          }
+        />
       )}
 
       <InterfaceDetail

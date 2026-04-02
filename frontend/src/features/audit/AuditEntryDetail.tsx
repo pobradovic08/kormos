@@ -59,10 +59,10 @@ function opTypeLabel(opType: string): string {
 function DetailField({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <Group justify="space-between" wrap="nowrap" align="flex-start">
-      <Text size="sm" c="dimmed" style={{ minWidth: 120 }}>
+      <Text c="dimmed" size="sm" w={140}>
         {label}
       </Text>
-      <div style={{ textAlign: 'right' }}>{children}</div>
+      <div style={{ flex: 1, textAlign: 'right' }}>{children}</div>
     </Group>
   );
 }
@@ -78,9 +78,9 @@ export default function AuditEntryDetail({ entry, opened, onClose }: AuditEntryD
       opened={opened}
       onClose={onClose}
       title={
-        <Text fw={600} size="lg">
+        <Title order={4}>
           Audit Entry Details
-        </Text>
+        </Title>
       }
       position="right"
       size="lg"

@@ -9,6 +9,7 @@ import {
   PasswordInput,
   MultiSelect,
   Text,
+  Title,
   Alert,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
@@ -229,7 +230,7 @@ export default function InterfaceForm({
 
   return (
     <form onSubmit={form.onSubmit(handleSubmit)}>
-      <Stack gap="sm">
+      <Stack gap="md">
         {isNew && isEthernet && (
           <Alert
             icon={<IconInfoCircle size={16} />}
@@ -293,9 +294,9 @@ export default function InterfaceForm({
         {/* VLAN-specific fields */}
         {showTypeFields && interfaceType === 'vlan' && (
           <>
-            <Text fw={600} size="sm" mt="md">
+            <Title order={5} mt="lg" mb="xs">
               VLAN Settings
-            </Text>
+            </Title>
             <Select
               label="Parent Interface"
               placeholder="Select parent interface"
@@ -319,9 +320,9 @@ export default function InterfaceForm({
         {/* Bonding-specific fields */}
         {showTypeFields && interfaceType === 'bonding' && (
           <>
-            <Text fw={600} size="sm" mt="md">
+            <Title order={5} mt="lg" mb="xs">
               Bonding Settings
-            </Text>
+            </Title>
             <Select
               label="Bonding Mode"
               data={[
@@ -350,9 +351,9 @@ export default function InterfaceForm({
         {/* Bridge-specific fields */}
         {showTypeFields && interfaceType === 'bridge' && (
           <>
-            <Text fw={600} size="sm" mt="md">
+            <Title order={5} mt="lg" mb="xs">
               Bridge Settings
-            </Text>
+            </Title>
             <MultiSelect
               label="Bridge Ports"
               placeholder="Select interfaces to bridge"
@@ -372,9 +373,9 @@ export default function InterfaceForm({
         {/* WireGuard-specific fields */}
         {showTypeFields && interfaceType === 'wireguard' && (
           <>
-            <Text fw={600} size="sm" mt="md">
+            <Title order={5} mt="lg" mb="xs">
               WireGuard Settings
-            </Text>
+            </Title>
             <PasswordInput
               label="Private Key"
               placeholder="Auto-generated if left empty"
@@ -394,9 +395,9 @@ export default function InterfaceForm({
         {/* GRE Tunnel-specific fields */}
         {showTypeFields && interfaceType === 'gre' && (
           <>
-            <Text fw={600} size="sm" mt="md">
+            <Title order={5} mt="lg" mb="xs">
               GRE Tunnel Settings
-            </Text>
+            </Title>
             <TextInput
               label="Local Address"
               placeholder="e.g. 10.0.0.1"
@@ -417,9 +418,9 @@ export default function InterfaceForm({
         {/* EoIP Tunnel-specific fields */}
         {showTypeFields && interfaceType === 'eoip' && (
           <>
-            <Text fw={600} size="sm" mt="md">
+            <Title order={5} mt="lg" mb="xs">
               EoIP Tunnel Settings
-            </Text>
+            </Title>
             <TextInput
               label="Local Address"
               placeholder="e.g. 10.0.0.1"

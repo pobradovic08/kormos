@@ -85,11 +85,11 @@ export default function TenantSettingsPage() {
 
   return (
     <>
-      <Title order={2} mb="md">
+      <Title order={2} mb="lg">
         Settings
       </Title>
 
-      <Card shadow="sm" padding="lg" radius="md" withBorder maw={500}>
+      <Card shadow="sm" padding="lg" radius="md" withBorder maw={450} w="100%">
         <form onSubmit={form.onSubmit(handleSubmit)}>
           <Stack gap="md">
             <TextInput

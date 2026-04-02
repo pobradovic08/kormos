@@ -7,10 +7,9 @@ import {
   Badge,
   ActionIcon,
   Text,
-  Alert,
   Skeleton,
   Tooltip,
-  Modal,
+  Stack,
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import {
@@ -18,10 +17,13 @@ import {
   IconEdit,
   IconTrash,
   IconRefresh,
-  IconAlertCircle,
+  IconRouter,
 } from '@tabler/icons-react';
 import { useRouters, useDeleteRouter, useRouterStatus } from './routersApi';
 import RouterForm from './RouterForm';
+import ConfirmDialog from '../../components/common/ConfirmDialog';
+import EmptyState from '../../components/common/EmptyState';
+import ErrorBanner from '../../components/common/ErrorBanner';
 import type { Router } from '../../api/types';
 
 function StatusCheckButton({ routerId }: { routerId: string }) {
@@ -50,7 +52,7 @@ function formatLastSeen(lastSeen: string | null): string {
 }
 
 export default function RoutersPage() {
-  const { data: routers, isLoading, error } = useRouters();
+  const { data: routers, isLoading, error, refetch } = useRouters();
   const deleteMutation = useDeleteRouter();
 
   const [formOpened, setFormOpened] = useState(false);
@@ -98,12 +100,15 @@ export default function RoutersPage() {
     });
   };
 
+  const hasRouters = routers && routers.length > 0;
+
   if (isLoading) {
     return (
       <>
-        <Group justify="space-between" mb="md">
+        <Stack gap={4} mb="md">
           <Title order={2}>Routers</Title>
-        </Group>
+          <Text size="sm" c="dimmed">Manage your MikroTik CHR instances</Text>
+        </Stack>
         <Table striped>
           <Table.Thead>
             <Table.Tr>
@@ -133,22 +138,28 @@ export default function RoutersPage() {
 
   if (error) {
     return (
-      <Alert icon={<IconAlertCircle size={16} />} title="Error" color="red" mt="md">
-        Failed to load routers. Please try again later.
-      </Alert>
+      <ErrorBanner
+        message="Failed to load routers. Please try again later."
+        onRetry={() => void refetch()}
+      />
     );
   }
 
   return (
     <>
-      <Group justify="space-between" mb="md">
-        <Title order={2}>Routers</Title>
-        <Button leftSection={<IconPlus size={16} />} onClick={handleAdd}>
-          Add Router
-        </Button>
+      <Group justify="space-between" align="flex-start" mb="md">
+        <Stack gap={4}>
+          <Title order={2}>Routers</Title>
+          <Text size="sm" c="dimmed">Manage your MikroTik CHR instances</Text>
+        </Stack>
+        {hasRouters && (
+          <Button leftSection={<IconPlus size={16} />} onClick={handleAdd}>
+            Add Router
+          </Button>
+        )}
       </Group>
 
-      {routers && routers.length > 0 ? (
+      {hasRouters ? (
         <Table striped highlightOnHover>
           <Table.Thead>
             <Table.Tr>
@@ -220,9 +231,16 @@ export default function RoutersPage() {
           </Table.Tbody>
         </Table>
       ) : (
-        <Text c="dimmed" ta="center" mt="xl">
-          No routers configured. Click "Add Router" to get started.
-        </Text>
+        <EmptyState
+          icon={IconRouter}
+          title="No routers configured"
+          description="Add your first MikroTik CHR router to start managing your network infrastructure."
+          action={
+            <Button leftSection={<IconPlus size={16} />} onClick={handleAdd}>
+              Add Router
+            </Button>
+          }
+        />
       )}
 
       <RouterForm
@@ -231,33 +249,19 @@ export default function RoutersPage() {
         router={editingRouter}
       />
 
-      <Modal
-        opened={!!deletingRouter}
+      <ConfirmDialog
+        isOpen={!!deletingRouter}
         onClose={() => setDeletingRouter(null)}
+        onConfirm={handleDeleteConfirm}
         title="Delete Router"
-        size="sm"
-      >
-        <Text size="sm">
-          Are you sure you want to delete router{' '}
-          <strong>{deletingRouter?.name}</strong>? This action cannot be undone.
-        </Text>
-        <Group justify="flex-end" mt="lg">
-          <Button
-            variant="default"
-            onClick={() => setDeletingRouter(null)}
-            disabled={deleteMutation.isPending}
-          >
-            Cancel
-          </Button>
-          <Button
-            color="red"
-            onClick={handleDeleteConfirm}
-            loading={deleteMutation.isPending}
-          >
-            Delete
-          </Button>
-        </Group>
-      </Modal>
+        message={
+          deletingRouter
+            ? `Are you sure you want to delete router "${deletingRouter.name}"? This action cannot be undone.`
+            : ''
+        }
+        confirmLabel="Delete"
+        confirmColor="red"
+      />
     </>
   );
 }

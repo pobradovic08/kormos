@@ -1,15 +1,16 @@
 import { useNavigate } from 'react-router-dom';
 import {
-  Title,
   Text,
   SimpleGrid,
   Card,
-  Group,
   Stack,
   ThemeIcon,
-  Tooltip,
+  Badge,
   Box,
   Button,
+  Divider,
+  Group,
+  UnstyledButton,
 } from '@mantine/core';
 import { IconHeadset } from '@tabler/icons-react';
 import { modules } from './moduleConfig';
@@ -18,92 +19,99 @@ export default function ConfigureLandingPage() {
   const navigate = useNavigate();
 
   return (
-    <Stack gap="lg">
-      <Title order={2}>Configure</Title>
-
-      <SimpleGrid cols={{ base: 1, sm: 2, md: 3, lg: 4 }}>
+    <Stack gap="xl">
+      <SimpleGrid cols={{ base: 1, sm: 2, lg: 4 }}>
         {modules.map((mod) => {
           const Icon = mod.icon;
 
           if (!mod.isEnabled) {
             return (
-              <Tooltip key={mod.title} label="Coming soon" position="top">
-                <Card
-                  shadow="xs"
-                  padding="lg"
-                  radius="md"
-                  withBorder
-                  style={{ opacity: 0.5, cursor: 'default' }}
+              <Card
+                key={mod.title}
+                padding="lg"
+                radius="md"
+                withBorder
+                mih={120}
+                style={{
+                  opacity: 0.5,
+                  cursor: 'not-allowed',
+                  position: 'relative',
+                }}
+              >
+                <Badge
+                  size="xs"
+                  variant="filled"
+                  color="gray"
+                  style={{ position: 'absolute', top: 12, right: 12 }}
                 >
-                  <Group gap="md" wrap="nowrap">
-                    <ThemeIcon size={48} radius="md" variant="light" color="blue">
-                      <Icon size={32} />
-                    </ThemeIcon>
-                    <Stack gap={4}>
-                      <Text fw={700} size="sm">
-                        {mod.title}
-                      </Text>
-                      <Text c="dimmed" size="xs">
-                        {mod.subtitle}
-                      </Text>
-                    </Stack>
-                  </Group>
-                </Card>
-              </Tooltip>
+                  Coming soon
+                </Badge>
+                <Stack align="center" justify="center" gap="sm" h="100%">
+                  <ThemeIcon size={40} radius="md" variant="light" color="blue">
+                    <Icon size={24} />
+                  </ThemeIcon>
+                  <Stack gap={2} align="center">
+                    <Text fw={700} size="sm">
+                      {mod.title}
+                    </Text>
+                    <Text c="dimmed" size="xs" ta="center">
+                      {mod.subtitle}
+                    </Text>
+                  </Stack>
+                </Stack>
+              </Card>
             );
           }
 
           return (
-            <Card
+            <UnstyledButton
               key={mod.title}
-              shadow="xs"
-              padding="lg"
-              radius="md"
-              withBorder
-              style={{ cursor: 'pointer' }}
               onClick={() => navigate(mod.route)}
+              style={{ display: 'block' }}
             >
-              <Group gap="md" wrap="nowrap">
-                <ThemeIcon size={48} radius="md" variant="light" color="blue">
-                  <Icon size={32} />
-                </ThemeIcon>
-                <Stack gap={4}>
-                  <Text fw={700} size="sm">
-                    {mod.title}
-                  </Text>
-                  <Text c="dimmed" size="xs">
-                    {mod.subtitle}
-                  </Text>
+              <Card
+                padding="lg"
+                radius="md"
+                withBorder
+                mih={120}
+                className="hover-card"
+              >
+                <Stack align="center" justify="center" gap="sm" h="100%">
+                  <ThemeIcon size={40} radius="md" variant="light" color="blue">
+                    <Icon size={24} />
+                  </ThemeIcon>
+                  <Stack gap={2} align="center">
+                    <Text fw={700} size="sm">
+                      {mod.title}
+                    </Text>
+                    <Text c="dimmed" size="xs" ta="center">
+                      {mod.subtitle}
+                    </Text>
+                  </Stack>
                 </Stack>
-              </Group>
-            </Card>
+              </Card>
+            </UnstyledButton>
           );
         })}
       </SimpleGrid>
 
-      <Box
-        py="sm"
-        px="md"
-        style={(theme) => ({
-          borderRadius: theme.radius.md,
-          backgroundColor: 'var(--mantine-color-gray-0)',
-          borderTop: '1px solid var(--mantine-color-gray-2)',
-        })}
-      >
+      <Box>
+        <Divider mb="sm" />
         <Group justify="space-between">
-          <Text size="sm" c="dimmed">
+          <Text size="xs" c="dimmed">
             Feature missing? You can make a feature request, or ask for full access to the router.
           </Text>
           <Button
             variant="subtle"
             color="orange"
-            size="compact-sm"
-            leftSection={<IconHeadset size={16} />}
+            size="compact-xs"
+            leftSection={<IconHeadset size={14} />}
           >
             Support
           </Button>
         </Group>
       </Box>
+
     </Stack>
   );
 }

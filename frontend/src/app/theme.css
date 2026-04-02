@@ -38,3 +38,12 @@
   --color-diff-remove-bg: #FFE3E3;
   --color-diff-remove-text: #E03131;
 }
+
+/* Hover cards (dashboard, configure) */
+.hover-card {
+  transition: border-color 150ms ease;
+}
+.hover-card:hover {
+  outline: 2px solid var(--color-brand);
+  outline-offset: -2px;
+}

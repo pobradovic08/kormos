@@ -1,5 +1,12 @@
 import { useState } from 'react';
-import { AppShell, Button, Group, Text, Menu } from '@mantine/core';
+import {
+  AppShell,
+  Group,
+  Text,
+  Menu,
+  UnstyledButton,
+  Divider,
+} from '@mantine/core';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { IconChevronDown } from '@tabler/icons-react';
 import CommitPanel from '../commit/CommitPanel';
@@ -16,6 +23,61 @@ const simpleNavLinks = [
   { label: 'Settings', to: '/settings' },
 ];
 
+function NavLink({
+  to,
+  isActive,
+  children,
+  onClick,
+  rightSection,
+}: {
+  to?: string;
+  isActive: boolean;
+  children: React.ReactNode;
+  onClick?: () => void;
+  rightSection?: React.ReactNode;
+}) {
+  const Component = to ? Link : 'button';
+  const linkProps = to ? { to } : {};
+
+  return (
+    <UnstyledButton
+      component={Component as any}
+      {...linkProps}
+      onClick={onClick}
+      style={{
+        padding: '6px 12px',
+        borderRadius: 'var(--mantine-radius-sm)',
+        color: isActive ? '#ffffff' : 'var(--mantine-color-dark-1)',
+        backgroundColor: isActive ? 'var(--mantine-color-dark-5)' : 'transparent',
+        fontSize: 'var(--mantine-font-size-sm)',
+        fontWeight: isActive ? 600 : 500,
+        textDecoration: 'none',
+        display: 'flex',
+        alignItems: 'center',
+        gap: 4,
+        transition: 'background-color 150ms ease, color 150ms ease',
+        border: 'none',
+        cursor: 'pointer',
+      }}
+      onMouseEnter={(e: React.MouseEvent<HTMLElement>) => {
+        if (!isActive) {
+          e.currentTarget.style.backgroundColor = 'var(--mantine-color-dark-5)';
+          e.currentTarget.style.color = '#ffffff';
+        }
+      }}
+      onMouseLeave={(e: React.MouseEvent<HTMLElement>) => {
+        if (!isActive) {
+          e.currentTarget.style.backgroundColor = 'transparent';
+          e.currentTarget.style.color = 'var(--mantine-color-dark-1)';
+        }
+      }}
+    >
+      {children}
+      {rightSection}
+    </UnstyledButton>
+  );
+}
+
 export default function AppShellLayout() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -25,42 +87,64 @@ export default function AppShellLayout() {
   const isConfigureActive = location.pathname.startsWith('/configure');
 
   return (
-    <AppShell header={{ height: 56 }} padding="md">
-      <AppShell.Header>
-        <Group h="100%" px="md" justify="space-between">
-          <Group gap="lg">
+    <AppShell
+      header={{ height: 56 }}
+      padding="md"
+    >
+      <AppShell.Header
+        style={{
+          backgroundColor: 'var(--mantine-color-dark-7)',
+          borderBottom: '1px solid var(--mantine-color-dark-5)',
+        }}
+      >
+        <Group h="100%" px="md" justify="space-between" wrap="nowrap">
+          {/* Left side: Logo + Nav links */}
+          <Group gap="lg" wrap="nowrap">
             <Text
               fw={700}
               size="lg"
               component={Link}
               to="/dashboard"
-              style={{ textDecoration: 'none', color: 'inherit' }}
+              style={{
+                textDecoration: 'none',
+                color: '#ffffff',
+                letterSpacing: '-0.02em',
+                whiteSpace: 'nowrap',
+              }}
             >
               {portalName}
             </Text>
 
-            <Group gap="xs">
-              <Button
-                component={Link}
+            <Divider
+              orientation="vertical"
+              color="dark.5"
+              style={{ height: 24, alignSelf: 'center' }}
+            />
+
+            <Group gap={4} wrap="nowrap">
+              <NavLink
                 to="/dashboard"
-                variant={
-                  location.pathname.startsWith('/dashboard') ? 'light' : 'subtle'
-                }
-                size="compact-sm"
+                isActive={location.pathname.startsWith('/dashboard')}
               >
                 Dashboard
-              </Button>
+              </NavLink>
 
               <Menu trigger="hover" openDelay={100} closeDelay={200}>
                 <Menu.Target>
-                  <Button
-                    variant={isConfigureActive ? 'light' : 'subtle'}
-                    size="compact-sm"
-                    rightSection={<IconChevronDown size={14} />}
-                    onClick={() => navigate('/configure')}
-                  >
-                    Configure
-                  </Button>
+                  <div>
+                    <NavLink
+                      isActive={isConfigureActive}
+                      onClick={() => navigate('/configure')}
+                      rightSection={
+                        <IconChevronDown
+                          size={14}
+                          style={{ opacity: 0.7 }}
+                        />
+                      }
+                    >
+                      Configure
+                    </NavLink>
+                  </div>
                 </Menu.Target>
                 <Menu.Dropdown>
                   {modules.map((mod) => {
@@ -89,23 +173,26 @@ export default function AppShellLayout() {
               {simpleNavLinks
                 .filter((link) => link.label !== 'Dashboard')
                 .map((link) => (
-                  <Button
+                  <NavLink
                     key={link.to}
-                    component={Link}
                     to={link.to}
-                    variant={
-                      location.pathname.startsWith(link.to) ? 'light' : 'subtle'
-                    }
-                    size="compact-sm"
+                    isActive={location.pathname.startsWith(link.to)}
                   >
                     {link.label}
-                  </Button>
+                  </NavLink>
                 ))}
             </Group>
           </Group>
 
-          <Group gap="sm">
+          {/* Right side: RouterSelector, CommitButton, UserMenu */}
+          <Group gap="sm" wrap="nowrap">
             <RouterSelector />
+
+            <Divider
+              orientation="vertical"
+              color="dark.5"
+              style={{ height: 24, alignSelf: 'center' }}
+            />
 
             <CommitButton onClick={() => setCommitPanelOpen(true)} />
 

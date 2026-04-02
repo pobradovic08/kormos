@@ -67,10 +67,10 @@ export default function ChangeList({
               gap="xs"
               wrap="nowrap"
               justify="space-between"
+              p="xs"
               style={{
                 cursor: 'pointer',
-                padding: '4px 8px',
-                borderRadius: 4,
+                borderRadius: 'var(--mantine-radius-sm)',
                 backgroundColor:
                   expandedId === change.id
                     ? 'var(--color-bg-surface-hover)'

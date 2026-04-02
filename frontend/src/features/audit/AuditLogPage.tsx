@@ -5,20 +5,20 @@ import {
   Table,
   Badge,
   Text,
-  Loader,
-  Alert,
-  Stack,
+  Skeleton,
   Select,
   TextInput,
   Pagination,
   Paper,
 } from '@mantine/core';
-import { IconAlertCircle, IconSearch } from '@tabler/icons-react';
+import { IconSearch, IconFileText } from '@tabler/icons-react';
 import { useRouters } from '../routers/routersApi';
 import { useAuditLog } from './auditApi';
 import type { AuditFilters } from './auditApi';
 import type { AuditEntry } from '../../api/types';
 import AuditEntryDetail from './AuditEntryDetail';
+import EmptyState from '../../components/common/EmptyState';
+import ErrorBanner from '../../components/common/ErrorBanner';
 
 const PER_PAGE = 20;
 
@@ -65,7 +65,7 @@ export default function AuditLogPage() {
     perPage: PER_PAGE,
   };
 
-  const { data, isLoading, error } = useAuditLog(filters);
+  const { data, isLoading, error, refetch } = useAuditLog(filters);
 
   const entries = data?.data ?? [];
   const total = data?.total ?? 0;
@@ -108,7 +108,7 @@ export default function AuditLogPage() {
 
   return (
     <>
-      <Title order={2} mb="md">
+      <Title order={2} mb="lg">
         Audit Log
       </Title>
 
@@ -150,18 +150,40 @@ export default function AuditLogPage() {
       </Paper>
 
       {isLoading ? (
-        <Stack align="center" mt="xl">
-          <Loader size="lg" />
-          <Text c="dimmed">Loading audit log...</Text>
-        </Stack>
+        <Table striped>
+          <Table.Thead>
+            <Table.Tr>
+              <Table.Th>User</Table.Th>
+              <Table.Th>Router</Table.Th>
+              <Table.Th>Module</Table.Th>
+              <Table.Th>Status</Table.Th>
+              <Table.Th>Timestamp</Table.Th>
+              <Table.Th>Commit Message</Table.Th>
+            </Table.Tr>
+          </Table.Thead>
+          <Table.Tbody>
+            {Array.from({ length: 5 }).map((_, i) => (
+              <Table.Tr key={i}>
+                {Array.from({ length: 6 }).map((_, j) => (
+                  <Table.Td key={j}>
+                    <Skeleton height="36px" radius="sm" />
+                  </Table.Td>
+                ))}
+              </Table.Tr>
+            ))}
+          </Table.Tbody>
+        </Table>
       ) : error ? (
-        <Alert icon={<IconAlertCircle size={16} />} title="Error" color="red" mt="md">
-          Failed to load audit log. Please try again later.
-        </Alert>
+        <ErrorBanner
+          message="Failed to load audit log. Please try again later."
+          onRetry={() => void refetch()}
+        />
       ) : entries.length === 0 ? (
-        <Text c="dimmed" ta="center" mt="xl">
-          No audit log entries found. Adjust filters or perform some configuration changes.
-        </Text>
+        <EmptyState
+          icon={IconFileText}
+          title="No audit log entries"
+          description="Adjust filters or perform some configuration changes."
+        />
       ) : (
         <>
           <Table striped highlightOnHover>

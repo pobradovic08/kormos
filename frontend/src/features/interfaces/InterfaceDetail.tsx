@@ -4,6 +4,7 @@ import {
   Stack,
   Group,
   Text,
+  Title,
   Badge,
   Button,
   Divider,
@@ -23,10 +24,10 @@ interface InterfaceDetailProps {
 function DetailField({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <Group justify="space-between" wrap="nowrap" align="flex-start">
-      <Text size="sm" c="dimmed" style={{ minWidth: 120 }}>
+      <Text c="dimmed" size="sm" w={140}>
         {label}
       </Text>
-      <div style={{ textAlign: 'right' }}>{children}</div>
+      <div style={{ flex: 1, textAlign: 'right' }}>{children}</div>
     </Group>
   );
 }
@@ -65,9 +66,9 @@ export default function InterfaceDetail({
       opened={isOpen}
       onClose={handleClose}
       title={
-        <Text fw={600} size="lg">
+        <Title order={4}>
           {iface.name}
-        </Text>
+        </Title>
       }
       position="right"
       size="md"

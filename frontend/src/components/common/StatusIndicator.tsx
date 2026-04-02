@@ -6,22 +6,20 @@ interface StatusIndicatorProps {
 }
 
 const statusColors: Record<StatusIndicatorProps['status'], string> = {
-  running: '#2F9E44',
-  stopped: '#E03131',
-  disabled: '#ADB5BD',
+  running: 'green.7',
+  stopped: 'red.7',
+  disabled: 'gray.5',
 };
 
 export default function StatusIndicator({ status, label }: StatusIndicatorProps) {
-  const color = statusColors[status];
-
   return (
-    <Group gap={8} wrap="nowrap">
+    <Group gap="xs" wrap="nowrap">
       <Box
+        bg={statusColors[status]}
         style={{
           width: 8,
           height: 8,
           borderRadius: '50%',
-          backgroundColor: color,
           flexShrink: 0,
         }}
       />

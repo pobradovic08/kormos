@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Button, Drawer, Group, Stack, Textarea, Text, Divider } from '@mantine/core';
+import { Button, Drawer, Group, Stack, Textarea, Text, Title, Divider } from '@mantine/core';
+import ConfirmDialog from '../common/ConfirmDialog';
 import { notifications } from '@mantine/notifications';
 import apiClient from '../../api/client';
 import type { CommitResponse, PendingChange } from '../../api/types';
@@ -40,6 +41,7 @@ export default function CommitPanel({ isOpen, onClose }: CommitPanelProps) {
   const [commitMessage, setCommitMessage] = useState('');
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [isCommitting, setIsCommitting] = useState(false);
+  const [confirmDiscardOpen, setConfirmDiscardOpen] = useState(false);
 
   const selectedRouterId = useRouterStore((s) => s.selectedRouterId);
   const getChangesForRouter = useCommitStore((s) => s.getChangesForRouter);
@@ -145,9 +147,9 @@ export default function CommitPanel({ isOpen, onClose }: CommitPanelProps) {
       opened={isOpen}
       onClose={onClose}
       title={
-        <Text fw={700} size="lg">
+        <Title order={4}>
           Review Changes
-        </Text>
+        </Title>
       }
       position="right"
       size="lg"
@@ -191,7 +193,7 @@ export default function CommitPanel({ isOpen, onClose }: CommitPanelProps) {
             <Button
               color="red"
               variant="outline"
-              onClick={handleDiscardAll}
+              onClick={() => setConfirmDiscardOpen(true)}
               disabled={changes.length === 0 || isCommitting}
             >
               Discard All
@@ -207,6 +209,16 @@ export default function CommitPanel({ isOpen, onClose }: CommitPanelProps) {
           </Group>
         </Stack>
       </Stack>
+
+      <ConfirmDialog
+        isOpen={confirmDiscardOpen}
+        onClose={() => setConfirmDiscardOpen(false)}
+        onConfirm={handleDiscardAll}
+        title="Discard All Changes"
+        message="Are you sure you want to discard all pending changes? This action cannot be undone."
+        confirmLabel="Discard All"
+        confirmColor="red"
+      />
     </Drawer>
   );
 }

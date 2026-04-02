@@ -79,7 +79,7 @@ export default function PortalStep({ values, onNext, onBack, serverErrors, disab
     <form onSubmit={form.onSubmit(handleSubmit)}>
       <Stack gap="md">
         <div>
-          <Title order={4}>Portal Settings</Title>
+          <Title order={3}>Portal Settings</Title>
           <Text c="dimmed" size="sm" mt={4}>
             Configure your platform name, timezone, and support contact.
           </Text>

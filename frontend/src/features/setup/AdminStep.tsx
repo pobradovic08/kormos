@@ -108,7 +108,7 @@ export default function AdminStep({
     <form onSubmit={form.onSubmit(handleSubmit)}>
       <Stack gap="md">
         <div>
-          <Title order={4}>Create Admin Account</Title>
+          <Title order={3}>Create Admin Account</Title>
           <Text c="dimmed" size="sm" mt={4}>
             Set up the first administrator account for your platform.
           </Text>

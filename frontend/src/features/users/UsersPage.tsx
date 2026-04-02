@@ -7,8 +7,7 @@ import {
   Badge,
   ActionIcon,
   Text,
-  Loader,
-  Alert,
+  Skeleton,
   Stack,
   Tooltip,
   Modal,
@@ -22,9 +21,12 @@ import {
   IconPlus,
   IconEdit,
   IconTrash,
-  IconAlertCircle,
+  IconUsers,
 } from '@tabler/icons-react';
 import { useUsers, useCreateUser, useUpdateUser, useDeleteUser } from './usersApi';
+import ConfirmDialog from '../../components/common/ConfirmDialog';
+import EmptyState from '../../components/common/EmptyState';
+import ErrorBanner from '../../components/common/ErrorBanner';
 import type { User } from '../../api/types';
 
 const roleOptions = [
@@ -60,7 +62,7 @@ interface EditFormValues {
 }
 
 export default function UsersPage() {
-  const { data: users, isLoading, error } = useUsers();
+  const { data: users, isLoading, error, refetch } = useUsers();
   const createMutation = useCreateUser();
   const updateMutation = useUpdateUser();
   const deleteMutation = useDeleteUser();
@@ -186,25 +188,50 @@ export default function UsersPage() {
 
   if (isLoading) {
     return (
-      <Stack align="center" mt="xl">
-        <Loader size="lg" />
-        <Text c="dimmed">Loading users...</Text>
-      </Stack>
+      <>
+        <Group justify="space-between" mb="md">
+          <Title order={2} mb="lg">Users</Title>
+        </Group>
+        <Table striped>
+          <Table.Thead>
+            <Table.Tr>
+              <Table.Th>Name</Table.Th>
+              <Table.Th>Email</Table.Th>
+              <Table.Th>Role</Table.Th>
+              <Table.Th>Status</Table.Th>
+              <Table.Th>Last Login</Table.Th>
+              <Table.Th>Actions</Table.Th>
+            </Table.Tr>
+          </Table.Thead>
+          <Table.Tbody>
+            {Array.from({ length: 5 }).map((_, i) => (
+              <Table.Tr key={i}>
+                {Array.from({ length: 6 }).map((_, j) => (
+                  <Table.Td key={j}>
+                    <Skeleton height="36px" radius="sm" />
+                  </Table.Td>
+                ))}
+              </Table.Tr>
+            ))}
+          </Table.Tbody>
+        </Table>
+      </>
     );
   }
 
   if (error) {
     return (
-      <Alert icon={<IconAlertCircle size={16} />} title="Error" color="red" mt="md">
-        Failed to load users. Please try again later.
-      </Alert>
+      <ErrorBanner
+        message="Failed to load users. Please try again later."
+        onRetry={() => void refetch()}
+      />
     );
   }
 
   return (
     <>
       <Group justify="space-between" mb="md">
-        <Title order={2}>Users</Title>
+        <Title order={2} mb="lg">Users</Title>
         <Button leftSection={<IconPlus size={16} />} onClick={handleInviteOpen}>
           Invite User
         </Button>
@@ -214,8 +241,8 @@ export default function UsersPage() {
         <Table striped highlightOnHover>
           <Table.Thead>
             <Table.Tr>
-              <Table.Th>Email</Table.Th>
               <Table.Th>Name</Table.Th>
+              <Table.Th>Email</Table.Th>
               <Table.Th>Role</Table.Th>
               <Table.Th>Status</Table.Th>
               <Table.Th>Last Login</Table.Th>
@@ -225,10 +252,10 @@ export default function UsersPage() {
           <Table.Tbody>
             {users.map((user) => (
               <Table.Tr key={user.id}>
+                <Table.Td>{user.name}</Table.Td>
                 <Table.Td>
                   <Text size="sm">{user.email}</Text>
                 </Table.Td>
-                <Table.Td>{user.name}</Table.Td>
                 <Table.Td>
                   <Badge
                     color={roleBadgeColor[user.role] ?? 'gray'}
@@ -281,9 +308,11 @@ export default function UsersPage() {
           </Table.Tbody>
         </Table>
       ) : (
-        <Text c="dimmed" ta="center" mt="xl">
-          No users found. Click "Invite User" to add a team member.
-        </Text>
+        <EmptyState
+          icon={IconUsers}
+          title="No users found"
+          description='Click "Invite User" to add a team member.'
+        />
       )}
 
       {/* Invite User Modal */}
@@ -377,35 +406,20 @@ export default function UsersPage() {
         </form>
       </Modal>
 
-      {/* Delete Confirmation Modal */}
-      <Modal
-        opened={!!deletingUser}
+      {/* Delete Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={!!deletingUser}
         onClose={() => setDeletingUser(null)}
+        onConfirm={handleDeleteConfirm}
         title="Delete User"
-        size="sm"
-      >
-        <Text size="sm">
-          Are you sure you want to delete user{' '}
-          <strong>{deletingUser?.name}</strong> ({deletingUser?.email})? This
-          action cannot be undone.
-        </Text>
-        <Group justify="flex-end" mt="lg">
-          <Button
-            variant="default"
-            onClick={() => setDeletingUser(null)}
-            disabled={deleteMutation.isPending}
-          >
-            Cancel
-          </Button>
-          <Button
-            color="red"
-            onClick={handleDeleteConfirm}
-            loading={deleteMutation.isPending}
-          >
-            Delete
-          </Button>
-        </Group>
-      </Modal>
+        message={
+          deletingUser
+            ? `Are you sure you want to delete user "${deletingUser.name}" (${deletingUser.email})? This action cannot be undone.`
+            : ''
+        }
+        confirmLabel="Delete"
+        confirmColor="red"
+      />
     </>
   );
 }

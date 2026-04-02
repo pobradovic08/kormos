@@ -27,13 +27,15 @@ export default function RouterSelector() {
     const isReachable = router?.is_reachable ?? false;
 
     return (
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--mantine-spacing-xs)' }}>
         <span
           style={{
             width: 8,
             height: 8,
             borderRadius: '50%',
-            backgroundColor: isReachable ? '#40c057' : '#fa5252',
+            backgroundColor: isReachable
+              ? 'var(--mantine-color-green-7)'
+              : 'var(--mantine-color-red-7)',
             flexShrink: 0,
           }}
         />
@@ -44,7 +46,7 @@ export default function RouterSelector() {
 
   return (
     <Select
-      placeholder={isLoading ? 'Loading...' : 'No routers'}
+      placeholder={isLoading ? 'Loading...' : 'Select router'}
       data={options}
       value={selectedRouterId}
       onChange={handleChange}
@@ -54,6 +56,22 @@ export default function RouterSelector() {
       size="xs"
       w={200}
       disabled={isLoading || options.length === 0}
+      styles={{
+        input: {
+          backgroundColor: 'var(--mantine-color-dark-6)',
+          borderColor: 'var(--mantine-color-dark-4)',
+          color: '#ffffff',
+          '&::placeholder': {
+            color: 'var(--mantine-color-dark-2)',
+          },
+          '&:focus': {
+            borderColor: 'var(--mantine-color-blue-6)',
+          },
+        },
+        section: {
+          color: 'var(--mantine-color-dark-2)',
+        },
+      }}
     />
   );
 }
