@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { createBrowserRouter } from 'react-router-dom';
 import { Center, Loader } from '@mantine/core';
@@ -25,10 +26,12 @@ function SetupGuard({ children }: { children: ReactNode }) {
   const setPortalSettings = usePortalStore((s) => s.setPortalSettings);
 
   // Populate portal store when settings are loaded
-  if (portalSettingsQuery.data) {
-    const ps = portalSettingsQuery.data;
-    setPortalSettings(ps.portal_name, ps.default_timezone, ps.support_email);
-  }
+  useEffect(() => {
+    if (portalSettingsQuery.data) {
+      const ps = portalSettingsQuery.data;
+      setPortalSettings(ps.portal_name, ps.default_timezone, ps.support_email);
+    }
+  }, [portalSettingsQuery.data, setPortalSettings]);
 
   if (isLoading) {
     return (

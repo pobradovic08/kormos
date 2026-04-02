@@ -13,13 +13,26 @@ interface CommitPanelProps {
   onClose: () => void;
 }
 
-function mapChangeToOperation(change: PendingChange) {
+function mapChangeToOperation(change: PendingChange, index: number) {
+  const methodMap: Record<string, string> = {
+    add: 'PUT',
+    modify: 'PATCH',
+    delete: 'DELETE',
+  };
+
+  // For PATCH/DELETE, append the resource ID to the path
+  const resourcePath =
+    change.operation !== 'add' && change.resourceId
+      ? `${change.resourcePath}/${change.resourceId}`
+      : change.resourcePath;
+
   return {
+    index,
     module: change.module,
     operation: change.operation,
-    resource_path: change.resourcePath,
-    resource_id: change.resourceId,
-    data: change.after,
+    resource_path: resourcePath,
+    method: methodMap[change.operation] ?? 'PATCH',
+    body: change.after ?? {},
   };
 }
 
@@ -64,7 +77,7 @@ export default function CommitPanel({ isOpen, onClose }: CommitPanelProps) {
       const response = await apiClient.post<CommitResponse>(
         `/routers/${selectedRouterId}/configure`,
         {
-          operations: changes.map(mapChangeToOperation),
+          operations: changes.map((c, i) => mapChangeToOperation(c, i)),
           commit_message: commitMessage || undefined,
         },
       );

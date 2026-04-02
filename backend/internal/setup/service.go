@@ -211,6 +211,11 @@ func (s *Service) CompleteSetup(ctx context.Context, req CompleteSetupRequest) (
 func validateSetupRequest(req CompleteSetupRequest) ValidationErrors {
 	errs := make(ValidationErrors)
 
+	// Admin name.
+	if strings.TrimSpace(req.Admin.Name) == "" {
+		errs["admin.name"] = "Name is required"
+	}
+
 	// Admin email.
 	if !emailRegexp.MatchString(req.Admin.Email) {
 		errs["admin.email"] = "Invalid email format"

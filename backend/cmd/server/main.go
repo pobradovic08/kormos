@@ -75,6 +75,8 @@ func main() {
 		AllowCredentials: true,
 		MaxAge:           300,
 	}))
+	r.Use(middleware.SecurityHeaders)
+	r.Use(middleware.DefaultRateLimit())
 
 	// Setup guard: blocks non-setup routes until initial setup is complete.
 	r.Use(middleware.SetupGuard(setupRepo))
@@ -167,12 +169,4 @@ func main() {
 	}
 
 	log.Println("Server stopped")
-}
-
-// placeholder returns a 501 Not Implemented response for routes that are not
-// yet wired to real handlers.
-func placeholder(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusNotImplemented)
-	w.Write([]byte(`{"error":"not_implemented","message":"This endpoint is not yet implemented"}`))
 }
