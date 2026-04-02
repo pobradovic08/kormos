@@ -21,6 +21,7 @@ import (
 	"github.com/pobradovic08/kormos/backend/internal/interfaces"
 	"github.com/pobradovic08/kormos/backend/internal/middleware"
 	"github.com/pobradovic08/kormos/backend/internal/router"
+	"github.com/pobradovic08/kormos/backend/internal/setup"
 	"github.com/pobradovic08/kormos/backend/internal/tenant"
 	"github.com/pobradovic08/kormos/backend/internal/user"
 )
@@ -36,6 +37,11 @@ func main() {
 		log.Fatalf("Failed to create database pool: %v", err)
 	}
 	defer pool.Close()
+
+	// Setup wizard.
+	setupRepo := setup.NewRepository(pool)
+	setupService := setup.NewService(setupRepo, pool, cfg.JWTSecret, cfg.JWTAccessTTL, cfg.JWTRefreshTTL, cfg.EncryptionKey)
+	setupHandler := setup.NewHandler(setupService)
 
 	authHandler := auth.NewHandler(pool, cfg.JWTSecret, cfg.JWTAccessTTL, cfg.JWTRefreshTTL, cfg.EncryptionKey)
 
@@ -70,6 +76,15 @@ func main() {
 		MaxAge:           300,
 	}))
 
+	// Setup guard: blocks non-setup routes until initial setup is complete.
+	r.Use(middleware.SetupGuard(setupRepo))
+
+	// Public setup routes (no authentication required, exempt from SetupGuard).
+	r.Route("/api/setup", func(r chi.Router) {
+		r.Get("/status", setupHandler.Status)
+		r.Post("/complete", setupHandler.Complete)
+	})
+
 	// Public auth routes (no authentication required)
 	r.Route("/api/auth", func(r chi.Router) {
 		r.Post("/login", authHandler.Login)
@@ -81,6 +96,10 @@ func main() {
 	r.Route("/api", func(r chi.Router) {
 		r.Use(middleware.Auth(cfg.JWTSecret))
 		r.Use(middleware.TenantScope())
+
+		// Portal settings (any authenticated user can read).
+		r.Get("/portal/settings", setupHandler.GetSettings)
+		r.With(middleware.RequireRole("owner")).Put("/portal/settings", setupHandler.UpdateSettings)
 
 		r.Get("/tenant", tenantHandler.Get)
 		r.With(middleware.RequireRole("owner")).Put("/tenant", tenantHandler.Update)

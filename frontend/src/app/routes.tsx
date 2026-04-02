@@ -1,7 +1,9 @@
-import { Navigate } from 'react-router-dom';
+import { Navigate, useLocation } from 'react-router-dom';
 import { createBrowserRouter } from 'react-router-dom';
+import { Center, Loader } from '@mantine/core';
 import AppShellLayout from '../components/shell/AppShell';
 import LoginPage from '../features/auth/LoginPage';
+import SetupWizardPage from '../features/setup/SetupWizardPage';
 import RoutersPage from '../features/routers/RoutersPage';
 import InterfacesPage from '../features/interfaces/InterfacesPage';
 import ConfigureLandingPage from '../features/configure/ConfigureLandingPage';
@@ -10,7 +12,42 @@ import TenantSettingsPage from '../features/tenant/TenantSettingsPage';
 import UsersPage from '../features/users/UsersPage';
 import AuditLogPage from '../features/audit/AuditLogPage';
 import { useAuthStore } from '../stores/useAuthStore';
+import { usePortalStore } from '../stores/usePortalStore';
+import { useSetupStatus, usePortalSettings } from '../features/setup/setupApi';
 import type { ReactNode } from 'react';
+
+function SetupGuard({ children }: { children: ReactNode }) {
+  const location = useLocation();
+  const { data, isLoading } = useSetupStatus();
+  const isSetupComplete = data?.setup_complete ?? false;
+
+  const portalSettingsQuery = usePortalSettings();
+  const setPortalSettings = usePortalStore((s) => s.setPortalSettings);
+
+  // Populate portal store when settings are loaded
+  if (portalSettingsQuery.data) {
+    const ps = portalSettingsQuery.data;
+    setPortalSettings(ps.portal_name, ps.default_timezone, ps.support_email);
+  }
+
+  if (isLoading) {
+    return (
+      <Center h="100vh">
+        <Loader size="lg" />
+      </Center>
+    );
+  }
+
+  if (!isSetupComplete && location.pathname !== '/setup') {
+    return <Navigate to="/setup" replace />;
+  }
+
+  if (isSetupComplete && location.pathname === '/setup') {
+    return <Navigate to="/login" replace />;
+  }
+
+  return <>{children}</>;
+}
 
 function ProtectedRoute({ children }: { children: ReactNode }) {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
@@ -24,15 +61,29 @@ function ProtectedRoute({ children }: { children: ReactNode }) {
 
 export const router = createBrowserRouter([
   {
+    path: '/setup',
+    element: (
+      <SetupGuard>
+        <SetupWizardPage />
+      </SetupGuard>
+    ),
+  },
+  {
     path: '/login',
-    element: <LoginPage />,
+    element: (
+      <SetupGuard>
+        <LoginPage />
+      </SetupGuard>
+    ),
   },
   {
     path: '/',
     element: (
-      <ProtectedRoute>
-        <AppShellLayout />
-      </ProtectedRoute>
+      <SetupGuard>
+        <ProtectedRoute>
+          <AppShellLayout />
+        </ProtectedRoute>
+      </SetupGuard>
     ),
     children: [
       {

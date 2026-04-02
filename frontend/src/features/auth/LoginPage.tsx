@@ -15,10 +15,12 @@ import { useNavigate } from 'react-router-dom';
 import client from '../../api/client';
 import type { LoginResponse } from '../../api/types';
 import { useAuthStore } from '../../stores/useAuthStore';
+import { usePortalStore } from '../../stores/usePortalStore';
 
 export default function LoginPage() {
   const navigate = useNavigate();
   const setAuth = useAuthStore((s) => s.setAuth);
+  const portalName = usePortalStore((s) => s.portalName) || 'Kormos';
   const [loading, setLoading] = useState(false);
 
   const form = useForm({
@@ -63,7 +65,7 @@ export default function LoginPage() {
               Sign in
             </Title>
             <Text c="dimmed" size="sm" ta="center" mt={4}>
-              Sign in to your Kormos account
+              Sign in to your {portalName} account
             </Text>
           </div>
 

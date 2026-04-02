@@ -7,6 +7,7 @@ import RouterSelector from './RouterSelector';
 import CommitButton from './CommitButton';
 import UserMenu from './UserMenu';
 import { modules } from '../../features/configure/moduleConfig';
+import { usePortalStore } from '../../stores/usePortalStore';
 
 const simpleNavLinks = [
   { label: 'Dashboard', to: '/dashboard' },
@@ -19,6 +20,7 @@ export default function AppShellLayout() {
   const location = useLocation();
   const navigate = useNavigate();
   const [commitPanelOpen, setCommitPanelOpen] = useState(false);
+  const portalName = usePortalStore((s) => s.portalName) || 'Kormos';
 
   const isConfigureActive = location.pathname.startsWith('/configure');
 
@@ -34,7 +36,7 @@ export default function AppShellLayout() {
               to="/dashboard"
               style={{ textDecoration: 'none', color: 'inherit' }}
             >
-              Kormos
+              {portalName}
             </Text>
 
             <Group gap="xs">

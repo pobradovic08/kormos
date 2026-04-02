@@ -63,7 +63,22 @@ func main() {
 	}
 }
 
+func portalSettingsExist(ctx context.Context, conn *pgx.Conn) bool {
+	var exists bool
+	err := conn.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM portal_settings)`).Scan(&exists)
+	if err != nil {
+		log.Fatalf("Failed to check portal_settings: %v", err)
+	}
+	return exists
+}
+
 func seedSuperadmin(ctx context.Context, conn *pgx.Conn) {
+	// Check if setup was already completed via the wizard.
+	if portalSettingsExist(ctx, conn) {
+		fmt.Println("Setup already completed via wizard, skipping seed")
+		return
+	}
+
 	// Hash the default password.
 	passwordHash, err := bcrypt.GenerateFromPassword([]byte("admin"), bcrypt.DefaultCost)
 	if err != nil {
@@ -75,6 +90,17 @@ func seedSuperadmin(ctx context.Context, conn *pgx.Conn) {
 		log.Fatalf("Failed to begin transaction: %v", err)
 	}
 	defer tx.Rollback(ctx) //nolint:errcheck
+
+	// Create portal_settings so the wizard considers setup done.
+	_, err = tx.Exec(ctx,
+		`INSERT INTO portal_settings (portal_name, default_timezone, support_email)
+		 VALUES ($1, $2, $3)
+		 ON CONFLICT DO NOTHING`,
+		"Kormos", "UTC", "admin@localhost",
+	)
+	if err != nil {
+		log.Fatalf("Failed to create portal settings: %v", err)
+	}
 
 	// Create the "System" tenant.
 	var tenantID string
@@ -111,10 +137,11 @@ func seedSuperadmin(ctx context.Context, conn *pgx.Conn) {
 
 	fmt.Println("Superadmin seed completed successfully.")
 	fmt.Println()
-	fmt.Printf("  Tenant: System (slug: system, id: %s)\n", tenantID)
-	fmt.Printf("  User:   Super Admin <admin@localhost> (id: %s)\n", userID)
-	fmt.Printf("  Role:   owner\n")
+	fmt.Printf("  Tenant:   System (slug: system, id: %s)\n", tenantID)
+	fmt.Printf("  User:     Super Admin <admin@localhost> (id: %s)\n", userID)
+	fmt.Printf("  Role:     owner\n")
 	fmt.Printf("  Password: admin\n")
+	fmt.Printf("  Portal:   Kormos (timezone: UTC, support: admin@localhost)\n")
 	fmt.Println()
 	fmt.Println("Please change the default password after first login.")
 }
