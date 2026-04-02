@@ -5,5 +5,5 @@ export const theme = createTheme({
   fontFamilyMonospace: "'IBM Plex Mono', monospace",
 
   primaryColor: 'blue',
-  defaultRadius: 'md',
+  defaultRadius: 'xs',
 });

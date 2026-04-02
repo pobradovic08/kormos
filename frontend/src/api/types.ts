@@ -120,9 +120,3 @@ export interface AuditEntry {
   error_details?: string;
   created_at: string;
 }
-
-export interface ApiError {
-  error: string;
-  message: string;
-  details?: Record<string, unknown>;
-}

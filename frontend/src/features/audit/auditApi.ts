@@ -38,7 +38,8 @@ export function useAuditLog(filters: AuditFilters) {
       if (filters.page) params.set('page', String(filters.page));
       if (filters.perPage) params.set('per_page', String(filters.perPage));
 
-      const response = await apiClient.get<AuditResponse>('/audit-log', { params });
+      const qs = params.toString();
+      const response = await apiClient.get<AuditResponse>(`/audit-log${qs ? `?${qs}` : ''}`);
       return response.data;
     },
   });

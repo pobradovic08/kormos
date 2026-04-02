@@ -10,15 +10,15 @@ import {
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import { useNavigate } from 'react-router-dom';
-import { isAxiosError } from 'axios';
+import { ApiError } from '../../api/client';
 import AdminStep from './AdminStep';
 import PortalStep from './PortalStep';
-import CompletionStep from './CompletionStep';
+import { useQueryClient } from '@tanstack/react-query';
 import { useCompleteSetup } from './setupApi';
 import { usePortalStore } from '../../stores/usePortalStore';
+import { useAuthStore } from '../../stores/useAuthStore';
 import type { AdminValues } from './AdminStep';
 import type { PortalValues } from './PortalStep';
-import type { AuthUser } from '../../api/types';
 
 // Map server field paths (e.g. "admin.email") to wizard step index.
 const FIELD_STEP_MAP: Record<string, number> = {
@@ -42,8 +42,10 @@ const FIELD_NAME_MAP: Record<string, string> = {
 
 export default function SetupWizardPage() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const completeSetup = useCompleteSetup();
   const setPortalSettings = usePortalStore((s) => s.setPortalSettings);
+  const setAuth = useAuthStore((s) => s.setAuth);
 
   // T022: Wizard state is in React useState only — no localStorage/sessionStorage.
   const [activeStep, setActiveStep] = useState(0);
@@ -58,10 +60,6 @@ export default function SetupWizardPage() {
     timezone: 'UTC',
     supportEmail: '',
   });
-  const [completionData, setCompletionData] = useState<{
-    user: AuthUser;
-    accessToken: string;
-  } | null>(null);
 
   // T021: Per-step server-side validation errors from 422 responses.
   const [adminServerErrors, setAdminServerErrors] = useState<
@@ -100,21 +98,23 @@ export default function SetupWizardPage() {
       },
       {
         onSuccess: (data) => {
+          // Update setup status cache so SetupGuard won't redirect back
+          queryClient.setQueryData(['setup-status'], { setup_complete: true });
+
           setPortalSettings(
             values.portalName,
             values.timezone,
             values.supportEmail,
           );
-          setCompletionData({
-            user: data.user,
-            accessToken: data.access_token,
-          });
-          setActiveStep(2);
+
+          // Set auth immediately and navigate to dashboard
+          setAuth(data.user, data.access_token);
+          navigate('/dashboard', { replace: true });
         },
         onError: (error) => {
-          if (isAxiosError(error)) {
+          if (error instanceof ApiError) {
             // Setup already completed (409 Conflict).
-            if (error.response?.status === 409) {
+            if (error.status === 409) {
               notifications.show({
                 title: 'Already configured',
                 message:
@@ -126,8 +126,8 @@ export default function SetupWizardPage() {
             }
 
             // T021: Server-side validation errors (422).
-            if (error.response?.status === 422) {
-              const responseData = error.response.data as
+            if (error.status === 422) {
+              const responseData = error.data as
                 | { error: string; fields?: Record<string, string> }
                 | undefined;
               const fields = responseData?.fields;
@@ -176,7 +176,7 @@ export default function SetupWizardPage() {
             }
 
             // T025: Generic server error (500).
-            if (error.response?.status === 500) {
+            if (error.status === 500) {
               notifications.show({
                 title: 'Server error',
                 message:
@@ -248,14 +248,7 @@ export default function SetupWizardPage() {
                 />
               </Stepper.Step>
 
-              <Stepper.Step label="Complete" description="All done">
-                {completionData && (
-                  <CompletionStep
-                    user={completionData.user}
-                    accessToken={completionData.accessToken}
-                  />
-                )}
-              </Stepper.Step>
+              <Stepper.Step label="Complete" description="All done" />
             </Stepper>
           </div>
         </Stack>

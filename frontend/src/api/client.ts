@@ -1,20 +1,20 @@
-import axios from 'axios';
+export class ApiError extends Error {
+  status: number;
+  data: unknown;
 
-const client = axios.create({
-  baseURL: '/api',
-});
-
-client.interceptors.request.use((config) => {
-  const token = localStorage.getItem('access_token');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
+  constructor(status: number, data: unknown) {
+    super(typeof data === 'object' && data !== null && 'message' in data
+      ? String((data as Record<string, unknown>).message)
+      : `Request failed with status ${status}`);
+    this.status = status;
+    this.data = data;
   }
-  return config;
-});
+}
 
 let isRefreshing = false;
+let isRedirecting = false;
 let failedQueue: Array<{
-  resolve: (value: unknown) => void;
+  resolve: (token: string) => void;
   reject: (reason: unknown) => void;
 }> = [];
 
@@ -23,57 +23,110 @@ function processQueue(error: unknown, token: string | null = null) {
     if (error) {
       prom.reject(error);
     } else {
-      prom.resolve(token);
+      prom.resolve(token!);
     }
   });
   failedQueue = [];
 }
 
-client.interceptors.response.use(
-  (response) => response,
-  async (error) => {
-    const originalRequest = error.config;
+async function refreshToken(): Promise<string> {
+  const res = await fetch('/api/auth/refresh', {
+    method: 'POST',
+    credentials: 'include',
+  });
 
-    if (
-      error.response?.status === 401 &&
-      !originalRequest._retry &&
-      !originalRequest.url?.includes('/auth/refresh') &&
-      !originalRequest.url?.includes('/auth/login')
-    ) {
-      if (isRefreshing) {
-        return new Promise((resolve, reject) => {
-          failedQueue.push({ resolve, reject });
-        }).then((token) => {
-          originalRequest.headers.Authorization = `Bearer ${token}`;
-          return client(originalRequest);
-        });
-      }
+  if (!res.ok) {
+    throw new ApiError(res.status, await res.json().catch(() => null));
+  }
 
-      originalRequest._retry = true;
+  const data = await res.json();
+  const newToken = data.access_token;
+  localStorage.setItem('access_token', newToken);
+  return newToken;
+}
+
+async function request<T>(
+  method: string,
+  url: string,
+  body?: unknown,
+): Promise<{ data: T; status: number }> {
+  const fullUrl = url.startsWith('/') ? `/api${url}` : `/api/${url}`;
+  const token = localStorage.getItem('access_token');
+
+  const headers: Record<string, string> = {};
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+  if (body !== undefined && body !== null) {
+    headers['Content-Type'] = 'application/json';
+  }
+
+  const init: RequestInit = {
+    method,
+    headers,
+    credentials: 'include',
+  };
+  if (body !== undefined && body !== null) {
+    init.body = JSON.stringify(body);
+  }
+
+  let res = await fetch(fullUrl, init);
+
+  // Avoid infinite refresh loops on auth endpoints
+  if (
+    res.status === 401 &&
+    !url.includes('/auth/refresh') &&
+    !url.includes('/auth/login')
+  ) {
+    if (isRefreshing) {
+      const newToken = await new Promise<string>((resolve, reject) => {
+        failedQueue.push({ resolve, reject });
+      });
+      headers['Authorization'] = `Bearer ${newToken}`;
+      res = await fetch(fullUrl, { ...init, headers });
+    } else {
       isRefreshing = true;
-
       try {
-        const response = await axios.post('/api/auth/refresh', null, {
-          withCredentials: true,
-        });
-        const { access_token } = response.data;
-        localStorage.setItem('access_token', access_token);
-        originalRequest.headers.Authorization = `Bearer ${access_token}`;
-        processQueue(null, access_token);
-        return client(originalRequest);
+        const newToken = await refreshToken();
+        processQueue(null, newToken);
+        headers['Authorization'] = `Bearer ${newToken}`;
+        res = await fetch(fullUrl, { ...init, headers });
       } catch (refreshError) {
         processQueue(refreshError, null);
         localStorage.removeItem('access_token');
         localStorage.removeItem('auth_user');
-        window.location.href = '/login?message=Session+expired';
-        return Promise.reject(refreshError);
+        if (!isRedirecting) {
+          isRedirecting = true;
+          window.location.href = '/login?message=Session+expired';
+        }
+        throw refreshError;
       } finally {
         isRefreshing = false;
       }
     }
+  }
 
-    return Promise.reject(error);
-  },
-);
+  if (res.status === 204 || res.headers.get('content-length') === '0') {
+    if (!res.ok) throw new ApiError(res.status, null);
+    return { data: null as T, status: res.status };
+  }
 
-export default client;
+  const text = await res.text();
+  const data = text ? JSON.parse(text) : null;
+
+  if (!res.ok) {
+    throw new ApiError(res.status, data);
+  }
+
+  return { data: data as T, status: res.status };
+}
+
+const apiClient = {
+  get: <T = unknown>(url: string) => request<T>('GET', url),
+  post: <T = unknown>(url: string, body?: unknown) => request<T>('POST', url, body),
+  put: <T = unknown>(url: string, body?: unknown) => request<T>('PUT', url, body),
+  patch: <T = unknown>(url: string, body?: unknown) => request<T>('PATCH', url, body),
+  delete: <T = unknown>(url: string) => request<T>('DELETE', url),
+};
+
+export default apiClient;

@@ -22,7 +22,6 @@
     "@mantine/notifications": "^9.0.0",
     "@tabler/icons-react": "^3.41.1",
     "@tanstack/react-query": "^5.96.1",
-    "axios": "^1.14.0",
     "postcss": "^8.5.8",
     "postcss-preset-mantine": "^1.18.0",
     "postcss-simple-vars": "^7.0.1",

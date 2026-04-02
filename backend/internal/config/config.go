@@ -6,6 +6,8 @@ import (
 	"os"
 	"strings"
 	"time"
+
+	"github.com/joho/godotenv"
 )
 
 // Config holds the application configuration loaded from environment variables.
@@ -26,6 +28,9 @@ type Config struct {
 // set or an error is returned. Duration fields fall back to sensible defaults
 // when unset, and CORS_ORIGINS is split on commas.
 func Load() (*Config, error) {
+	// Load .env file if present (does not override existing env vars)
+	_ = godotenv.Load()
+
 	cfg := &Config{
 		JWTAccessTTL:  15 * time.Minute,
 		JWTRefreshTTL: 168 * time.Hour,
