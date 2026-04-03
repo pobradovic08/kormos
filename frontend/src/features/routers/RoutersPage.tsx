@@ -50,7 +50,7 @@ const versionBadgeConfig = {
 function HeaderLabel({ children }: { children: string }) {
   return (
     <Text
-      size="xs"
+      size="sm"
       fw={600}
       c="dimmed"
       tt="uppercase"
@@ -111,7 +111,7 @@ function ClusterRows({
                 <Badge
                   variant="light"
                   color={statusCfg.color}
-                  size="xs"
+                  size="sm"
                   radius="sm"
                   tt="none"
                 >
@@ -121,7 +121,7 @@ function ClusterRows({
                   <Badge
                     variant="light"
                     color={versionCfg.color}
-                    size="xs"
+                    size="sm"
                     radius="sm"
                     tt="none"
                   >
@@ -151,7 +151,7 @@ function ClusterRows({
         </Table.Td>
         <Table.Td />
         <Table.Td>
-          <Badge variant="light" color="blue" size="xs" radius="sm" tt="none">
+          <Badge variant="light" color="blue" size="sm" radius="sm" tt="none">
             HA
           </Badge>
         </Table.Td>
@@ -202,7 +202,7 @@ function ClusterRows({
                 <Badge
                   variant="light"
                   color={router.role === 'master' ? 'green' : 'orange'}
-                  size="xs"
+                  size="sm"
                   radius="sm"
                   tt="none"
                   style={isOnline ? undefined : { opacity: 0.5 }}
@@ -279,7 +279,7 @@ function StandaloneRow({
               <Badge
                 variant="light"
                 color={statusCfg.color}
-                size="xs"
+                size="sm"
                 radius="sm"
                 tt="none"
               >
@@ -289,7 +289,7 @@ function StandaloneRow({
                 <Badge
                   variant="light"
                   color={versionCfg.color}
-                  size="xs"
+                  size="sm"
                   radius="sm"
                   tt="none"
                 >
@@ -323,7 +323,7 @@ function StandaloneRow({
         <Badge
           variant="light"
           color="gray"
-          size="xs"
+          size="sm"
           radius="sm"
           tt="none"
           style={isOnline ? undefined : { opacity: 0.5 }}
