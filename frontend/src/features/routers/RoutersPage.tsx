@@ -10,6 +10,7 @@ import {
   TextInput,
   Badge,
   Box,
+  Menu,
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import {
@@ -20,6 +21,11 @@ import {
   IconChevronRight,
   IconCloudComputing,
   IconPlugConnected,
+  IconPencil,
+  IconTrash,
+  IconCircleCheckFilled,
+  IconCircleXFilled,
+  IconAlertCircleFilled,
 } from '@tabler/icons-react';
 import { useRouters, useDeleteRouter } from './routersApi';
 import {
@@ -52,7 +58,7 @@ const versionBadgeConfig = {
 function HeaderLabel({ children }: { children: string }) {
   return (
     <Text
-      size="sm"
+      size="xs"
       fw={600}
       c="dimmed"
       tt="uppercase"
@@ -69,12 +75,16 @@ function GroupRows({
   onToggle,
   onRowClick,
   onTenantClick,
+  onEdit,
+  onDelete,
 }: {
   group: RouterGroup;
   isCollapsed: boolean;
   onToggle: () => void;
   onRowClick: (router: Router) => void;
   onTenantClick: (tenantName: string) => void;
+  onEdit: (router: Router) => void;
+  onDelete: (router: Router) => void;
 }) {
   const statusCfg = statusBadgeConfig[group.status];
   const versionCfg = group.versionStatus
@@ -96,7 +106,7 @@ function GroupRows({
         }}
         onClick={onToggle}
       >
-        <Table.Td style={{ width: 32, verticalAlign: 'middle', textAlign: 'center' }}>
+        <Table.Td style={{ width: 32, verticalAlign: 'middle', textAlign: 'center', paddingRight: 0 }}>
           <ToggleIcon size={16} color="#495057" style={{ display: 'block', margin: '0 auto' }} />
         </Table.Td>
         <Table.Td>
@@ -124,7 +134,7 @@ function GroupRows({
                 <Text
                   size="xs"
                   fw={600}
-                  c="dark"
+                  c="blue"
                   style={{ cursor: 'pointer' }}
                   onClick={(e: React.MouseEvent) => {
                     e.stopPropagation();
@@ -143,6 +153,19 @@ function GroupRows({
         <Table.Td />
         <Table.Td style={{ textAlign: 'center' }}>
           <Group justify="center">
+            {group.licenseStatus === 'valid' && (
+              <IconCircleCheckFilled size={18} color="var(--mantine-color-green-6)" />
+            )}
+            {group.licenseStatus === 'free' && (
+              <IconCircleXFilled size={18} color="var(--mantine-color-red-6)" />
+            )}
+            {group.licenseStatus === 'mismatch' && (
+              <IconAlertCircleFilled size={18} color="var(--mantine-color-orange-6)" />
+            )}
+          </Group>
+        </Table.Td>
+        <Table.Td style={{ textAlign: 'center' }}>
+          <Group justify="center">
             <Badge variant="light" radius="sm" color={isHA ? 'blue' : 'gray'} size="sm">
               {isHA ? 'HA' : 'Standalone'}
             </Badge>
@@ -150,7 +173,84 @@ function GroupRows({
         </Table.Td>
         <Table.Td />
         <Table.Td />
-        <Table.Td />
+        <Table.Td onClick={(e: React.MouseEvent) => e.stopPropagation()}>
+          <Group gap={6} wrap="nowrap">
+            {isHA ? (
+              <Button.Group>
+                <Button
+                  variant="light"
+                  size="xs"
+                  leftSection={<IconPlugConnected size={14} />}
+                  disabled={group.status === 'offline'}
+                >
+                  Connect
+                </Button>
+                <Menu position="bottom-end">
+                  <Menu.Target>
+                    <Button
+                      variant="light"
+                      size="xs"
+                      style={{ paddingLeft: 6, paddingRight: 6, borderLeft: '1px solid var(--mantine-color-blue-3)' }}
+                    >
+                      <IconChevronDown size={14} />
+                    </Button>
+                  </Menu.Target>
+                  <Menu.Dropdown>
+                    <Menu.Item
+                      fz="xs"
+                      leftSection={<IconPlugConnected size={14} />}
+                      disabled={group.status === 'offline'}
+                    >
+                      Connect secondary
+                    </Menu.Item>
+                  </Menu.Dropdown>
+                </Menu>
+              </Button.Group>
+            ) : (
+              <Button
+                variant="light"
+                size="xs"
+                leftSection={<IconPlugConnected size={14} />}
+                disabled={group.status === 'offline'}
+              >
+                Connect
+              </Button>
+            )}
+            <Button.Group>
+              <Button
+                variant="light"
+                color="gray"
+                size="xs"
+                leftSection={<IconPencil size={14} />}
+                onClick={() => onEdit(group.routers[0])}
+              >
+                Edit
+              </Button>
+              <Menu position="bottom-end">
+                <Menu.Target>
+                  <Button
+                    variant="light"
+                    color="gray"
+                    size="xs"
+                    style={{ paddingLeft: 6, paddingRight: 6, borderLeft: '1px solid var(--mantine-color-gray-4)' }}
+                  >
+                    <IconChevronDown size={14} />
+                  </Button>
+                </Menu.Target>
+                <Menu.Dropdown>
+                  <Menu.Item
+                    fz="xs"
+                    color="red"
+                    leftSection={<IconTrash size={14} />}
+                    onClick={() => onDelete(group.routers[0])}
+                  >
+                    Delete
+                  </Menu.Item>
+                </Menu.Dropdown>
+              </Menu>
+            </Button.Group>
+          </Group>
+        </Table.Td>
       </Table.Tr>
 
       {/* Child Rows */}
@@ -175,22 +275,33 @@ function GroupRows({
             >
               <Table.Td />
               <Table.Td style={{ paddingLeft: 40 }}>
-                <Group gap={8} wrap="nowrap">
+                <Group gap={8} wrap="nowrap" align="flex-start">
                   <Box
                     w={7}
                     h={7}
+                    mt={5}
                     style={{ borderRadius: '50%', flexShrink: 0 }}
                     bg={isOnline ? 'green.7' : 'red.7'}
                   />
-                  <Text size="xs" c={isOnline ? undefined : 'dimmed'}>
-                    {router.hostname}
-                  </Text>
+                  <div>
+                    <Text size="xs" c={isOnline ? undefined : 'dimmed'}>
+                      {router.hostname}
+                    </Text>
+                    <MonoText size="xs" c="dimmed">
+                      {router.host}:{router.port}
+                    </MonoText>
+                  </div>
                 </Group>
               </Table.Td>
               <Table.Td>
-                <MonoText size="xs" c={isOnline ? undefined : 'dimmed'}>
-                  {router.host}:{router.port}
+                <MonoText size="xs" c="dimmed">
+                  {router.serial_number ?? '—'}
                 </MonoText>
+              </Table.Td>
+              <Table.Td style={{ textAlign: 'center' }}>
+                <Text size="xs" c="dimmed">
+                  {router.license_level ?? '—'}
+                </Text>
               </Table.Td>
               <Table.Td style={{ textAlign: 'center' }}>
                 {router.role && (
@@ -207,7 +318,7 @@ function GroupRows({
                   </Group>
                 )}
               </Table.Td>
-              <Table.Td>
+              <Table.Td style={{ textAlign: 'center' }}>
                 {isOnline ? (
                   <MonoText size="xs" c={isVersionOutdated ? 'orange' : 'dimmed'}>
                     {router.routeros_version}
@@ -229,16 +340,7 @@ function GroupRows({
                   </Text>
                 )}
               </Table.Td>
-              <Table.Td onClick={(e: React.MouseEvent) => e.stopPropagation()}>
-                <Button
-                  variant="light"
-                  size="xs"
-                  leftSection={<IconPlugConnected size={14} />}
-                  disabled={!isOnline}
-                >
-                  Connect
-                </Button>
-              </Table.Td>
+              <Table.Td />
             </Table.Tr>
           );
         })}
@@ -356,7 +458,7 @@ export default function RoutersPage() {
           <Table.Tbody>
             {Array.from({ length: 5 }).map((_, i) => (
               <Table.Tr key={i}>
-                {Array.from({ length: 7 }).map((_, j) => (
+                {Array.from({ length: 8 }).map((_, j) => (
                   <Table.Td key={j}>
                     <Skeleton height="36px" radius="sm" />
                   </Table.Td>
@@ -423,14 +525,17 @@ export default function RoutersPage() {
                 <Table.Th>
                   <HeaderLabel>Router</HeaderLabel>
                 </Table.Th>
-                <Table.Th style={{ width: 340 }}>
-                  <HeaderLabel>Address</HeaderLabel>
+                <Table.Th style={{ width: 140 }}>
+                  <HeaderLabel>Serial</HeaderLabel>
+                </Table.Th>
+                <Table.Th style={{ width: 100, textAlign: 'center' }}>
+                  <HeaderLabel>License</HeaderLabel>
                 </Table.Th>
                 <Table.Th style={{ width: 120, textAlign: 'center' }}>
                   <HeaderLabel>Role</HeaderLabel>
                 </Table.Th>
-                <Table.Th style={{ width: 80 }}>
-                  <HeaderLabel>Version</HeaderLabel>
+                <Table.Th style={{ width: 120, textAlign: 'center' }}>
+                  <HeaderLabel>CHR Version</HeaderLabel>
                 </Table.Th>
                 <Table.Th style={{ width: 120 }}>
                   <HeaderLabel>Uptime</HeaderLabel>
@@ -449,11 +554,13 @@ export default function RoutersPage() {
                   onToggle={() => toggleCluster(group.clusterId)}
                   onRowClick={handleRowClick}
                   onTenantClick={handleTenantClick}
+                  onEdit={handleEdit}
+                  onDelete={(router) => setDeleteRouter(router)}
                 />
               ))}
               {groups.length === 0 && search && (
                 <Table.Tr>
-                  <Table.Td colSpan={8}>
+                  <Table.Td colSpan={9}>
                     <Text size="sm" c="dimmed" ta="center" py="lg">
                       No routers match &ldquo;{search}&rdquo;
                     </Text>

@@ -3,6 +3,7 @@ import type { Router } from '../../api/types';
 export const LATEST_ROUTEROS_VERSION = '7.16';
 
 export type VersionStatus = 'up-to-date' | 'needs-update' | 'version-mismatch';
+export type LicenseStatus = 'valid' | 'free' | 'mismatch';
 
 export interface RouterGroup {
   clusterId: string;
@@ -11,6 +12,7 @@ export interface RouterGroup {
   mode: 'ha' | 'standalone';
   status: 'online' | 'degraded' | 'offline';
   versionStatus: VersionStatus | null;
+  licenseStatus: LicenseStatus;
   routers: Router[];
 }
 
@@ -30,6 +32,15 @@ function computeVersionStatus(routers: Router[]): VersionStatus | null {
 
   const version = onlineRouters[0].routeros_version!;
   return version === LATEST_ROUTEROS_VERSION ? 'up-to-date' : 'needs-update';
+}
+
+function computeLicenseStatus(routers: Router[]): LicenseStatus {
+  const licenses = routers.map(r => r.license_level).filter(Boolean);
+  if (licenses.length === 0) return 'free';
+  if (licenses.some(l => l === 'Free')) return 'free';
+  const unique = new Set(licenses);
+  if (unique.size > 1) return 'mismatch';
+  return 'valid';
 }
 
 export function groupRouters(routers: Router[]): RouterGroup[] {
@@ -63,6 +74,7 @@ export function groupRouters(routers: Router[]): RouterGroup[] {
       mode: 'ha',
       status: computeStatus(clusterRouters),
       versionStatus: computeVersionStatus(clusterRouters),
+      licenseStatus: computeLicenseStatus(clusterRouters),
       routers: clusterRouters,
     });
   }
@@ -82,6 +94,7 @@ export function groupRouters(routers: Router[]): RouterGroup[] {
       mode: 'standalone',
       status: router.is_reachable ? 'online' : 'offline',
       versionStatus: computeVersionStatus([router]),
+      licenseStatus: computeLicenseStatus([router]),
       routers: [router],
     });
   }

@@ -43,6 +43,8 @@ export interface Router {
   role?: 'master' | 'backup';
   routeros_version?: string;
   uptime?: string;
+  serial_number?: string;
+  license_level?: string;
 }
 
 export interface RouterStatus {
