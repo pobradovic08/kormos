@@ -111,8 +111,9 @@ function ClusterRows({
                 <Badge
                   variant="light"
                   color={statusCfg.color}
-                  size="sm"
+                  size="xs"
                   radius="sm"
+                  tt="none"
                 >
                   {statusCfg.label}
                 </Badge>
@@ -120,8 +121,9 @@ function ClusterRows({
                   <Badge
                     variant="light"
                     color={versionCfg.color}
-                    size="sm"
+                    size="xs"
                     radius="sm"
+                    tt="none"
                   >
                     {versionCfg.label}
                   </Badge>
@@ -149,7 +151,7 @@ function ClusterRows({
         </Table.Td>
         <Table.Td />
         <Table.Td>
-          <Badge variant="light" color="blue" size="sm" radius="sm">
+          <Badge variant="light" color="blue" size="xs" radius="sm" tt="none">
             HA
           </Badge>
         </Table.Td>
@@ -186,13 +188,13 @@ function ClusterRows({
                     style={{ borderRadius: '50%', flexShrink: 0 }}
                     bg={isOnline ? 'green.7' : 'red.7'}
                   />
-                  <Text size="sm" c={isOnline ? undefined : 'dimmed'}>
+                  <Text size="xs" c={isOnline ? undefined : 'dimmed'}>
                     {router.hostname}
                   </Text>
                 </Group>
               </Table.Td>
               <Table.Td>
-                <MonoText c={isOnline ? undefined : 'dimmed'}>
+                <MonoText size="xs" c={isOnline ? undefined : 'dimmed'}>
                   {router.host}:{router.port}
                 </MonoText>
               </Table.Td>
@@ -200,8 +202,9 @@ function ClusterRows({
                 <Badge
                   variant="light"
                   color={router.role === 'master' ? 'green' : 'orange'}
-                  size="sm"
+                  size="xs"
                   radius="sm"
+                  tt="none"
                   style={isOnline ? undefined : { opacity: 0.5 }}
                 >
                   {router.role === 'master' ? 'Master' : 'Backup'}
@@ -209,11 +212,11 @@ function ClusterRows({
               </Table.Td>
               <Table.Td>
                 {isOnline ? (
-                  <MonoText c={isVersionOutdated ? 'orange' : 'dimmed'}>
+                  <MonoText size="xs" c={isVersionOutdated ? 'orange' : 'dimmed'}>
                     {router.routeros_version}
                   </MonoText>
                 ) : (
-                  <Text size="sm" c="dimmed">
+                  <Text size="xs" c="dimmed">
                     &mdash;
                   </Text>
                 )}
@@ -224,7 +227,7 @@ function ClusterRows({
                     {router.uptime}
                   </Text>
                 ) : (
-                  <Text size="sm" c="dimmed">
+                  <Text size="xs" c="dimmed">
                     &mdash;
                   </Text>
                 )}
@@ -276,8 +279,9 @@ function StandaloneRow({
               <Badge
                 variant="light"
                 color={statusCfg.color}
-                size="sm"
+                size="xs"
                 radius="sm"
+                tt="none"
               >
                 {statusCfg.label}
               </Badge>
@@ -285,8 +289,9 @@ function StandaloneRow({
                 <Badge
                   variant="light"
                   color={versionCfg.color}
-                  size="sm"
+                  size="xs"
                   radius="sm"
+                  tt="none"
                 >
                   {versionCfg.label}
                 </Badge>
@@ -310,7 +315,7 @@ function StandaloneRow({
         </Group>
       </Table.Td>
       <Table.Td>
-        <MonoText c={isOnline ? undefined : 'dimmed'}>
+        <MonoText size="xs" c={isOnline ? undefined : 'dimmed'}>
           {router.host}:{router.port}
         </MonoText>
       </Table.Td>
@@ -318,8 +323,9 @@ function StandaloneRow({
         <Badge
           variant="light"
           color="gray"
-          size="sm"
+          size="xs"
           radius="sm"
+          tt="none"
           style={isOnline ? undefined : { opacity: 0.5 }}
         >
           Standalone
@@ -327,11 +333,11 @@ function StandaloneRow({
       </Table.Td>
       <Table.Td>
         {isOnline ? (
-          <MonoText c={isVersionOutdated ? 'orange' : 'dimmed'}>
+          <MonoText size="xs" c={isVersionOutdated ? 'orange' : 'dimmed'}>
             {router.routeros_version}
           </MonoText>
         ) : (
-          <Text size="sm" c="dimmed">
+          <Text size="xs" c="dimmed">
             &mdash;
           </Text>
         )}
@@ -342,7 +348,7 @@ function StandaloneRow({
             {router.uptime}
           </Text>
         ) : (
-          <Text size="sm" c="dimmed">
+          <Text size="xs" c="dimmed">
             &mdash;
           </Text>
         )}
