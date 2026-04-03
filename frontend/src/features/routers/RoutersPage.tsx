@@ -1,99 +1,435 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   Title,
   Button,
   Group,
   Table,
-  Badge,
-  ActionIcon,
   Text,
   Skeleton,
-  Tooltip,
   Stack,
+  TextInput,
+  Badge,
+  Box,
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import {
   IconPlus,
-  IconEdit,
-  IconTrash,
-  IconRefresh,
+  IconSearch,
   IconRouter,
+  IconChevronDown,
+  IconChevronRight,
+  IconCloudComputing,
 } from '@tabler/icons-react';
-import { useRouters, useDeleteRouter, useRouterStatus } from './routersApi';
+import { useRouters, useDeleteRouter } from './routersApi';
+import {
+  groupRouters,
+  filterGroups,
+  LATEST_ROUTEROS_VERSION,
+} from './routerGrouping';
+import type { ClusterGroup, StandaloneGroup } from './routerGrouping';
 import RouterForm from './RouterForm';
+import RouterDetail from './RouterDetail';
 import ConfirmDialog from '../../components/common/ConfirmDialog';
 import EmptyState from '../../components/common/EmptyState';
 import ErrorBanner from '../../components/common/ErrorBanner';
+import MonoText from '../../components/common/MonoText';
 import type { Router } from '../../api/types';
 
-function StatusCheckButton({ routerId }: { routerId: string }) {
-  const { refetch, isFetching } = useRouterStatus(routerId);
+const statusBadgeConfig = {
+  online: { color: 'green', label: 'Online' },
+  degraded: { color: 'orange', label: 'Degraded' },
+  offline: { color: 'red', label: 'Offline' },
+} as const;
 
+const versionBadgeConfig = {
+  'up-to-date': { color: 'green', label: 'Up to date' },
+  'needs-update': { color: 'yellow', label: 'Needs update' },
+  'version-mismatch': { color: 'orange', label: 'Version mismatch' },
+} as const;
+
+function HeaderLabel({ children }: { children: string }) {
   return (
-    <Tooltip label="Check status">
-      <ActionIcon
-        variant="subtle"
-        color="blue"
-        onClick={() => void refetch()}
-        loading={isFetching}
-        size="sm"
-        aria-label="Check router status"
-      >
-        <IconRefresh size={16} />
-      </ActionIcon>
-    </Tooltip>
+    <Text
+      size="xs"
+      fw={600}
+      c="dimmed"
+      tt="uppercase"
+      style={{ letterSpacing: 0.5 }}
+    >
+      {children}
+    </Text>
   );
 }
 
-function formatLastSeen(lastSeen: string | null): string {
-  if (!lastSeen) return 'Never';
-  const date = new Date(lastSeen);
-  return date.toLocaleString();
+function ClusterRows({
+  cluster,
+  isCollapsed,
+  onToggle,
+  onRowClick,
+  onTenantClick,
+}: {
+  cluster: ClusterGroup;
+  isCollapsed: boolean;
+  onToggle: () => void;
+  onRowClick: (router: Router) => void;
+  onTenantClick: (tenantName: string) => void;
+}) {
+  const statusCfg = statusBadgeConfig[cluster.status];
+  const versionCfg = cluster.versionStatus
+    ? versionBadgeConfig[cluster.versionStatus]
+    : null;
+  const ToggleIcon = isCollapsed ? IconChevronRight : IconChevronDown;
+
+  return (
+    <>
+      {/* HA Parent Row */}
+      <Table.Tr
+        style={{
+          backgroundColor: '#f8f9ff',
+          cursor: 'pointer',
+          borderBottom: isCollapsed
+            ? '1px solid var(--mantine-color-gray-2)'
+            : '1px solid var(--mantine-color-gray-1)',
+        }}
+        onClick={onToggle}
+      >
+        <Table.Td style={{ width: 40, verticalAlign: 'middle' }}>
+          <ToggleIcon size={10} color="#868e96" />
+        </Table.Td>
+        <Table.Td>
+          <Group gap={10} wrap="nowrap">
+            <IconCloudComputing
+              size={18}
+              color="#868e96"
+              style={{ flexShrink: 0 }}
+            />
+            <div>
+              <Group gap={6} wrap="wrap">
+                <Text fw={600} size="sm">
+                  {cluster.clusterName}
+                </Text>
+                <Badge
+                  variant="light"
+                  color={statusCfg.color}
+                  size="sm"
+                  radius="sm"
+                >
+                  {statusCfg.label}
+                </Badge>
+                {versionCfg && (
+                  <Badge
+                    variant="light"
+                    color={versionCfg.color}
+                    size="sm"
+                    radius="sm"
+                  >
+                    {versionCfg.label}
+                  </Badge>
+                )}
+              </Group>
+              <Group gap={4}>
+                <Text
+                  size="xs"
+                  fw={600}
+                  c="dark"
+                  style={{ cursor: 'pointer' }}
+                  onClick={(e: React.MouseEvent) => {
+                    e.stopPropagation();
+                    onTenantClick(cluster.tenantName);
+                  }}
+                >
+                  {cluster.tenantName}
+                </Text>
+                <Text size="xs" c="dimmed">
+                  &middot; {cluster.routers.length} nodes
+                </Text>
+              </Group>
+            </div>
+          </Group>
+        </Table.Td>
+        <Table.Td />
+        <Table.Td>
+          <Badge variant="light" color="blue" size="sm" radius="sm">
+            HA
+          </Badge>
+        </Table.Td>
+        <Table.Td />
+        <Table.Td />
+      </Table.Tr>
+
+      {/* HA Child Rows */}
+      {!isCollapsed &&
+        cluster.routers.map((router, index) => {
+          const isLast = index === cluster.routers.length - 1;
+          const isOnline = router.is_reachable;
+          const isVersionOutdated =
+            isOnline &&
+            router.routeros_version !== LATEST_ROUTEROS_VERSION;
+
+          return (
+            <Table.Tr
+              key={router.id}
+              onClick={() => onRowClick(router)}
+              style={{
+                cursor: 'pointer',
+                borderBottom: isLast
+                  ? '1px solid var(--mantine-color-gray-2)'
+                  : '1px solid var(--mantine-color-gray-1)',
+              }}
+            >
+              <Table.Td />
+              <Table.Td style={{ paddingLeft: 40 }}>
+                <Group gap={8} wrap="nowrap">
+                  <Box
+                    w={7}
+                    h={7}
+                    style={{ borderRadius: '50%', flexShrink: 0 }}
+                    bg={isOnline ? 'green.7' : 'red.7'}
+                  />
+                  <Text size="sm" c={isOnline ? undefined : 'dimmed'}>
+                    {router.hostname}
+                  </Text>
+                </Group>
+              </Table.Td>
+              <Table.Td>
+                <MonoText c={isOnline ? undefined : 'dimmed'}>
+                  {router.host}:{router.port}
+                </MonoText>
+              </Table.Td>
+              <Table.Td>
+                <Badge
+                  variant="light"
+                  color={router.role === 'master' ? 'green' : 'orange'}
+                  size="sm"
+                  radius="sm"
+                  style={isOnline ? undefined : { opacity: 0.5 }}
+                >
+                  {router.role === 'master' ? 'Master' : 'Backup'}
+                </Badge>
+              </Table.Td>
+              <Table.Td>
+                {isOnline ? (
+                  <MonoText c={isVersionOutdated ? 'orange' : 'dimmed'}>
+                    {router.routeros_version}
+                  </MonoText>
+                ) : (
+                  <Text size="sm" c="dimmed">
+                    &mdash;
+                  </Text>
+                )}
+              </Table.Td>
+              <Table.Td>
+                {isOnline ? (
+                  <Text size="xs" c="dimmed">
+                    {router.uptime}
+                  </Text>
+                ) : (
+                  <Text size="sm" c="dimmed">
+                    &mdash;
+                  </Text>
+                )}
+              </Table.Td>
+            </Table.Tr>
+          );
+        })}
+    </>
+  );
+}
+
+function StandaloneRow({
+  group,
+  onRowClick,
+  onTenantClick,
+}: {
+  group: StandaloneGroup;
+  onRowClick: (router: Router) => void;
+  onTenantClick: (tenantName: string) => void;
+}) {
+  const { router, versionStatus } = group;
+  const isOnline = router.is_reachable;
+  const statusCfg = statusBadgeConfig[isOnline ? 'online' : 'offline'];
+  const versionCfg = versionStatus ? versionBadgeConfig[versionStatus] : null;
+  const isVersionOutdated =
+    isOnline && router.routeros_version !== LATEST_ROUTEROS_VERSION;
+
+  return (
+    <Table.Tr
+      onClick={() => onRowClick(router)}
+      style={{
+        cursor: 'pointer',
+        borderBottom: '1px solid var(--mantine-color-gray-2)',
+      }}
+    >
+      <Table.Td style={{ width: 40 }} />
+      <Table.Td>
+        <Group gap={10} wrap="nowrap">
+          <IconCloudComputing
+            size={18}
+            color={isOnline ? '#868e96' : '#adb5bd'}
+            style={{ flexShrink: 0 }}
+          />
+          <div>
+            <Group gap={6} wrap="wrap">
+              <Text fw={500} size="sm" c={isOnline ? undefined : 'dimmed'}>
+                {router.hostname}
+              </Text>
+              <Badge
+                variant="light"
+                color={statusCfg.color}
+                size="sm"
+                radius="sm"
+              >
+                {statusCfg.label}
+              </Badge>
+              {versionCfg && (
+                <Badge
+                  variant="light"
+                  color={versionCfg.color}
+                  size="sm"
+                  radius="sm"
+                >
+                  {versionCfg.label}
+                </Badge>
+              )}
+            </Group>
+            {router.tenant_name && (
+              <Text
+                size="xs"
+                fw={600}
+                c="dark"
+                style={{ cursor: 'pointer' }}
+                onClick={(e: React.MouseEvent) => {
+                  e.stopPropagation();
+                  onTenantClick(router.tenant_name!);
+                }}
+              >
+                {router.tenant_name}
+              </Text>
+            )}
+          </div>
+        </Group>
+      </Table.Td>
+      <Table.Td>
+        <MonoText c={isOnline ? undefined : 'dimmed'}>
+          {router.host}:{router.port}
+        </MonoText>
+      </Table.Td>
+      <Table.Td>
+        <Badge
+          variant="light"
+          color="gray"
+          size="sm"
+          radius="sm"
+          style={isOnline ? undefined : { opacity: 0.5 }}
+        >
+          Standalone
+        </Badge>
+      </Table.Td>
+      <Table.Td>
+        {isOnline ? (
+          <MonoText c={isVersionOutdated ? 'orange' : 'dimmed'}>
+            {router.routeros_version}
+          </MonoText>
+        ) : (
+          <Text size="sm" c="dimmed">
+            &mdash;
+          </Text>
+        )}
+      </Table.Td>
+      <Table.Td>
+        {isOnline ? (
+          <Text size="xs" c="dimmed">
+            {router.uptime}
+          </Text>
+        ) : (
+          <Text size="sm" c="dimmed">
+            &mdash;
+          </Text>
+        )}
+      </Table.Td>
+    </Table.Tr>
+  );
 }
 
 export default function RoutersPage() {
   const { data: routers, isLoading, error, refetch } = useRouters();
   const deleteMutation = useDeleteRouter();
 
-  const [formOpened, setFormOpened] = useState(false);
-  const [editingRouter, setEditingRouter] = useState<Router | null>(null);
-  const [deletingRouter, setDeletingRouter] = useState<Router | null>(null);
+  const [detailRouterId, setDetailRouterId] = useState<string | null>(null);
+  const [formOpen, setFormOpen] = useState(false);
+  const [editRouter, setEditRouter] = useState<Router | null>(null);
+  const [deleteRouter, setDeleteRouter] = useState<Router | null>(null);
+  const [search, setSearch] = useState('');
+  const [collapsedClusters, setCollapsedClusters] = useState<Set<string>>(
+    new Set(),
+  );
+
+  const groups = useMemo(() => {
+    if (!routers) return [];
+    const grouped = groupRouters(routers);
+    return filterGroups(grouped, search);
+  }, [routers, search]);
 
   const handleAdd = () => {
-    setEditingRouter(null);
-    setFormOpened(true);
+    setEditRouter(null);
+    setFormOpen(true);
   };
 
   const handleEdit = (router: Router) => {
-    setEditingRouter(router);
-    setFormOpened(true);
+    setEditRouter(router);
+    setFormOpen(true);
   };
 
   const handleFormClose = () => {
-    setFormOpened(false);
-    setEditingRouter(null);
+    setFormOpen(false);
+    setEditRouter(null);
   };
 
-  const handleDeleteClick = (router: Router) => {
-    setDeletingRouter(router);
+  const handleRowClick = (router: Router) => {
+    setDetailRouterId(router.id);
+  };
+
+  const handleDetailEdit = (router: Router) => {
+    setDetailRouterId(null);
+    handleEdit(router);
+  };
+
+  const handleDetailDelete = (router: Router) => {
+    setDeleteRouter(router);
+  };
+
+  const handleTenantClick = (tenantName: string) => {
+    setSearch(tenantName);
+  };
+
+  const toggleCluster = (clusterId: string) => {
+    setCollapsedClusters((prev) => {
+      const next = new Set(prev);
+      if (next.has(clusterId)) next.delete(clusterId);
+      else next.add(clusterId);
+      return next;
+    });
   };
 
   const handleDeleteConfirm = () => {
-    if (!deletingRouter) return;
-
-    deleteMutation.mutate(deletingRouter.id, {
+    if (!deleteRouter) return;
+    deleteMutation.mutate(deleteRouter.id, {
       onSuccess: () => {
         notifications.show({
           title: 'Router deleted',
-          message: `Router "${deletingRouter.name}" has been deleted.`,
+          message: `Router "${deleteRouter.name}" has been deleted.`,
           color: 'green',
         });
-        setDeletingRouter(null);
+        setDeleteRouter(null);
+        if (detailRouterId === deleteRouter.id) {
+          setDetailRouterId(null);
+        }
       },
       onError: (err) => {
         notifications.show({
           title: 'Error',
-          message: err instanceof Error ? err.message : 'Failed to delete router',
+          message:
+            err instanceof Error ? err.message : 'Failed to delete router',
           color: 'red',
         });
       },
@@ -105,19 +441,21 @@ export default function RoutersPage() {
   if (isLoading) {
     return (
       <>
-        <Stack gap={4} mb="md">
+        <Stack gap={4} mb="lg">
           <Title order={2}>Routers</Title>
-          <Text size="sm" c="dimmed">Manage your MikroTik CHR instances</Text>
+          <Text size="sm" c="dimmed">
+            Manage your MikroTik CHR instances
+          </Text>
         </Stack>
-        <Table striped>
+        <Table>
           <Table.Thead>
             <Table.Tr>
-              <Table.Th>Name</Table.Th>
-              <Table.Th>Hostname</Table.Th>
-              <Table.Th>Host:Port</Table.Th>
-              <Table.Th>Status</Table.Th>
-              <Table.Th>Last Seen</Table.Th>
-              <Table.Th>Actions</Table.Th>
+              <Table.Th style={{ width: 40 }} />
+              <Table.Th>Router</Table.Th>
+              <Table.Th>Address</Table.Th>
+              <Table.Th>Role</Table.Th>
+              <Table.Th>Version</Table.Th>
+              <Table.Th>Uptime</Table.Th>
             </Table.Tr>
           </Table.Thead>
           <Table.Tbody>
@@ -147,10 +485,12 @@ export default function RoutersPage() {
 
   return (
     <>
-      <Group justify="space-between" align="flex-start" mb="md">
+      <Group justify="space-between" align="flex-start" mb="lg">
         <Stack gap={4}>
           <Title order={2}>Routers</Title>
-          <Text size="sm" c="dimmed">Manage your MikroTik CHR instances</Text>
+          <Text size="sm" c="dimmed">
+            Manage your MikroTik CHR instances
+          </Text>
         </Stack>
         {hasRouters && (
           <Button leftSection={<IconPlus size={16} />} onClick={handleAdd}>
@@ -160,76 +500,83 @@ export default function RoutersPage() {
       </Group>
 
       {hasRouters ? (
-        <Table striped highlightOnHover>
-          <Table.Thead>
-            <Table.Tr>
-              <Table.Th>Name</Table.Th>
-              <Table.Th>Hostname</Table.Th>
-              <Table.Th>Host:Port</Table.Th>
-              <Table.Th>Status</Table.Th>
-              <Table.Th>Last Seen</Table.Th>
-              <Table.Th>Actions</Table.Th>
-            </Table.Tr>
-          </Table.Thead>
-          <Table.Tbody>
-            {routers.map((router) => (
-              <Table.Tr key={router.id}>
-                <Table.Td>{router.name}</Table.Td>
-                <Table.Td>
-                  <Text size="sm" c="dimmed">
-                    {router.hostname || '-'}
-                  </Text>
-                </Table.Td>
-                <Table.Td>
-                  <Text size="sm" ff="monospace">
-                    {router.host}:{router.port}
-                  </Text>
-                </Table.Td>
-                <Table.Td>
-                  <Badge
-                    color={router.is_reachable ? 'green' : 'red'}
-                    variant="filled"
-                    size="sm"
-                  >
-                    {router.is_reachable ? 'Online' : 'Offline'}
-                  </Badge>
-                </Table.Td>
-                <Table.Td>
-                  <Text size="sm" c="dimmed">
-                    {formatLastSeen(router.last_seen)}
-                  </Text>
-                </Table.Td>
-                <Table.Td>
-                  <Group gap="xs">
-                    <Tooltip label="Edit">
-                      <ActionIcon
-                        variant="subtle"
-                        color="gray"
-                        onClick={() => handleEdit(router)}
-                        size="sm"
-                        aria-label={`Edit router ${router.name}`}
-                      >
-                        <IconEdit size={16} />
-                      </ActionIcon>
-                    </Tooltip>
-                    <Tooltip label="Delete">
-                      <ActionIcon
-                        variant="subtle"
-                        color="red"
-                        onClick={() => handleDeleteClick(router)}
-                        size="sm"
-                        aria-label={`Delete router ${router.name}`}
-                      >
-                        <IconTrash size={16} />
-                      </ActionIcon>
-                    </Tooltip>
-                    <StatusCheckButton routerId={router.id} />
-                  </Group>
-                </Table.Td>
+        <>
+          <TextInput
+            placeholder="Search by name, hostname, or tenant..."
+            leftSection={<IconSearch size={16} />}
+            value={search}
+            onChange={(e) => setSearch(e.currentTarget.value)}
+            mb="md"
+          />
+
+          <Table
+            style={{
+              borderCollapse: 'collapse',
+              border: '1px solid var(--mantine-color-gray-3)',
+              borderRadius: 4,
+              overflow: 'hidden',
+            }}
+          >
+            <Table.Thead>
+              <Table.Tr
+                style={{
+                  backgroundColor: 'var(--mantine-color-gray-0)',
+                  borderBottom: '1px solid var(--mantine-color-gray-3)',
+                }}
+              >
+                <Table.Th style={{ width: 40 }} />
+                <Table.Th>
+                  <HeaderLabel>Router</HeaderLabel>
+                </Table.Th>
+                <Table.Th>
+                  <HeaderLabel>Address</HeaderLabel>
+                </Table.Th>
+                <Table.Th style={{ width: 110 }}>
+                  <HeaderLabel>Role</HeaderLabel>
+                </Table.Th>
+                <Table.Th style={{ width: 100 }}>
+                  <HeaderLabel>Version</HeaderLabel>
+                </Table.Th>
+                <Table.Th style={{ width: 90 }}>
+                  <HeaderLabel>Uptime</HeaderLabel>
+                </Table.Th>
               </Table.Tr>
-            ))}
-          </Table.Tbody>
-        </Table>
+            </Table.Thead>
+            <Table.Tbody>
+              {groups.map((group) => {
+                if (group.type === 'cluster') {
+                  return (
+                    <ClusterRows
+                      key={group.clusterId}
+                      cluster={group}
+                      isCollapsed={collapsedClusters.has(group.clusterId)}
+                      onToggle={() => toggleCluster(group.clusterId)}
+                      onRowClick={handleRowClick}
+                      onTenantClick={handleTenantClick}
+                    />
+                  );
+                }
+                return (
+                  <StandaloneRow
+                    key={group.router.id}
+                    group={group}
+                    onRowClick={handleRowClick}
+                    onTenantClick={handleTenantClick}
+                  />
+                );
+              })}
+              {groups.length === 0 && search && (
+                <Table.Tr>
+                  <Table.Td colSpan={6}>
+                    <Text size="sm" c="dimmed" ta="center" py="lg">
+                      No routers match &ldquo;{search}&rdquo;
+                    </Text>
+                  </Table.Td>
+                </Table.Tr>
+              )}
+            </Table.Tbody>
+          </Table>
+        </>
       ) : (
         <EmptyState
           icon={IconRouter}
@@ -243,20 +590,28 @@ export default function RoutersPage() {
         />
       )}
 
+      <RouterDetail
+        routerId={detailRouterId}
+        isOpen={!!detailRouterId}
+        onClose={() => setDetailRouterId(null)}
+        onEdit={handleDetailEdit}
+        onDelete={handleDetailDelete}
+      />
+
       <RouterForm
-        opened={formOpened}
+        isOpen={formOpen}
         onClose={handleFormClose}
-        router={editingRouter}
+        router={editRouter}
       />
 
       <ConfirmDialog
-        isOpen={!!deletingRouter}
-        onClose={() => setDeletingRouter(null)}
+        isOpen={!!deleteRouter}
+        onClose={() => setDeleteRouter(null)}
         onConfirm={handleDeleteConfirm}
         title="Delete Router"
         message={
-          deletingRouter
-            ? `Are you sure you want to delete router "${deletingRouter.name}"? This action cannot be undone.`
+          deleteRouter
+            ? `Are you sure you want to delete router '${deleteRouter.name}'? This action cannot be undone.`
             : ''
         }
         confirmLabel="Delete"

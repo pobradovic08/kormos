@@ -4,11 +4,13 @@ import type { ReactNode } from 'react';
 interface MonoTextProps {
   children: ReactNode;
   size?: string;
+  fw?: number;
+  c?: string;
 }
 
-export default function MonoText({ children, size = 'sm' }: MonoTextProps) {
+export default function MonoText({ children, size = 'sm', fw, c }: MonoTextProps) {
   return (
-    <Text size={size} ff="monospace">
+    <Text size={size} ff="monospace" fw={fw} c={c}>
       {children}
     </Text>
   );

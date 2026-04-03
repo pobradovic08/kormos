@@ -1,31 +1,28 @@
-import { Group, Box, Text } from '@mantine/core';
+import { Badge } from '@mantine/core';
 
 interface StatusIndicatorProps {
-  status: 'running' | 'stopped' | 'disabled';
+  status: 'running' | 'stopped' | 'disabled' | 'degraded';
   label?: string;
 }
 
-const statusColors: Record<StatusIndicatorProps['status'], string> = {
-  running: 'green.7',
-  stopped: 'red.7',
-  disabled: 'gray.5',
+const statusConfig: Record<StatusIndicatorProps['status'], { color: string; defaultLabel: string }> = {
+  running: { color: 'green', defaultLabel: 'Online' },
+  stopped: { color: 'red', defaultLabel: 'Offline' },
+  disabled: { color: 'gray', defaultLabel: 'Disabled' },
+  degraded: { color: 'orange', defaultLabel: 'Degraded' },
 };
 
 export default function StatusIndicator({ status, label }: StatusIndicatorProps) {
+  const config = statusConfig[status];
+
   return (
-    <Group gap="xs" wrap="nowrap">
-      <Box
-        bg={statusColors[status]}
-        style={{
-          width: 8,
-          height: 8,
-          borderRadius: '50%',
-          flexShrink: 0,
-        }}
-      />
-      {label && (
-        <Text size="sm">{label}</Text>
-      )}
-    </Group>
+    <Badge
+      variant="light"
+      color={config.color}
+      size="sm"
+      radius="sm"
+    >
+      {label ?? config.defaultLabel}
+    </Badge>
   );
 }

@@ -37,6 +37,12 @@ export interface Router {
   is_reachable: boolean;
   last_seen: string | null;
   created_at: string;
+  tenant_name?: string;
+  cluster_id?: string;
+  cluster_name?: string;
+  role?: 'master' | 'backup';
+  routeros_version?: string;
+  uptime?: string;
 }
 
 export interface RouterStatus {

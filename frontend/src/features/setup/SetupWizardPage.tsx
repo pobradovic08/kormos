@@ -204,7 +204,7 @@ export default function SetupWizardPage() {
 
   return (
     <Center h="100vh" bg="var(--color-bg-primary)">
-      <Card shadow="sm" padding="xl" radius="md" maw={450} w="100%" withBorder>
+      <Card shadow="sm" padding="xl" radius="md" maw={560} w="100%" withBorder>
         <Stack gap="lg">
           <div>
             <Title order={2} ta="center">

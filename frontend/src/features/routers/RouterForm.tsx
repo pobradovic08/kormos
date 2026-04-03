@@ -1,11 +1,19 @@
-import { Modal, TextInput, NumberInput, PasswordInput, Button, Group, Stack } from '@mantine/core';
+import {
+  Modal,
+  TextInput,
+  NumberInput,
+  PasswordInput,
+  Button,
+  Group,
+  Stack,
+} from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { notifications } from '@mantine/notifications';
-import { useCreateRouter, useUpdateRouter } from './routersApi';
+import { useCreateRouter, useUpdateRouter, useRouters } from './routersApi';
 import type { Router } from '../../api/types';
 
 interface RouterFormProps {
-  opened: boolean;
+  isOpen: boolean;
   onClose: () => void;
   router?: Router | null;
 }
@@ -19,10 +27,15 @@ interface FormValues {
   password: string;
 }
 
-export default function RouterForm({ opened, onClose, router }: RouterFormProps) {
+export default function RouterForm({
+  isOpen,
+  onClose,
+  router,
+}: RouterFormProps) {
   const isEditing = !!router;
   const createMutation = useCreateRouter();
   const updateMutation = useUpdateRouter();
+  const { data: routers } = useRouters();
 
   const form = useForm<FormValues>({
     mode: 'uncontrolled',
@@ -35,14 +48,39 @@ export default function RouterForm({ opened, onClose, router }: RouterFormProps)
       password: '',
     },
     validate: {
-      name: (value) => (value.trim().length === 0 ? 'Name is required' : null),
-      host: (value) => (value.trim().length === 0 ? 'Host is required' : null),
-      port: (value) => {
-        if (value < 1 || value > 65535) return 'Port must be between 1 and 65535';
+      name: (value) => {
+        if (value.trim().length === 0) return 'Name is required';
+        // Duplicate name validation on add
+        if (!isEditing && routers) {
+          const duplicate = routers.some(
+            (r) => r.name.toLowerCase() === value.trim().toLowerCase(),
+          );
+          if (duplicate) return 'A router with this name already exists';
+        }
+        // In edit mode, allow same name for the current router
+        if (isEditing && routers && router) {
+          const duplicate = routers.some(
+            (r) =>
+              r.id !== router.id &&
+              r.name.toLowerCase() === value.trim().toLowerCase(),
+          );
+          if (duplicate) return 'A router with this name already exists';
+        }
         return null;
       },
-      username: (value) => (value.trim().length === 0 ? 'Username is required' : null),
-      password: (value) => (value.trim().length === 0 ? 'Password is required' : null),
+      hostname: (value) =>
+        value.trim().length === 0 ? 'Hostname is required' : null,
+      host: (value) =>
+        value.trim().length === 0 ? 'Address is required' : null,
+      port: (value) => {
+        if (value < 1 || value > 65535)
+          return 'Port must be between 1 and 65535';
+        return null;
+      },
+      username: (value) =>
+        value.trim().length === 0 ? 'Username is required' : null,
+      password: (value) =>
+        value.trim().length === 0 ? 'Password is required' : null,
     },
   });
 
@@ -63,7 +101,10 @@ export default function RouterForm({ opened, onClose, router }: RouterFormProps)
           onError: (error) => {
             notifications.show({
               title: 'Error',
-              message: error instanceof Error ? error.message : 'Failed to update router',
+              message:
+                error instanceof Error
+                  ? error.message
+                  : 'Failed to update router',
               color: 'red',
             });
           },
@@ -83,7 +124,10 @@ export default function RouterForm({ opened, onClose, router }: RouterFormProps)
         onError: (error) => {
           notifications.show({
             title: 'Error',
-            message: error instanceof Error ? error.message : 'Failed to create router',
+            message:
+              error instanceof Error
+                ? error.message
+                : 'Failed to create router',
             color: 'red',
           });
         },
@@ -95,29 +139,31 @@ export default function RouterForm({ opened, onClose, router }: RouterFormProps)
 
   return (
     <Modal
-      opened={opened}
+      opened={isOpen}
       onClose={onClose}
       title={isEditing ? 'Edit Router' : 'Add Router'}
       size="md"
+      centered
     >
       <form onSubmit={form.onSubmit(handleSubmit)}>
-        <Stack gap="sm">
+        <Stack gap="md">
           <TextInput
-            label="Name"
-            placeholder="my-router"
+            label="Router Name"
+            placeholder="e.g., edge-gw-01"
             withAsterisk
             key={form.key('name')}
             {...form.getInputProps('name')}
           />
           <TextInput
             label="Hostname"
-            placeholder="router.example.com"
+            placeholder="e.g., edge-gw-01.dc1.local"
+            withAsterisk
             key={form.key('hostname')}
             {...form.getInputProps('hostname')}
           />
           <TextInput
-            label="Host"
-            placeholder="192.168.1.1"
+            label="Address"
+            placeholder="IP address or FQDN, e.g., 10.0.1.1"
             withAsterisk
             key={form.key('host')}
             {...form.getInputProps('host')}
@@ -127,29 +173,31 @@ export default function RouterForm({ opened, onClose, router }: RouterFormProps)
             placeholder="443"
             min={1}
             max={65535}
+            withAsterisk
             key={form.key('port')}
             {...form.getInputProps('port')}
           />
           <TextInput
-            label="Username"
+            label="API Username"
             placeholder="admin"
             withAsterisk
             key={form.key('username')}
             {...form.getInputProps('username')}
           />
           <PasswordInput
-            label="Password"
+            label="API Password"
             placeholder="Enter password"
             withAsterisk
             key={form.key('password')}
             {...form.getInputProps('password')}
+            styles={{ innerInput: { fontSize: 'var(--mantine-font-size-sm)' } }}
           />
           <Group justify="flex-end" mt="md">
             <Button variant="default" onClick={onClose} disabled={isPending}>
               Cancel
             </Button>
-            <Button type="submit" loading={isPending}>
-              {isEditing ? 'Update' : 'Create'}
+            <Button type="submit" variant="filled" loading={isPending}>
+              {isEditing ? 'Save Changes' : 'Add Router'}
             </Button>
           </Group>
         </Stack>
