@@ -47,6 +47,11 @@ const versionBadgeConfig = {
   'version-mismatch': { color: 'orange', label: 'Version mismatch' },
 } as const;
 
+const badgeStyles = {
+  root: { height: 'auto', padding: '2px 6px', borderRadius: 3 },
+  label: { fontSize: 10, fontWeight: 600, textTransform: 'none' as const },
+};
+
 function HeaderLabel({ children }: { children: string }) {
   return (
     <Text
@@ -108,23 +113,11 @@ function ClusterRows({
                 <Text fw={600} size="sm">
                   {cluster.clusterName}
                 </Text>
-                <Badge
-                  variant="light"
-                  color={statusCfg.color}
-                  size="sm"
-                  radius="sm"
-                  tt="none"
-                >
+                <Badge variant="light" color={statusCfg.color} styles={badgeStyles}>
                   {statusCfg.label}
                 </Badge>
                 {versionCfg && (
-                  <Badge
-                    variant="light"
-                    color={versionCfg.color}
-                    size="sm"
-                    radius="sm"
-                    tt="none"
-                  >
+                  <Badge variant="light" color={versionCfg.color} styles={badgeStyles}>
                     {versionCfg.label}
                   </Badge>
                 )}
@@ -151,7 +144,7 @@ function ClusterRows({
         </Table.Td>
         <Table.Td />
         <Table.Td>
-          <Badge variant="light" color="blue" size="sm" radius="sm" tt="none">
+          <Badge variant="light" color="blue" styles={badgeStyles}>
             HA
           </Badge>
         </Table.Td>
@@ -202,9 +195,7 @@ function ClusterRows({
                 <Badge
                   variant="light"
                   color={router.role === 'master' ? 'green' : 'orange'}
-                  size="sm"
-                  radius="sm"
-                  tt="none"
+                  styles={badgeStyles}
                   style={isOnline ? undefined : { opacity: 0.5 }}
                 >
                   {router.role === 'master' ? 'Master' : 'Backup'}
@@ -276,23 +267,11 @@ function StandaloneRow({
               <Text fw={500} size="sm" c={isOnline ? undefined : 'dimmed'}>
                 {router.hostname}
               </Text>
-              <Badge
-                variant="light"
-                color={statusCfg.color}
-                size="sm"
-                radius="sm"
-                tt="none"
-              >
+              <Badge variant="light" color={statusCfg.color} styles={badgeStyles}>
                 {statusCfg.label}
               </Badge>
               {versionCfg && (
-                <Badge
-                  variant="light"
-                  color={versionCfg.color}
-                  size="sm"
-                  radius="sm"
-                  tt="none"
-                >
+                <Badge variant="light" color={versionCfg.color} styles={badgeStyles}>
                   {versionCfg.label}
                 </Badge>
               )}
@@ -323,9 +302,7 @@ function StandaloneRow({
         <Badge
           variant="light"
           color="gray"
-          size="sm"
-          radius="sm"
-          tt="none"
+          styles={badgeStyles}
           style={isOnline ? undefined : { opacity: 0.5 }}
         >
           Standalone
