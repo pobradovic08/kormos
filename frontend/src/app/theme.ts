@@ -6,4 +6,12 @@ export const theme = createTheme({
 
   primaryColor: 'blue',
   defaultRadius: 'xs',
+
+  components: {
+    Button: {
+      defaultProps: {
+        radius: 'sm',
+      },
+    },
+  },
 });

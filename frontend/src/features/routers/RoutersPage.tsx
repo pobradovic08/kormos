@@ -19,6 +19,7 @@ import {
   IconChevronDown,
   IconChevronRight,
   IconCloudComputing,
+  IconPlugConnected,
 } from '@tabler/icons-react';
 import { useRouters, useDeleteRouter } from './routersApi';
 import {
@@ -26,7 +27,7 @@ import {
   filterGroups,
   LATEST_ROUTEROS_VERSION,
 } from './routerGrouping';
-import type { ClusterGroup, StandaloneGroup } from './routerGrouping';
+import type { RouterGroup } from './routerGrouping';
 import RouterForm from './RouterForm';
 import RouterDetail from './RouterDetail';
 import ConfirmDialog from '../../components/common/ConfirmDialog';
@@ -47,10 +48,6 @@ const versionBadgeConfig = {
   'version-mismatch': { color: 'orange', label: 'Version mismatch' },
 } as const;
 
-const badgeStyles = {
-  root: { height: 'auto', padding: '2px 6px', borderRadius: 3 },
-  label: { fontSize: 10, fontWeight: 600, textTransform: 'none' as const },
-};
 
 function HeaderLabel({ children }: { children: string }) {
   return (
@@ -66,31 +63,32 @@ function HeaderLabel({ children }: { children: string }) {
   );
 }
 
-function ClusterRows({
-  cluster,
+function GroupRows({
+  group,
   isCollapsed,
   onToggle,
   onRowClick,
   onTenantClick,
 }: {
-  cluster: ClusterGroup;
+  group: RouterGroup;
   isCollapsed: boolean;
   onToggle: () => void;
   onRowClick: (router: Router) => void;
   onTenantClick: (tenantName: string) => void;
 }) {
-  const statusCfg = statusBadgeConfig[cluster.status];
-  const versionCfg = cluster.versionStatus
-    ? versionBadgeConfig[cluster.versionStatus]
+  const statusCfg = statusBadgeConfig[group.status];
+  const versionCfg = group.versionStatus
+    ? versionBadgeConfig[group.versionStatus]
     : null;
   const ToggleIcon = isCollapsed ? IconChevronRight : IconChevronDown;
+  const isHA = group.mode === 'ha';
 
   return (
     <>
-      {/* HA Parent Row */}
+      {/* Parent Row */}
       <Table.Tr
         style={{
-          backgroundColor: '#f8f9ff',
+          backgroundColor: 'var(--mantine-color-gray-0)',
           cursor: 'pointer',
           borderBottom: isCollapsed
             ? '1px solid var(--mantine-color-gray-2)'
@@ -98,8 +96,8 @@ function ClusterRows({
         }}
         onClick={onToggle}
       >
-        <Table.Td style={{ width: 40, verticalAlign: 'middle' }}>
-          <ToggleIcon size={10} color="#868e96" />
+        <Table.Td style={{ width: 32, verticalAlign: 'middle', textAlign: 'center' }}>
+          <ToggleIcon size={16} color="#495057" style={{ display: 'block', margin: '0 auto' }} />
         </Table.Td>
         <Table.Td>
           <Group gap={10} wrap="nowrap">
@@ -111,13 +109,13 @@ function ClusterRows({
             <div>
               <Group gap={6} wrap="wrap">
                 <Text fw={600} size="sm">
-                  {cluster.clusterName}
+                  {group.clusterName}
                 </Text>
-                <Badge variant="light" color={statusCfg.color} styles={badgeStyles}>
+                <Badge variant="light" radius="sm" color={statusCfg.color} size="sm">
                   {statusCfg.label}
                 </Badge>
                 {versionCfg && (
-                  <Badge variant="light" color={versionCfg.color} styles={badgeStyles}>
+                  <Badge variant="light" radius="sm" color={versionCfg.color} size="sm">
                     {versionCfg.label}
                   </Badge>
                 )}
@@ -130,32 +128,35 @@ function ClusterRows({
                   style={{ cursor: 'pointer' }}
                   onClick={(e: React.MouseEvent) => {
                     e.stopPropagation();
-                    onTenantClick(cluster.tenantName);
+                    onTenantClick(group.tenantName);
                   }}
                 >
-                  {cluster.tenantName}
+                  {group.tenantName}
                 </Text>
                 <Text size="xs" c="dimmed">
-                  &middot; {cluster.routers.length} nodes
+                  &middot; {group.routers.length} {group.routers.length === 1 ? 'node' : 'nodes'}
                 </Text>
               </Group>
             </div>
           </Group>
         </Table.Td>
         <Table.Td />
-        <Table.Td>
-          <Badge variant="light" color="blue" styles={badgeStyles}>
-            HA
-          </Badge>
+        <Table.Td style={{ textAlign: 'center' }}>
+          <Group justify="center">
+            <Badge variant="light" radius="sm" color={isHA ? 'blue' : 'gray'} size="sm">
+              {isHA ? 'HA' : 'Standalone'}
+            </Badge>
+          </Group>
         </Table.Td>
+        <Table.Td />
         <Table.Td />
         <Table.Td />
       </Table.Tr>
 
-      {/* HA Child Rows */}
+      {/* Child Rows */}
       {!isCollapsed &&
-        cluster.routers.map((router, index) => {
-          const isLast = index === cluster.routers.length - 1;
+        group.routers.map((router, index) => {
+          const isLast = index === group.routers.length - 1;
           const isOnline = router.is_reachable;
           const isVersionOutdated =
             isOnline &&
@@ -191,15 +192,20 @@ function ClusterRows({
                   {router.host}:{router.port}
                 </MonoText>
               </Table.Td>
-              <Table.Td>
-                <Badge
-                  variant="light"
-                  color={router.role === 'master' ? 'green' : 'orange'}
-                  styles={badgeStyles}
-                  style={isOnline ? undefined : { opacity: 0.5 }}
-                >
-                  {router.role === 'master' ? 'Master' : 'Backup'}
-                </Badge>
+              <Table.Td style={{ textAlign: 'center' }}>
+                {router.role && (
+                  <Group justify="center">
+                    <Badge
+                      variant="light"
+                      radius="sm"
+                      color={router.role === 'master' ? 'green' : 'orange'}
+                      size="sm"
+                      style={isOnline ? undefined : { opacity: 0.5 }}
+                    >
+                      {router.role === 'master' ? 'Master' : 'Backup'}
+                    </Badge>
+                  </Group>
+                )}
               </Table.Td>
               <Table.Td>
                 {isOnline ? (
@@ -223,114 +229,20 @@ function ClusterRows({
                   </Text>
                 )}
               </Table.Td>
+              <Table.Td onClick={(e: React.MouseEvent) => e.stopPropagation()}>
+                <Button
+                  variant="light"
+                  size="xs"
+                  leftSection={<IconPlugConnected size={14} />}
+                  disabled={!isOnline}
+                >
+                  Connect
+                </Button>
+              </Table.Td>
             </Table.Tr>
           );
         })}
     </>
-  );
-}
-
-function StandaloneRow({
-  group,
-  onRowClick,
-  onTenantClick,
-}: {
-  group: StandaloneGroup;
-  onRowClick: (router: Router) => void;
-  onTenantClick: (tenantName: string) => void;
-}) {
-  const { router, versionStatus } = group;
-  const isOnline = router.is_reachable;
-  const statusCfg = statusBadgeConfig[isOnline ? 'online' : 'offline'];
-  const versionCfg = versionStatus ? versionBadgeConfig[versionStatus] : null;
-  const isVersionOutdated =
-    isOnline && router.routeros_version !== LATEST_ROUTEROS_VERSION;
-
-  return (
-    <Table.Tr
-      onClick={() => onRowClick(router)}
-      style={{
-        cursor: 'pointer',
-        borderBottom: '1px solid var(--mantine-color-gray-2)',
-      }}
-    >
-      <Table.Td style={{ width: 40 }} />
-      <Table.Td>
-        <Group gap={10} wrap="nowrap">
-          <IconCloudComputing
-            size={18}
-            color={isOnline ? '#868e96' : '#adb5bd'}
-            style={{ flexShrink: 0 }}
-          />
-          <div>
-            <Group gap={6} wrap="wrap">
-              <Text fw={500} size="sm" c={isOnline ? undefined : 'dimmed'}>
-                {router.hostname}
-              </Text>
-              <Badge variant="light" color={statusCfg.color} styles={badgeStyles}>
-                {statusCfg.label}
-              </Badge>
-              {versionCfg && (
-                <Badge variant="light" color={versionCfg.color} styles={badgeStyles}>
-                  {versionCfg.label}
-                </Badge>
-              )}
-            </Group>
-            {router.tenant_name && (
-              <Text
-                size="xs"
-                fw={600}
-                c="dark"
-                style={{ cursor: 'pointer' }}
-                onClick={(e: React.MouseEvent) => {
-                  e.stopPropagation();
-                  onTenantClick(router.tenant_name!);
-                }}
-              >
-                {router.tenant_name}
-              </Text>
-            )}
-          </div>
-        </Group>
-      </Table.Td>
-      <Table.Td>
-        <MonoText size="xs" c={isOnline ? undefined : 'dimmed'}>
-          {router.host}:{router.port}
-        </MonoText>
-      </Table.Td>
-      <Table.Td>
-        <Badge
-          variant="light"
-          color="gray"
-          styles={badgeStyles}
-          style={isOnline ? undefined : { opacity: 0.5 }}
-        >
-          Standalone
-        </Badge>
-      </Table.Td>
-      <Table.Td>
-        {isOnline ? (
-          <MonoText size="xs" c={isVersionOutdated ? 'orange' : 'dimmed'}>
-            {router.routeros_version}
-          </MonoText>
-        ) : (
-          <Text size="xs" c="dimmed">
-            &mdash;
-          </Text>
-        )}
-      </Table.Td>
-      <Table.Td>
-        {isOnline ? (
-          <Text size="xs" c="dimmed">
-            {router.uptime}
-          </Text>
-        ) : (
-          <Text size="xs" c="dimmed">
-            &mdash;
-          </Text>
-        )}
-      </Table.Td>
-    </Table.Tr>
   );
 }
 
@@ -444,7 +356,7 @@ export default function RoutersPage() {
           <Table.Tbody>
             {Array.from({ length: 5 }).map((_, i) => (
               <Table.Tr key={i}>
-                {Array.from({ length: 6 }).map((_, j) => (
+                {Array.from({ length: 7 }).map((_, j) => (
                   <Table.Td key={j}>
                     <Skeleton height="36px" radius="sm" />
                   </Table.Td>
@@ -507,50 +419,41 @@ export default function RoutersPage() {
                   borderBottom: '1px solid var(--mantine-color-gray-3)',
                 }}
               >
-                <Table.Th style={{ width: 40 }} />
+                <Table.Th style={{ width: 32 }} />
                 <Table.Th>
                   <HeaderLabel>Router</HeaderLabel>
                 </Table.Th>
-                <Table.Th>
+                <Table.Th style={{ width: 340 }}>
                   <HeaderLabel>Address</HeaderLabel>
                 </Table.Th>
-                <Table.Th style={{ width: 110 }}>
+                <Table.Th style={{ width: 120, textAlign: 'center' }}>
                   <HeaderLabel>Role</HeaderLabel>
                 </Table.Th>
-                <Table.Th style={{ width: 100 }}>
+                <Table.Th style={{ width: 80 }}>
                   <HeaderLabel>Version</HeaderLabel>
                 </Table.Th>
-                <Table.Th style={{ width: 90 }}>
+                <Table.Th style={{ width: 120 }}>
                   <HeaderLabel>Uptime</HeaderLabel>
+                </Table.Th>
+                <Table.Th style={{ width: 100 }}>
+                  <HeaderLabel>Actions</HeaderLabel>
                 </Table.Th>
               </Table.Tr>
             </Table.Thead>
             <Table.Tbody>
-              {groups.map((group) => {
-                if (group.type === 'cluster') {
-                  return (
-                    <ClusterRows
-                      key={group.clusterId}
-                      cluster={group}
-                      isCollapsed={collapsedClusters.has(group.clusterId)}
-                      onToggle={() => toggleCluster(group.clusterId)}
-                      onRowClick={handleRowClick}
-                      onTenantClick={handleTenantClick}
-                    />
-                  );
-                }
-                return (
-                  <StandaloneRow
-                    key={group.router.id}
-                    group={group}
-                    onRowClick={handleRowClick}
-                    onTenantClick={handleTenantClick}
-                  />
-                );
-              })}
+              {groups.map((group) => (
+                <GroupRows
+                  key={group.clusterId}
+                  group={group}
+                  isCollapsed={collapsedClusters.has(group.clusterId)}
+                  onToggle={() => toggleCluster(group.clusterId)}
+                  onRowClick={handleRowClick}
+                  onTenantClick={handleTenantClick}
+                />
+              ))}
               {groups.length === 0 && search && (
                 <Table.Tr>
-                  <Table.Td colSpan={6}>
+                  <Table.Td colSpan={8}>
                     <Text size="sm" c="dimmed" ta="center" py="lg">
                       No routers match &ldquo;{search}&rdquo;
                     </Text>
