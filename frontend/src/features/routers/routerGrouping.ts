@@ -4,6 +4,7 @@ export const LATEST_ROUTEROS_VERSION = '7.16';
 
 export type VersionStatus = 'up-to-date' | 'needs-update' | 'version-mismatch';
 export type LicenseStatus = 'valid' | 'free' | 'mismatch';
+export type BackupStatus = 'recent' | 'stale' | 'old' | 'none';
 
 export interface RouterGroup {
   clusterId: string;
@@ -13,6 +14,7 @@ export interface RouterGroup {
   status: 'online' | 'degraded' | 'offline';
   versionStatus: VersionStatus | null;
   licenseStatus: LicenseStatus;
+  backupStatus: BackupStatus;
   routers: Router[];
 }
 
@@ -41,6 +43,18 @@ function computeLicenseStatus(routers: Router[]): LicenseStatus {
   const unique = new Set(licenses);
   if (unique.size > 1) return 'mismatch';
   return 'valid';
+}
+
+function computeBackupStatus(routers: Router[]): BackupStatus {
+  const backups = routers.map(r => r.last_config_backup).filter(Boolean) as string[];
+  if (backups.length === 0) return 'none';
+  const now = Date.now();
+  const oldest = Math.max(...backups.map(b => now - new Date(b).getTime()));
+  const threeHours = 3 * 3600000;
+  const twentyFourHours = 24 * 3600000;
+  if (oldest <= threeHours) return 'recent';
+  if (oldest <= twentyFourHours) return 'stale';
+  return 'old';
 }
 
 export function groupRouters(routers: Router[]): RouterGroup[] {
@@ -75,6 +89,7 @@ export function groupRouters(routers: Router[]): RouterGroup[] {
       status: computeStatus(clusterRouters),
       versionStatus: computeVersionStatus(clusterRouters),
       licenseStatus: computeLicenseStatus(clusterRouters),
+      backupStatus: computeBackupStatus(clusterRouters),
       routers: clusterRouters,
     });
   }
@@ -95,6 +110,7 @@ export function groupRouters(routers: Router[]): RouterGroup[] {
       status: router.is_reachable ? 'online' : 'offline',
       versionStatus: computeVersionStatus([router]),
       licenseStatus: computeLicenseStatus([router]),
+      backupStatus: computeBackupStatus([router]),
       routers: [router],
     });
   }

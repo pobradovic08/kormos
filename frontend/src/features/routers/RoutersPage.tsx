@@ -11,6 +11,8 @@ import {
   Badge,
   Box,
   Menu,
+  ActionIcon,
+  Tooltip,
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import {
@@ -23,9 +25,11 @@ import {
   IconPlugConnected,
   IconPencil,
   IconTrash,
-  IconCircleCheckFilled,
-  IconCircleXFilled,
-  IconAlertCircleFilled,
+  IconCircleCheck,
+  IconCircleX,
+  IconAlertCircle,
+  IconDeviceFloppy,
+  IconDownload,
 } from '@tabler/icons-react';
 import { useRouters, useDeleteRouter } from './routersApi';
 import {
@@ -40,6 +44,7 @@ import ConfirmDialog from '../../components/common/ConfirmDialog';
 import EmptyState from '../../components/common/EmptyState';
 import ErrorBanner from '../../components/common/ErrorBanner';
 import MonoText from '../../components/common/MonoText';
+import { relativeTime } from '../../utils/relativeTime';
 import type { Router } from '../../api/types';
 
 const statusBadgeConfig = {
@@ -150,17 +155,16 @@ function GroupRows({
             </div>
           </Group>
         </Table.Td>
-        <Table.Td />
         <Table.Td style={{ textAlign: 'center' }}>
           <Group justify="center">
             {group.licenseStatus === 'valid' && (
-              <IconCircleCheckFilled size={18} color="var(--mantine-color-green-6)" />
+              <IconCircleCheck size={18} color="var(--mantine-color-green-6)" />
             )}
             {group.licenseStatus === 'free' && (
-              <IconCircleXFilled size={18} color="var(--mantine-color-red-6)" />
+              <IconCircleX size={18} color="var(--mantine-color-red-6)" />
             )}
             {group.licenseStatus === 'mismatch' && (
-              <IconAlertCircleFilled size={18} color="var(--mantine-color-orange-6)" />
+              <IconAlertCircle size={18} color="var(--mantine-color-orange-6)" />
             )}
           </Group>
         </Table.Td>
@@ -171,8 +175,33 @@ function GroupRows({
             </Badge>
           </Group>
         </Table.Td>
+        <Table.Td style={{ textAlign: 'center' }}>
+          <Group justify="center">
+            {versionCfg && versionCfg.color === 'green' && (
+              <IconCircleCheck size={18} color="var(--mantine-color-green-6)" />
+            )}
+            {versionCfg && versionCfg.color === 'yellow' && (
+              <IconAlertCircle size={18} color="var(--mantine-color-orange-6)" />
+            )}
+            {versionCfg && versionCfg.color === 'orange' && (
+              <IconCircleX size={18} color="var(--mantine-color-red-6)" />
+            )}
+          </Group>
+        </Table.Td>
         <Table.Td />
-        <Table.Td />
+        <Table.Td style={{ textAlign: 'center' }}>
+          <Group justify="center">
+            {group.backupStatus === 'recent' && (
+              <IconCircleCheck size={18} color="var(--mantine-color-green-6)" />
+            )}
+            {group.backupStatus === 'stale' && (
+              <IconAlertCircle size={18} color="var(--mantine-color-orange-6)" />
+            )}
+            {(group.backupStatus === 'old' || group.backupStatus === 'none') && (
+              <IconCircleX size={18} color="var(--mantine-color-red-6)" />
+            )}
+          </Group>
+        </Table.Td>
         <Table.Td onClick={(e: React.MouseEvent) => e.stopPropagation()}>
           <Group gap={6} wrap="nowrap">
             {isHA ? (
@@ -293,15 +322,13 @@ function GroupRows({
                   </div>
                 </Group>
               </Table.Td>
-              <Table.Td>
-                <MonoText size="xs" c="dimmed">
-                  {router.serial_number ?? '—'}
-                </MonoText>
-              </Table.Td>
               <Table.Td style={{ textAlign: 'center' }}>
-                <Text size="xs" c="dimmed">
+                <Text size="xs" fw={600} c="dimmed">
                   {router.license_level ?? '—'}
                 </Text>
+                <MonoText size="xs" c="dimmed">
+                  {router.serial_number ?? ''}
+                </MonoText>
               </Table.Td>
               <Table.Td style={{ textAlign: 'center' }}>
                 {router.role && (
@@ -340,7 +367,25 @@ function GroupRows({
                   </Text>
                 )}
               </Table.Td>
-              <Table.Td />
+              <Table.Td style={{ textAlign: 'center' }}>
+                <Text size="xs" c="dimmed">
+                  {router.last_config_backup ? relativeTime(router.last_config_backup) : '—'}
+                </Text>
+              </Table.Td>
+              <Table.Td onClick={(e: React.MouseEvent) => e.stopPropagation()}>
+                <Group gap={4} wrap="nowrap" justify="flex-end">
+                  <Tooltip label="Backup config" radius="sm" fz="xs">
+                    <ActionIcon variant="light" color="gray" size="md" radius="sm" disabled={!isOnline}>
+                      <IconDeviceFloppy size={18} />
+                    </ActionIcon>
+                  </Tooltip>
+                  <Tooltip label="Download config" radius="sm" fz="xs">
+                    <ActionIcon variant="light" color="gray" size="md" radius="sm" disabled={!router.last_config_backup}>
+                      <IconDownload size={18} />
+                    </ActionIcon>
+                  </Tooltip>
+                </Group>
+              </Table.Td>
             </Table.Tr>
           );
         })}
@@ -503,10 +548,12 @@ export default function RoutersPage() {
             leftSection={<IconSearch size={16} />}
             value={search}
             onChange={(e) => setSearch(e.currentTarget.value)}
+            radius="sm"
             mb="md"
           />
 
           <Table
+            withRowBorders={false}
             style={{
               borderCollapse: 'collapse',
               border: '1px solid var(--mantine-color-gray-3)',
@@ -525,10 +572,7 @@ export default function RoutersPage() {
                 <Table.Th>
                   <HeaderLabel>Router</HeaderLabel>
                 </Table.Th>
-                <Table.Th style={{ width: 140 }}>
-                  <HeaderLabel>Serial</HeaderLabel>
-                </Table.Th>
-                <Table.Th style={{ width: 100, textAlign: 'center' }}>
+                <Table.Th style={{ width: 140, textAlign: 'center' }}>
                   <HeaderLabel>License</HeaderLabel>
                 </Table.Th>
                 <Table.Th style={{ width: 120, textAlign: 'center' }}>
@@ -539,6 +583,9 @@ export default function RoutersPage() {
                 </Table.Th>
                 <Table.Th style={{ width: 120 }}>
                   <HeaderLabel>Uptime</HeaderLabel>
+                </Table.Th>
+                <Table.Th style={{ width: 130, textAlign: 'center' }}>
+                  <HeaderLabel>Config Backup</HeaderLabel>
                 </Table.Th>
                 <Table.Th style={{ width: 100 }}>
                   <HeaderLabel>Actions</HeaderLabel>

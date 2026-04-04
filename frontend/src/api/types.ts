@@ -45,6 +45,7 @@ export interface Router {
   uptime?: string;
   serial_number?: string;
   license_level?: string;
+  last_config_backup?: string;
 }
 
 export interface RouterStatus {
