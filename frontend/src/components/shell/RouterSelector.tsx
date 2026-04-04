@@ -1,5 +1,5 @@
 import { Combobox, InputBase, useCombobox, Group, Text, Box } from '@mantine/core';
-import { IconSelector, IconRouter } from '@tabler/icons-react';
+import { IconSelector } from '@tabler/icons-react';
 import { useNavigate } from 'react-router-dom';
 import { useRouters } from '../../features/routers/routersApi';
 import { useRouterStore } from '../../stores/useRouterStore';
