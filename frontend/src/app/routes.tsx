@@ -3,6 +3,9 @@ import { Navigate, useLocation } from 'react-router-dom';
 import { createBrowserRouter } from 'react-router-dom';
 import { Center, Loader } from '@mantine/core';
 import AppShellLayout from '../components/shell/AppShell';
+import ErrorPage from '../components/error/ErrorPage';
+import ContentErrorPage from '../components/error/ContentErrorPage';
+import NotFoundPage from '../components/error/NotFoundPage';
 import LoginPage from '../features/auth/LoginPage';
 import SetupWizardPage from '../features/setup/SetupWizardPage';
 import RoutersPage from '../features/routers/RoutersPage';
@@ -64,62 +67,72 @@ function ProtectedRoute({ children }: { children: ReactNode }) {
 
 export const router = createBrowserRouter([
   {
-    path: '/setup',
-    element: (
-      <SetupGuard>
-        <SetupWizardPage />
-      </SetupGuard>
-    ),
-  },
-  {
-    path: '/login',
-    element: (
-      <SetupGuard>
-        <LoginPage />
-      </SetupGuard>
-    ),
-  },
-  {
-    path: '/',
-    element: (
-      <SetupGuard>
-        <ProtectedRoute>
-          <AppShellLayout />
-        </ProtectedRoute>
-      </SetupGuard>
-    ),
+    errorElement: <ErrorPage />,
     children: [
       {
-        index: true,
-        element: <Navigate to="/dashboard" replace />,
+        path: '/setup',
+        element: (
+          <SetupGuard>
+            <SetupWizardPage />
+          </SetupGuard>
+        ),
       },
       {
-        path: 'dashboard',
-        element: <DashboardPage />,
+        path: '/login',
+        element: (
+          <SetupGuard>
+            <LoginPage />
+          </SetupGuard>
+        ),
       },
       {
-        path: 'configure',
-        element: <ConfigureLandingPage />,
-      },
-      {
-        path: 'configure/interfaces',
-        element: <InterfacesPage />,
-      },
-      {
-        path: 'routers',
-        element: <RoutersPage />,
-      },
-      {
-        path: 'users',
-        element: <UsersPage />,
-      },
-      {
-        path: 'audit-log',
-        element: <AuditLogPage />,
-      },
-      {
-        path: 'settings',
-        element: <TenantSettingsPage />,
+        path: '/',
+        element: (
+          <SetupGuard>
+            <ProtectedRoute>
+              <AppShellLayout />
+            </ProtectedRoute>
+          </SetupGuard>
+        ),
+        errorElement: <ContentErrorPage />,
+        children: [
+          {
+            index: true,
+            element: <Navigate to="/dashboard" replace />,
+          },
+          {
+            path: 'dashboard',
+            element: <DashboardPage />,
+          },
+          {
+            path: 'configure',
+            element: <ConfigureLandingPage />,
+          },
+          {
+            path: 'configure/interfaces',
+            element: <InterfacesPage />,
+          },
+          {
+            path: 'routers',
+            element: <RoutersPage />,
+          },
+          {
+            path: 'users',
+            element: <UsersPage />,
+          },
+          {
+            path: 'audit-log',
+            element: <AuditLogPage />,
+          },
+          {
+            path: 'settings',
+            element: <TenantSettingsPage />,
+          },
+          {
+            path: '*',
+            element: <NotFoundPage />,
+          },
+        ],
       },
     ],
   },
