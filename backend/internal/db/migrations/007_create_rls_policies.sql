@@ -1,0 +1,13 @@
+-- RLS policies have been intentionally removed.
+--
+-- Tenant isolation is enforced at the application level: every query in the
+-- repository layer includes an explicit WHERE tenant_id = $1 clause, and the
+-- tenant ID is extracted from the authenticated JWT by the TenantScope
+-- middleware.
+--
+-- The previous RLS policies referenced current_setting('app.current_tenant_id')
+-- but no code path ever called SET app.current_tenant_id on the database
+-- connection, which meant the policies would either silently hide all rows or
+-- raise an error depending on the PostgreSQL configuration. Shipping
+-- non-functional RLS is worse than not having it — it creates a false sense of
+-- security while introducing undefined behaviour.

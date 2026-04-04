@@ -1,0 +1,49 @@
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap');
+
+:root {
+  /* Background */
+  --color-bg-primary: #F8F9FA;
+  --color-bg-surface: #FFFFFF;
+  --color-bg-surface-hover: #F1F3F5;
+
+  /* Border */
+  --color-border: #E9ECEF;
+
+  /* Text */
+  --color-text-primary: #212529;
+  --color-text-secondary: #868E96;
+
+  /* Brand */
+  --color-brand: #1C7ED6;
+  --color-brand-hover: #1971C2;
+
+  /* Status */
+  --status-accept: #2F9E44;
+  --status-reject: #E8590C;
+  --status-drop: #E03131;
+  --status-disabled: #ADB5BD;
+
+  /* Badges */
+  --badge-protocol: #1098AD;
+  --badge-state: #7048E8;
+  --badge-group: #E8590C;
+
+  /* Actions */
+  --color-commit: #2F9E44;
+  --color-discard: #E03131;
+
+  /* Diff */
+  --color-diff-add-bg: #D3F9D8;
+  --color-diff-add-text: #2F9E44;
+  --color-diff-remove-bg: #FFE3E3;
+  --color-diff-remove-text: #E03131;
+}
+
+/* Hover cards (dashboard, configure) */
+.hover-card {
+  transition: border-color 150ms ease;
+}
+.hover-card:hover {
+  outline: 2px solid var(--color-brand);
+  outline-offset: -2px;
+}
