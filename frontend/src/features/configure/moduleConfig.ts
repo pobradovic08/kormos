@@ -19,7 +19,7 @@ export interface ModuleConfig {
 
 export const modules: ModuleConfig[] = [
   { title: 'Interfaces', subtitle: 'Configure interface addresses', icon: IconNetwork, route: '/configure/interfaces', isEnabled: true },
-  { title: 'Routes', subtitle: 'Configure static routes', icon: IconRouteAltRight, route: '/configure/routes', isEnabled: false },
+  { title: 'Routes', subtitle: 'Configure static routes', icon: IconRouteAltRight, route: '/configure/routes', isEnabled: true },
   { title: 'Firewall', subtitle: 'Configure firewall filter rules', icon: IconShieldCheck, route: '/configure/firewall', isEnabled: false },
   { title: 'Address Lists', subtitle: 'Configure firewall address lists', icon: IconListDetails, route: '/configure/address-lists', isEnabled: false },
   { title: 'NAT', subtitle: 'Configure NAT rules', icon: IconArrowsShuffle, route: '/configure/nat', isEnabled: false },

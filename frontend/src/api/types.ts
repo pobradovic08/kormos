@@ -80,6 +80,19 @@ export interface RouterInterface {
   properties: Record<string, unknown>;
 }
 
+export interface Route {
+  id: string;
+  destination: string;
+  gateway: string;
+  interface: string;
+  distance: number;
+  routeType: 'static' | 'connected' | 'blackhole';
+  routingMark: string;
+  disabled: boolean;
+  active: boolean;
+  comment: string;
+}
+
 export interface PendingChange {
   id: string;
   routerId: string;

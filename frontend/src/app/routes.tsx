@@ -10,6 +10,7 @@ import LoginPage from '../features/auth/LoginPage';
 import SetupWizardPage from '../features/setup/SetupWizardPage';
 import RoutersPage from '../features/routers/RoutersPage';
 import InterfacesPage from '../features/interfaces/InterfacesPage';
+import RoutesPage from '../features/routes/RoutesPage';
 import ConfigureLandingPage from '../features/configure/ConfigureLandingPage';
 import DashboardPage from '../features/dashboard/DashboardPage';
 import TenantSettingsPage from '../features/tenant/TenantSettingsPage';
@@ -111,6 +112,10 @@ export const router = createBrowserRouter([
           {
             path: 'configure/interfaces',
             element: <InterfacesPage />,
+          },
+          {
+            path: 'configure/routes',
+            element: <RoutesPage />,
           },
           {
             path: 'routers',
