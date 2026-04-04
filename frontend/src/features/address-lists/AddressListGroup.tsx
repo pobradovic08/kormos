@@ -11,7 +11,6 @@ import {
   IconChevronRight,
   IconChevronDown,
   IconPlus,
-  IconFileImport,
   IconTrash,
 } from '@tabler/icons-react';
 import MonoText from '../../components/common/MonoText';
@@ -49,7 +48,6 @@ interface AddressListGroupProps {
   selectedEntries: Set<string>;
   onSelectionChange: (selected: Set<string>) => void;
   onAddEntry: (listName: string) => void;
-  onImport: (listName: string) => void;
   onDelete: (listName: string) => void;
   onDeleteEntries: (listName: string) => void;
 }
@@ -61,7 +59,6 @@ export default function AddressListGroup({
   selectedEntries,
   onSelectionChange,
   onAddEntry,
-  onImport,
   onDelete: _onDelete,
   onDeleteEntries,
 }: AddressListGroupProps) {
@@ -222,15 +219,6 @@ export default function AddressListGroup({
                       onClick={() => onAddEntry(list.name)}
                     >
                       Add Entry
-                    </Button>
-                    <Button
-                      variant="light"
-                      color="gray"
-                      size="xs"
-                      leftSection={<IconFileImport size={14} />}
-                      onClick={() => onImport(list.name)}
-                    >
-                      Import
                     </Button>
                     <Button
                       color="red"
