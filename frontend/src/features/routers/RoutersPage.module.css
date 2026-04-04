@@ -1,0 +1,8 @@
+.connect-action {
+  color: var(--mantine-color-gray-6);
+}
+
+.connect-action:hover:not([data-disabled]) {
+  color: var(--mantine-color-blue-6);
+  background-color: var(--mantine-color-blue-0);
+}

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Title,
   Button,
@@ -46,6 +46,8 @@ import ErrorBanner from '../../components/common/ErrorBanner';
 import MonoText from '../../components/common/MonoText';
 import { relativeTime } from '../../utils/relativeTime';
 import type { Router } from '../../api/types';
+import { useRouterStore } from '../../stores/useRouterStore';
+import classes from './RoutersPage.module.css';
 
 const statusBadgeConfig = {
   online: { color: 'green', label: 'Online' },
@@ -82,6 +84,7 @@ function GroupRows({
   onTenantClick,
   onEdit,
   onDelete,
+  onConnect,
 }: {
   group: RouterGroup;
   isCollapsed: boolean;
@@ -90,6 +93,7 @@ function GroupRows({
   onTenantClick: (tenantName: string) => void;
   onEdit: (router: Router) => void;
   onDelete: (router: Router) => void;
+  onConnect: (router: Router) => void;
 }) {
   const statusCfg = statusBadgeConfig[group.status];
   const versionCfg = group.versionStatus
@@ -204,47 +208,6 @@ function GroupRows({
         </Table.Td>
         <Table.Td onClick={(e: React.MouseEvent) => e.stopPropagation()}>
           <Group gap={6} wrap="nowrap">
-            {isHA ? (
-              <Button.Group>
-                <Button
-                  variant="light"
-                  size="xs"
-                  leftSection={<IconPlugConnected size={14} />}
-                  disabled={group.status === 'offline'}
-                >
-                  Connect
-                </Button>
-                <Menu position="bottom-end">
-                  <Menu.Target>
-                    <Button
-                      variant="light"
-                      size="xs"
-                      style={{ paddingLeft: 6, paddingRight: 6, borderLeft: '1px solid var(--mantine-color-blue-3)' }}
-                    >
-                      <IconChevronDown size={14} />
-                    </Button>
-                  </Menu.Target>
-                  <Menu.Dropdown>
-                    <Menu.Item
-                      fz="xs"
-                      leftSection={<IconPlugConnected size={14} />}
-                      disabled={group.status === 'offline'}
-                    >
-                      Connect secondary
-                    </Menu.Item>
-                  </Menu.Dropdown>
-                </Menu>
-              </Button.Group>
-            ) : (
-              <Button
-                variant="light"
-                size="xs"
-                leftSection={<IconPlugConnected size={14} />}
-                disabled={group.status === 'offline'}
-              >
-                Connect
-              </Button>
-            )}
             <Button.Group>
               <Button
                 variant="light"
@@ -373,7 +336,20 @@ function GroupRows({
                 </Text>
               </Table.Td>
               <Table.Td onClick={(e: React.MouseEvent) => e.stopPropagation()}>
-                <Group gap={4} wrap="nowrap" justify="flex-end">
+                <Group gap={6} wrap="nowrap" justify="flex-end">
+                  <Tooltip label="Connect" radius="sm" fz="xs">
+                    <ActionIcon
+                      variant="subtle"
+                      size="md"
+                      radius="sm"
+                      disabled={!isOnline}
+                      color="gray"
+                      className={classes['connect-action']}
+                      onClick={() => onConnect(router)}
+                    >
+                      <IconPlugConnected size={18} />
+                    </ActionIcon>
+                  </Tooltip>
                   <Tooltip label="Backup config" radius="sm" fz="xs">
                     <ActionIcon variant="light" color="gray" size="md" radius="sm" disabled={!isOnline}>
                       <IconDeviceFloppy size={18} />
@@ -396,6 +372,7 @@ function GroupRows({
 export default function RoutersPage() {
   const { data: routers, isLoading, error, refetch } = useRouters();
   const deleteMutation = useDeleteRouter();
+  const selectRouter = useRouterStore((s) => s.selectRouter);
 
   const [detailRouterId, setDetailRouterId] = useState<string | null>(null);
   const [formOpen, setFormOpen] = useState(false);
@@ -406,11 +383,22 @@ export default function RoutersPage() {
     new Set(),
   );
 
-  const groups = useMemo(() => {
+  const allGroups = useMemo(() => {
     if (!routers) return [];
-    const grouped = groupRouters(routers);
-    return filterGroups(grouped, search);
-  }, [routers, search]);
+    return groupRouters(routers);
+  }, [routers]);
+
+  const initializedRef = useRef(false);
+  useEffect(() => {
+    if (allGroups.length > 0 && !initializedRef.current) {
+      setCollapsedClusters(new Set(allGroups.map(g => g.clusterId)));
+      initializedRef.current = true;
+    }
+  }, [allGroups]);
+
+  const groups = useMemo(() => {
+    return filterGroups(allGroups, search);
+  }, [allGroups, search]);
 
   const handleAdd = () => {
     setEditRouter(null);
@@ -483,31 +471,78 @@ export default function RoutersPage() {
   if (isLoading) {
     return (
       <>
-        <Stack gap={4} mb="lg">
-          <Title order={2}>Routers</Title>
-          <Text size="sm" c="dimmed">
-            Manage your MikroTik CHR instances
-          </Text>
-        </Stack>
-        <Table>
+        <Group justify="space-between" align="flex-start" mb="lg">
+          <Stack gap={4}>
+            <Title order={2}>Routers</Title>
+            <Text size="sm" c="dimmed">
+              Manage your MikroTik CHR instances
+            </Text>
+          </Stack>
+        </Group>
+        <Skeleton height={36} radius="sm" mb="md" />
+        <Table
+          withRowBorders={false}
+          style={{
+            borderCollapse: 'collapse',
+            border: '1px solid var(--mantine-color-gray-3)',
+            borderRadius: 4,
+            overflow: 'hidden',
+          }}
+        >
           <Table.Thead>
-            <Table.Tr>
-              <Table.Th style={{ width: 40 }} />
-              <Table.Th>Router</Table.Th>
-              <Table.Th>Address</Table.Th>
-              <Table.Th>Role</Table.Th>
-              <Table.Th>Version</Table.Th>
-              <Table.Th>Uptime</Table.Th>
+            <Table.Tr
+              style={{
+                backgroundColor: 'var(--mantine-color-gray-0)',
+                borderBottom: '1px solid var(--mantine-color-gray-3)',
+              }}
+            >
+              <Table.Th style={{ width: 32 }} />
+              <Table.Th><HeaderLabel>Router</HeaderLabel></Table.Th>
+              <Table.Th style={{ width: 140, textAlign: 'center' }}><HeaderLabel>License</HeaderLabel></Table.Th>
+              <Table.Th style={{ width: 120, textAlign: 'center' }}><HeaderLabel>Role</HeaderLabel></Table.Th>
+              <Table.Th style={{ width: 120, textAlign: 'center' }}><HeaderLabel>CHR Version</HeaderLabel></Table.Th>
+              <Table.Th style={{ width: 120 }}><HeaderLabel>Uptime</HeaderLabel></Table.Th>
+              <Table.Th style={{ width: 130, textAlign: 'center' }}><HeaderLabel>Config Backup</HeaderLabel></Table.Th>
+              <Table.Th style={{ width: 100 }}><HeaderLabel>Actions</HeaderLabel></Table.Th>
             </Table.Tr>
           </Table.Thead>
           <Table.Tbody>
-            {Array.from({ length: 5 }).map((_, i) => (
-              <Table.Tr key={i}>
-                {Array.from({ length: 8 }).map((_, j) => (
-                  <Table.Td key={j}>
-                    <Skeleton height="36px" radius="sm" />
-                  </Table.Td>
-                ))}
+            {Array.from({ length: 4 }).map((_, i) => (
+              <Table.Tr
+                key={i}
+                style={{
+                  backgroundColor: 'var(--mantine-color-gray-0)',
+                  borderBottom: '1px solid var(--mantine-color-gray-2)',
+                }}
+              >
+                <Table.Td style={{ width: 32 }}>
+                  <Skeleton height={16} width={16} radius="sm" />
+                </Table.Td>
+                <Table.Td>
+                  <Group gap={10} wrap="nowrap">
+                    <Skeleton height={18} width={18} circle />
+                    <Stack gap={4}>
+                      <Skeleton height={14} width={120} radius="sm" />
+                      <Skeleton height={10} width={80} radius="sm" />
+                    </Stack>
+                  </Group>
+                </Table.Td>
+                <Table.Td style={{ textAlign: 'center' }}>
+                  <Skeleton height={18} width={18} circle mx="auto" />
+                </Table.Td>
+                <Table.Td style={{ textAlign: 'center' }}>
+                  <Skeleton height={20} width={80} radius="sm" mx="auto" />
+                </Table.Td>
+                <Table.Td style={{ textAlign: 'center' }}>
+                  <Skeleton height={18} width={18} circle mx="auto" />
+                </Table.Td>
+                <Table.Td />
+                <Table.Td style={{ textAlign: 'center' }}>
+                  <Skeleton height={18} width={18} circle mx="auto" />
+                </Table.Td>
+                <Table.Td>
+                  <Skeleton height={28} width={90} radius="sm" />
+                </Table.Td>
               </Table.Tr>
             ))}
           </Table.Tbody>
@@ -603,6 +638,7 @@ export default function RoutersPage() {
                   onTenantClick={handleTenantClick}
                   onEdit={handleEdit}
                   onDelete={(router) => setDeleteRouter(router)}
+                  onConnect={(router) => selectRouter(router.id)}
                 />
               ))}
               {groups.length === 0 && search && (

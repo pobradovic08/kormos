@@ -110,6 +110,7 @@ export default function AppShellLayout() {
                 color: '#ffffff',
                 letterSpacing: '-0.02em',
                 whiteSpace: 'nowrap',
+                textTransform: 'uppercase',
               }}
             >
               {portalName}
