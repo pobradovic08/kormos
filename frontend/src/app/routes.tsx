@@ -11,6 +11,7 @@ import SetupWizardPage from '../features/setup/SetupWizardPage';
 import RoutersPage from '../features/routers/RoutersPage';
 import InterfacesPage from '../features/interfaces/InterfacesPage';
 import RoutesPage from '../features/routes/RoutesPage';
+import AddressListsPage from '../features/address-lists/AddressListsPage';
 import ConfigureLandingPage from '../features/configure/ConfigureLandingPage';
 import DashboardPage from '../features/dashboard/DashboardPage';
 import TenantSettingsPage from '../features/tenant/TenantSettingsPage';
@@ -116,6 +117,10 @@ export const router = createBrowserRouter([
           {
             path: 'configure/routes',
             element: <RoutesPage />,
+          },
+          {
+            path: 'configure/address-lists',
+            element: <AddressListsPage />,
           },
           {
             path: 'routers',

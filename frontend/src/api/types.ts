@@ -93,6 +93,18 @@ export interface Route {
   comment: string;
 }
 
+export interface AddressEntry {
+  id: string;
+  prefix: string;
+  comment: string;
+  disabled: boolean;
+}
+
+export interface AddressList {
+  name: string;
+  entries: AddressEntry[];
+}
+
 export interface PendingChange {
   id: string;
   routerId: string;
