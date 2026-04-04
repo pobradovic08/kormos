@@ -1,58 +1,104 @@
 import { useState, useMemo } from 'react';
 import {
   Title,
-  Button,
   Group,
   Table,
   TextInput,
   Text,
   Stack,
   Skeleton,
-  Modal,
 } from '@mantine/core';
 import {
-  IconPlus,
   IconSearch,
   IconRouter,
   IconNetwork,
 } from '@tabler/icons-react';
-import { notifications } from '@mantine/notifications';
 import { useRouterStore } from '../../stores/useRouterStore';
-import { useCommitStore } from '../../stores/useCommitStore';
 import { useInterfaces } from './interfacesApi';
 import { interfaceColumns } from './interfaceColumns';
 import InterfaceDetail from './InterfaceDetail';
-import InterfaceForm from './InterfaceForm';
-import InterfaceTypeSelector from './InterfaceTypeSelector';
-import ConfirmDialog from '../../components/common/ConfirmDialog';
 import EmptyState from '../../components/common/EmptyState';
 import ErrorBanner from '../../components/common/ErrorBanner';
-import type { InterfaceTypeOption } from './InterfaceTypeSelector';
 import type { RouterInterface } from '../../api/types';
+
+function HeaderLabel({ children }: { children: string }) {
+  return (
+    <Text
+      size="xs"
+      fw={600}
+      c="dimmed"
+      tt="uppercase"
+      style={{ letterSpacing: 0.5 }}
+    >
+      {children}
+    </Text>
+  );
+}
+
+const tableStyle = {
+  borderCollapse: 'collapse' as const,
+  border: '1px solid var(--mantine-color-gray-3)',
+  borderRadius: 4,
+  overflow: 'hidden',
+};
+
+const headerRowStyle = {
+  backgroundColor: 'var(--mantine-color-gray-0)',
+  borderBottom: '1px solid var(--mantine-color-gray-3)',
+};
 
 function LoadingSkeleton() {
   return (
-    <Table striped>
+    <Table withRowBorders={false} style={tableStyle}>
       <Table.Thead>
-        <Table.Tr>
-          <Table.Th>Name</Table.Th>
-          <Table.Th>Type</Table.Th>
-          <Table.Th>IP Addresses</Table.Th>
-          <Table.Th>Status</Table.Th>
-          <Table.Th>Comment</Table.Th>
-          <Table.Th>MTU</Table.Th>
-          <Table.Th>MAC</Table.Th>
-          <Table.Th>Actions</Table.Th>
+        <Table.Tr style={headerRowStyle}>
+          {interfaceColumns.map((col) => (
+            <Table.Th
+              key={col.accessor}
+              style={{
+                width: col.width,
+                textAlign: col.align ?? 'left',
+              }}
+            >
+              <HeaderLabel>{col.header}</HeaderLabel>
+            </Table.Th>
+          ))}
         </Table.Tr>
       </Table.Thead>
       <Table.Tbody>
-        {Array.from({ length: 6 }).map((_, i) => (
-          <Table.Tr key={i}>
-            {Array.from({ length: 8 }).map((_, j) => (
-              <Table.Td key={j}>
-                <Skeleton height="36px" radius="sm" />
-              </Table.Td>
-            ))}
+        {Array.from({ length: 5 }).map((_, i) => (
+          <Table.Tr
+            key={i}
+            style={{
+              borderBottom: '1px solid var(--mantine-color-gray-1)',
+            }}
+          >
+            <Table.Td>
+              <Group gap={8} wrap="nowrap">
+                <Skeleton height={7} width={7} circle />
+                <Stack gap={4}>
+                  <Skeleton height={14} width={100} radius="sm" />
+                  <Skeleton height={10} width={70} radius="sm" />
+                </Stack>
+              </Group>
+            </Table.Td>
+            <Table.Td style={{ width: 180 }}>
+              <Stack gap={2}>
+                <Skeleton height={12} width={120} radius="sm" />
+              </Stack>
+            </Table.Td>
+            <Table.Td style={{ width: 90, textAlign: 'center' }}>
+              <Skeleton height={18} width={18} circle mx="auto" />
+            </Table.Td>
+            <Table.Td style={{ width: 80, textAlign: 'center' }}>
+              <Skeleton height={12} width={40} radius="sm" mx="auto" />
+            </Table.Td>
+            <Table.Td style={{ width: 160 }}>
+              <Skeleton height={12} width={130} radius="sm" />
+            </Table.Td>
+            <Table.Td style={{ width: 120 }}>
+              <Skeleton height={28} width={90} radius="sm" />
+            </Table.Td>
           </Table.Tr>
         ))}
       </Table.Tbody>
@@ -60,30 +106,14 @@ function LoadingSkeleton() {
   );
 }
 
-type CreateStep = 'select-type' | 'fill-form';
-
 export default function InterfacesPage() {
   const selectedRouterId = useRouterStore((s) => s.selectedRouterId);
-  const stageChange = useCommitStore((s) => s.stageChange);
   const { data: interfaces, isLoading, error, refetch } = useInterfaces(selectedRouterId);
 
   const [search, setSearch] = useState('');
   const [selectedInterface, setSelectedInterface] =
     useState<RouterInterface | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
-
-  // Create interface state
-  const [createOpen, setCreateOpen] = useState(false);
-  const [createStep, setCreateStep] = useState<CreateStep>('select-type');
-  const [selectedType, setSelectedType] = useState<InterfaceTypeOption | null>(
-    null,
-  );
-
-  // Delete confirmation state
-  const [deleteTarget, setDeleteTarget] = useState<RouterInterface | null>(
-    null,
-  );
-  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
 
   const filteredInterfaces = useMemo(() => {
     if (!interfaces) return [];
@@ -113,51 +143,6 @@ export default function InterfacesPage() {
     setDetailOpen(true);
   };
 
-  const handleDelete = (iface: RouterInterface) => {
-    setDeleteTarget(iface);
-    setConfirmDeleteOpen(true);
-  };
-
-  const handleConfirmDelete = () => {
-    if (!selectedRouterId || !deleteTarget) return;
-
-    stageChange(selectedRouterId, {
-      routerId: selectedRouterId,
-      module: 'interfaces',
-      operation: 'delete',
-      resourcePath: `/interfaces/${deleteTarget.name}`,
-      resourceId: deleteTarget.id,
-      before: deleteTarget as unknown as Record<string, unknown>,
-      after: null,
-    });
-
-    notifications.show({
-      title: 'Delete staged',
-      message: `Deletion of "${deleteTarget.name}" has been staged for commit.`,
-      color: 'orange',
-    });
-
-    setDeleteTarget(null);
-  };
-
-  // Create flow handlers
-  const handleNewClick = () => {
-    setCreateStep('select-type');
-    setSelectedType(null);
-    setCreateOpen(true);
-  };
-
-  const handleTypeSelect = (option: InterfaceTypeOption) => {
-    setSelectedType(option);
-    setCreateStep('fill-form');
-  };
-
-  const handleCreateClose = () => {
-    setCreateOpen(false);
-    setCreateStep('select-type');
-    setSelectedType(null);
-  };
-
   if (!selectedRouterId) {
     return (
       <Stack align="center" mt="xl" gap="md">
@@ -169,12 +154,20 @@ export default function InterfacesPage() {
     );
   }
 
+  const hasInterfaces = interfaces && interfaces.length > 0;
+
   if (isLoading) {
     return (
       <>
-        <Group justify="space-between" mb="md">
-          <Title order={2} mb="lg">Interfaces</Title>
+        <Group justify="space-between" align="flex-start" mb="lg">
+          <Stack gap={4}>
+            <Title order={2}>Interfaces</Title>
+            <Text size="sm" c="dimmed">
+              Network interfaces and addressing
+            </Text>
+          </Stack>
         </Group>
+        <Skeleton height={36} radius="sm" mb="md" />
         <LoadingSkeleton />
       </>
     );
@@ -191,58 +184,86 @@ export default function InterfacesPage() {
 
   return (
     <>
-      <Group justify="space-between" mb="md">
-        <Title order={2} mb="lg">Interfaces</Title>
-        <Button leftSection={<IconPlus size={16} />} onClick={handleNewClick}>
-          New Interface
-        </Button>
+      <Group justify="space-between" align="flex-start" mb="lg">
+        <Stack gap={4}>
+          <Title order={2}>Interfaces</Title>
+          <Text size="sm" c="dimmed">
+            Network interfaces and addressing
+          </Text>
+        </Stack>
       </Group>
 
-      <TextInput
-        placeholder="Search by name, type, or IP address..."
-        leftSection={<IconSearch size={16} />}
-        value={search}
-        onChange={(e) => setSearch(e.currentTarget.value)}
-        mb="md"
-      />
+      {hasInterfaces ? (
+        <>
+          <TextInput
+            placeholder="Search by name, type, or IP address..."
+            leftSection={<IconSearch size={16} />}
+            value={search}
+            onChange={(e) => setSearch(e.currentTarget.value)}
+            radius="sm"
+            mb="md"
+          />
 
-      {filteredInterfaces.length > 0 ? (
-        <Table striped highlightOnHover>
-          <Table.Thead>
-            <Table.Tr>
-              {interfaceColumns.map((col) => (
-                <Table.Th key={col.accessor}>{col.header}</Table.Th>
-              ))}
-            </Table.Tr>
-          </Table.Thead>
-          <Table.Tbody>
-            {filteredInterfaces.map((iface) => (
-              <Table.Tr
-                key={iface.id}
-                onClick={() => handleRowClick(iface)}
-                style={{ cursor: 'pointer' }}
-              >
+          <Table withRowBorders={false} style={tableStyle}>
+            <Table.Thead>
+              <Table.Tr style={headerRowStyle}>
                 {interfaceColumns.map((col) => (
-                  <Table.Td key={col.accessor}>
-                    {col.render(iface, {
-                      onEdit: handleEdit,
-                      onDelete: handleDelete,
-                    })}
-                  </Table.Td>
+                  <Table.Th
+                    key={col.accessor}
+                    style={{
+                      width: col.width,
+                      textAlign: col.align ?? 'left',
+                    }}
+                  >
+                    <HeaderLabel>{col.header}</HeaderLabel>
+                  </Table.Th>
                 ))}
               </Table.Tr>
-            ))}
-          </Table.Tbody>
-        </Table>
+            </Table.Thead>
+            <Table.Tbody>
+              {filteredInterfaces.map((iface, index) => {
+                const isLast = index === filteredInterfaces.length - 1;
+                return (
+                  <Table.Tr
+                    key={iface.id}
+                    onClick={() => handleRowClick(iface)}
+                    style={{
+                      cursor: 'pointer',
+                      borderBottom: isLast
+                        ? '1px solid var(--mantine-color-gray-2)'
+                        : '1px solid var(--mantine-color-gray-1)',
+                    }}
+                  >
+                    {interfaceColumns.map((col) => (
+                      <Table.Td
+                        key={col.accessor}
+                        style={{ textAlign: col.align ?? 'left' }}
+                      >
+                        {col.render(iface, {
+                          onEdit: handleEdit,
+                        })}
+                      </Table.Td>
+                    ))}
+                  </Table.Tr>
+                );
+              })}
+              {filteredInterfaces.length === 0 && search && (
+                <Table.Tr>
+                  <Table.Td colSpan={interfaceColumns.length}>
+                    <Text size="sm" c="dimmed" ta="center" py="lg">
+                      No interfaces match &ldquo;{search}&rdquo;
+                    </Text>
+                  </Table.Td>
+                </Table.Tr>
+              )}
+            </Table.Tbody>
+          </Table>
+        </>
       ) : (
         <EmptyState
           icon={IconNetwork}
-          title={search.trim() ? 'No matching interfaces' : 'No interfaces found'}
-          description={
-            search.trim()
-              ? 'No interfaces match your search.'
-              : 'No interfaces found on this router.'
-          }
+          title="No interfaces found"
+          description="No interfaces found on this router."
         />
       )}
 
@@ -252,48 +273,6 @@ export default function InterfacesPage() {
         onClose={handleDetailClose}
       />
 
-      {/* New Interface Modal */}
-      <Modal
-        opened={createOpen}
-        onClose={handleCreateClose}
-        title={
-          createStep === 'select-type'
-            ? 'Select Interface Type'
-            : `New ${selectedType?.label ?? ''} Interface`
-        }
-        size={createStep === 'select-type' ? 'lg' : 'md'}
-        centered
-      >
-        {createStep === 'select-type' && (
-          <InterfaceTypeSelector onSelect={handleTypeSelect} />
-        )}
-        {createStep === 'fill-form' && selectedType && (
-          <InterfaceForm
-            isNew
-            interfaceType={selectedType.type}
-            resourcePath={selectedType.resourcePath}
-            onClose={handleCreateClose}
-          />
-        )}
-      </Modal>
-
-      {/* Delete Confirmation Dialog */}
-      <ConfirmDialog
-        isOpen={confirmDeleteOpen}
-        onClose={() => {
-          setConfirmDeleteOpen(false);
-          setDeleteTarget(null);
-        }}
-        onConfirm={handleConfirmDelete}
-        title="Delete Interface"
-        message={
-          deleteTarget
-            ? `Are you sure you want to delete interface "${deleteTarget.name}"? This change will be staged and applied on the next commit.`
-            : ''
-        }
-        confirmLabel="Delete"
-        confirmColor="red"
-      />
     </>
   );
 }

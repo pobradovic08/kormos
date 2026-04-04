@@ -8,12 +8,27 @@ import {
   Badge,
   Button,
   Divider,
+  Box,
 } from '@mantine/core';
-import { IconEdit } from '@tabler/icons-react';
+import { IconPencil } from '@tabler/icons-react';
 import MonoText from '../../components/common/MonoText';
 import StatusIndicator from '../../components/common/StatusIndicator';
 import InterfaceForm from './InterfaceForm';
 import type { RouterInterface } from '../../api/types';
+
+const typeBadgeColors: Record<string, string> = {
+  ether: 'blue',
+  vlan: 'violet',
+  bridge: 'teal',
+  bonding: 'orange',
+  wireguard: 'green',
+  gre: 'cyan',
+  ovpn: 'grape',
+  pppoe: 'pink',
+  l2tp: 'yellow',
+  loopback: 'gray',
+  vrrp: 'red',
+};
 
 interface InterfaceDetailProps {
   iface: RouterInterface | null;
@@ -24,10 +39,10 @@ interface InterfaceDetailProps {
 function DetailField({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <Group justify="space-between" wrap="nowrap" align="flex-start">
-      <Text c="dimmed" size="sm" w={140}>
+      <Text size="sm" c="dimmed" style={{ minWidth: 120 }}>
         {label}
       </Text>
-      <div style={{ flex: 1, textAlign: 'right' }}>{children}</div>
+      <Box>{children}</Box>
     </Group>
   );
 }
@@ -66,85 +81,112 @@ export default function InterfaceDetail({
       opened={isOpen}
       onClose={handleClose}
       title={
-        <Title order={4}>
-          {iface.name}
-        </Title>
+        <Group gap="sm">
+          <Title order={4}>{iface.name}</Title>
+          <StatusIndicator status={status} label={label} />
+        </Group>
       }
       position="right"
-      size="md"
+      size="lg"
+      padding="xl"
     >
       {isEditing ? (
         <InterfaceForm iface={iface} onClose={handleEditClose} />
       ) : (
-        <Stack gap="md">
-          <Group justify="flex-end">
+        <Stack gap="lg">
+          {/* Section 1: Interface Details */}
+          <Box>
+            <Text fw={600} size="sm" mb="sm">
+              Interface Details
+            </Text>
+            <Stack gap="xs">
+              <DetailField label="Name">
+                <MonoText>{iface.name}</MonoText>
+              </DetailField>
+              <DetailField label="Type">
+                <Badge
+                  variant="light"
+                  size="sm"
+                  radius="sm"
+                  color={typeBadgeColors[iface.type] ?? 'gray'}
+                >
+                  {iface.type}
+                </Badge>
+              </DetailField>
+              <DetailField label="Status">
+                <StatusIndicator status={status} label={label} />
+              </DetailField>
+              <DetailField label="MTU">
+                <MonoText>{iface.mtu}</MonoText>
+              </DetailField>
+              <DetailField label="MAC Address">
+                <MonoText>{iface.mac_address || '\u2014'}</MonoText>
+              </DetailField>
+              {iface.comment && (
+                <DetailField label="Comment">
+                  <Text size="sm">{iface.comment}</Text>
+                </DetailField>
+              )}
+            </Stack>
+          </Box>
+
+          <Divider />
+
+          {/* Section 2: IP Addresses */}
+          <Box>
+            <Text fw={600} size="sm" mb="sm">
+              IP Addresses
+            </Text>
+            {iface.addresses.length > 0 ? (
+              <Stack gap="xs">
+                {iface.addresses.map((addr) => (
+                  <Group key={addr.id} justify="space-between">
+                    <MonoText>{addr.address}</MonoText>
+                    <Text size="xs" c="dimmed">
+                      network: {addr.network}
+                    </Text>
+                  </Group>
+                ))}
+              </Stack>
+            ) : (
+              <Text size="sm" c="dimmed">
+                No addresses configured
+              </Text>
+            )}
+          </Box>
+
+          {Object.keys(iface.properties).length > 0 && (
+            <>
+              <Divider />
+
+              {/* Section 3: Properties */}
+              <Box>
+                <Text fw={600} size="sm" mb="sm">
+                  Properties
+                </Text>
+                <Stack gap="xs">
+                  {Object.entries(iface.properties).map(([key, value]) => (
+                    <DetailField key={key} label={key}>
+                      <MonoText>{String(value)}</MonoText>
+                    </DetailField>
+                  ))}
+                </Stack>
+              </Box>
+            </>
+          )}
+
+          <Divider />
+
+          {/* Action buttons */}
+          <Group>
             <Button
-              variant="light"
-              size="compact-sm"
-              leftSection={<IconEdit size={14} />}
+              variant="default"
+              leftSection={<IconPencil size={16} />}
               onClick={() => setIsEditing(true)}
             >
               Edit
             </Button>
           </Group>
-
-          <DetailField label="Name">
-            <MonoText>{iface.name}</MonoText>
-          </DetailField>
-
-          <DetailField label="Type">
-            <Badge variant="light" size="sm">
-              {iface.type}
-            </Badge>
-          </DetailField>
-
-          <DetailField label="Status">
-            <StatusIndicator status={status} label={label} />
-          </DetailField>
-
-          <DetailField label="MTU">
-            <MonoText>{iface.mtu}</MonoText>
-          </DetailField>
-
-          <DetailField label="MAC Address">
-            <MonoText>{iface.mac_address || '-'}</MonoText>
-          </DetailField>
-
-          <DetailField label="Comment">
-            <Text size="sm">{iface.comment || '-'}</Text>
-          </DetailField>
-
-          <Divider label="IP Addresses" labelPosition="left" />
-
-          {iface.addresses.length > 0 ? (
-            <Stack gap="xs">
-              {iface.addresses.map((addr) => (
-                <Group key={addr.id} justify="space-between">
-                  <MonoText>{addr.address}</MonoText>
-                  <Text size="xs" c="dimmed">
-                    network: {addr.network}
-                  </Text>
-                </Group>
-              ))}
-            </Stack>
-          ) : (
-            <Text size="sm" c="dimmed">
-              No addresses configured
-            </Text>
-          )}
-
-          {Object.keys(iface.properties).length > 0 && (
-            <>
-              <Divider label="Properties" labelPosition="left" />
-              <Stack gap="xs">
-                {Object.entries(iface.properties).map(([key, value]) => (
-                  <DetailField key={key} label={key}>
-                    <MonoText>{String(value)}</MonoText>
-                  </DetailField>
-                ))}
-              </Stack>
-            </>
-          )}
         </Stack>
       )}
     </Drawer>
