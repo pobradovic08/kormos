@@ -10,10 +10,9 @@ import {
 } from '@mantine/core';
 import {
   IconSearch,
-  IconRouter,
   IconRouteAltRight,
 } from '@tabler/icons-react';
-import { useRouterStore } from '../../stores/useRouterStore';
+import { useParams } from 'react-router-dom';
 import { useRoutes } from './routesApi';
 import { routeColumns } from './routeColumns';
 import RouteDetail from './RouteDetail';
@@ -111,8 +110,8 @@ function LoadingSkeleton() {
 }
 
 export default function RoutesPage() {
-  const selectedRouterId = useRouterStore((s) => s.selectedRouterId);
-  const { data: routes, isLoading, error, refetch } = useRoutes(selectedRouterId);
+  const { clusterId } = useParams<{ clusterId: string }>();
+  const { data: routes, isLoading, error, refetch } = useRoutes(clusterId ?? null);
 
   const [search, setSearch] = useState('');
   const [selectedRoute, setSelectedRoute] = useState<Route | null>(null);
@@ -152,17 +151,6 @@ export default function RoutesPage() {
     setSelectedRoute(route);
     setDetailOpen(true);
   };
-
-  if (!selectedRouterId) {
-    return (
-      <Stack align="center" mt="xl" gap="md">
-        <IconRouter size={48} stroke={1.5} color="var(--mantine-color-dimmed)" />
-        <Text c="dimmed" size="lg">
-          Select a router to view routes
-        </Text>
-      </Stack>
-    );
-  }
 
   const hasRoutes = routes && routes.length > 0;
 
