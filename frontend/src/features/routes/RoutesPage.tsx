@@ -111,7 +111,8 @@ function LoadingSkeleton() {
 
 export default function RoutesPage() {
   const { clusterId } = useParams<{ clusterId: string }>();
-  const { data: routes, isLoading, error, refetch } = useRoutes(clusterId ?? null);
+  const selectedRouterId = clusterId!;
+  const { data: routes, isLoading, error, refetch } = useRoutes(selectedRouterId);
 
   const [search, setSearch] = useState('');
   const [selectedRoute, setSelectedRoute] = useState<Route | null>(null);

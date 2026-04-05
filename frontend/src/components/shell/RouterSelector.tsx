@@ -59,7 +59,7 @@ export default function RouterSelector() {
             const parts = location.pathname.split('/');
             // parts: ['', 'configure', oldClusterId, ...subPath]
             const subPath = parts.slice(3).join('/');
-            navigate(`/configure/${val}/${subPath}`);
+            navigate(subPath ? `/configure/${val}/${subPath}` : `/configure/${val}`);
           }
         }
         combobox.closeDropdown();
