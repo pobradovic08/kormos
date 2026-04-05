@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import {
   Text,
   SimpleGrid,
@@ -17,6 +17,7 @@ import { modules } from './moduleConfig';
 
 export default function ConfigureLandingPage() {
   const navigate = useNavigate();
+  const { clusterId } = useParams<{ clusterId: string }>();
 
   return (
     <Stack gap="xl">
@@ -66,7 +67,7 @@ export default function ConfigureLandingPage() {
           return (
             <UnstyledButton
               key={mod.title}
-              onClick={() => navigate(mod.route)}
+              onClick={() => navigate(`/configure/${clusterId}/${mod.route}`)}
               style={{ display: 'block' }}
             >
               <Card
