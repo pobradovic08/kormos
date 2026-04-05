@@ -21,6 +21,7 @@ import {
 } from '@tabler/icons-react';
 import { useAuthStore } from '../../stores/useAuthStore';
 import { useCommitStore } from '../../stores/useCommitStore';
+import { useRouterStore } from '../../stores/useRouterStore';
 import { useRouters } from '../routers/routersApi';
 import { useAuditLog } from '../audit/auditApi';
 
@@ -35,6 +36,7 @@ export default function DashboardPage() {
   const user = useAuthStore((s) => s.user);
   const navigate = useNavigate();
   const pendingChanges = useCommitStore((s) => s.pendingChanges);
+  const selectedRouterId = useRouterStore((s) => s.selectedRouterId);
 
   const { data: routers, isLoading: routersLoading } = useRouters();
 
@@ -201,7 +203,13 @@ export default function DashboardPage() {
           </Paper>
         </UnstyledButton>
 
-        <UnstyledButton onClick={() => navigate('/configure/interfaces')}>
+        <UnstyledButton onClick={() => {
+          if (selectedRouterId) {
+            navigate(`/configure/${selectedRouterId}/interfaces`);
+          } else {
+            navigate('/routers');
+          }
+        }}>
           <Paper
             withBorder
             p="lg"
