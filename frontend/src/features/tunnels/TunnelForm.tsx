@@ -390,47 +390,45 @@ export default function TunnelForm({
     >
       <Stack gap="lg" h="100%" justify="space-between">
         <div>
-          <Stepper active={activeStep} size="sm" allowNextStepsSelect={isEdit} mb="lg">
-            {tunnelType === 'gre' ? (
-              <>
-                <Stepper.Step label="Connection" description="Basic settings">
-                  <GREConnectionStep
-                    state={greState}
-                    errors={errors}
-                    onUpdate={updateGRE}
-                  />
-                </Stepper.Step>
-                <Stepper.Step label="GRE Parameters" description="Tunnel settings">
-                  <GREParametersStep
-                    state={greState}
-                    onUpdate={updateGRE}
-                  />
-                </Stepper.Step>
-              </>
-            ) : (
-              <>
-                <Stepper.Step label="Connection" description="Basic settings">
-                  <IPsecConnectionStep
-                    state={ipsecState}
-                    errors={errors}
-                    onUpdate={updateIPsec}
-                  />
-                </Stepper.Step>
-                <Stepper.Step label="Phase 1" description="IKE proposal">
-                  <IPsecPhase1Step
-                    state={ipsecState}
-                    onUpdate={updateIPsec}
-                  />
-                </Stepper.Step>
-                <Stepper.Step label="Phase 2" description="IPsec proposal">
-                  <IPsecPhase2Step
-                    state={ipsecState}
-                    onUpdate={updateIPsec}
-                  />
-                </Stepper.Step>
-              </>
-            )}
-          </Stepper>
+          {tunnelType === 'gre' ? (
+            <Stepper active={activeStep} size="sm" allowNextStepsSelect={isEdit} mb="lg">
+              <Stepper.Step label="Connection" description="Basic settings">
+                <GREConnectionStep
+                  state={greState}
+                  errors={errors}
+                  onUpdate={updateGRE}
+                />
+              </Stepper.Step>
+              <Stepper.Step label="GRE Parameters" description="Tunnel settings">
+                <GREParametersStep
+                  state={greState}
+                  onUpdate={updateGRE}
+                />
+              </Stepper.Step>
+            </Stepper>
+          ) : (
+            <Stepper active={activeStep} size="sm" allowNextStepsSelect={isEdit} mb="lg">
+              <Stepper.Step label="Connection" description="Basic settings">
+                <IPsecConnectionStep
+                  state={ipsecState}
+                  errors={errors}
+                  onUpdate={updateIPsec}
+                />
+              </Stepper.Step>
+              <Stepper.Step label="Phase 1" description="IKE proposal">
+                <IPsecPhase1Step
+                  state={ipsecState}
+                  onUpdate={updateIPsec}
+                />
+              </Stepper.Step>
+              <Stepper.Step label="Phase 2" description="IPsec proposal">
+                <IPsecPhase2Step
+                  state={ipsecState}
+                  onUpdate={updateIPsec}
+                />
+              </Stepper.Step>
+            </Stepper>
+          )}
         </div>
 
         {/* Navigation buttons */}
