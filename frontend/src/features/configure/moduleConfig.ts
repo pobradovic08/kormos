@@ -23,7 +23,7 @@ export const modules: ModuleConfig[] = [
   { title: 'Firewall', subtitle: 'Configure firewall filter rules', icon: IconShieldCheck, route: '/configure/firewall', isEnabled: false },
   { title: 'Address Lists', subtitle: 'Configure firewall address lists', icon: IconListDetails, route: '/configure/address-lists', isEnabled: true },
   { title: 'NAT', subtitle: 'Configure NAT rules', icon: IconArrowsShuffle, route: '/configure/nat', isEnabled: false },
-  { title: 'Tunnels', subtitle: 'Configure IPsec / GRE tunnels', icon: IconBuilding, route: '/configure/tunnels', isEnabled: false },
+  { title: 'Tunnels', subtitle: 'Configure IPsec / GRE tunnels', icon: IconBuilding, route: '/configure/tunnels', isEnabled: true },
   { title: 'WireGuard', subtitle: 'Configure WireGuard VPN', icon: IconLock, route: '/configure/wireguard', isEnabled: false },
   { title: 'Queues', subtitle: 'Configure bandwidth management', icon: IconGauge, route: '/configure/queues', isEnabled: false },
 ];
