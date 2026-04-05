@@ -10,8 +10,12 @@ import {
   Button,
   Group,
   Stack,
+  Box,
   Text,
+  Divider,
+  SimpleGrid,
 } from '@mantine/core';
+import { IconBuildingTunnel } from '@tabler/icons-react';
 import type { Tunnel, GRETunnel, IPsecTunnel } from '../../api/types';
 import { useAddTunnel, useUpdateTunnel } from './tunnelsApi';
 import { useInterfaces } from '../interfaces/interfacesApi';
@@ -395,111 +399,87 @@ export default function TunnelForm({
       position="right"
       size="xl"
       padding="xl"
-      title={<Text fw={600}>{title}</Text>}
+      title={<Group gap="xs"><IconBuildingTunnel size={20} /><Text fw={600}>{title}</Text></Group>}
     >
       {tunnelType === 'gre' ? (
         /* ─── GRE: flat form, no stepper ─────────────────────────── */
-        <Stack gap="xs">
-          <div>
+        <Stack gap="md">
+          <TextInput
+            label="Name"
+            placeholder="e.g. gre-to-branch"
+            required
+            size="sm"
+            radius="sm"
+            value={greState.name}
+            onChange={(e) => updateGRE('name', e.currentTarget.value)}
+            error={submitted ? errors.name : undefined}
+          />
+          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 'var(--mantine-spacing-sm)' }}>
+            <Select
+              label="Local Tunnel Endpoint"
+              size="sm"
+              radius="sm"
+              data={addressOptions}
+              value={greState.localAddress}
+              onChange={(val) => updateGRE('localAddress', val ?? '0.0.0.0')}
+            />
+            <NumberInput
+              label="MTU"
+              size="sm"
+              radius="sm"
+              value={greState.mtu}
+              onChange={(val) => updateGRE('mtu', typeof val === 'number' ? val : 1476)}
+              min={68}
+              max={65535}
+            />
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: 'var(--mantine-spacing-sm)' }}>
             <TextInput
-              label="Name"
-              placeholder="e.g. gre-to-branch"
+              label="Remote Tunnel Endpoint"
+              placeholder="e.g. 172.16.10.1"
               required
               size="sm"
               radius="sm"
-              value={greState.name}
-              onChange={(e) => updateGRE('name', e.currentTarget.value)}
-              error={submitted ? errors.name : undefined}
+              value={greState.remoteAddress}
+              onChange={(e) => updateGRE('remoteAddress', e.currentTarget.value)}
+              error={submitted ? errors.remoteAddress : undefined}
             />
-            {!errors.name && <div style={{ height: 20 }} />}
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--mantine-spacing-sm)' }}>
-            <div>
-              <TextInput
-                label="Remote Tunnel Endpoint"
-                placeholder="e.g. 172.16.10.1"
-                required
-                size="sm"
-                radius="sm"
-                value={greState.remoteAddress}
-                onChange={(e) => updateGRE('remoteAddress', e.currentTarget.value)}
-                error={submitted ? errors.remoteAddress : undefined}
-              />
-              {!errors.remoteAddress && <div style={{ height: 20 }} />}
-            </div>
-            <div>
-              <Select
-                label="Local Tunnel Endpoint"
-                size="sm"
-                radius="sm"
-                data={addressOptions}
-                value={greState.localAddress}
-                onChange={(val) => updateGRE('localAddress', val ?? '0.0.0.0')}
-              />
-              <div style={{ height: 20 }} />
-            </div>
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 'var(--mantine-spacing-sm)' }}>
-            <div>
-              <NumberInput
-                label="Keepalive Interval"
-                placeholder="0 to disable"
-                suffix="s"
-                size="sm"
-                radius="sm"
-                value={greState.keepaliveInterval}
-                onChange={(val) => updateGRE('keepaliveInterval', typeof val === 'number' ? val : 10)}
-                min={0}
-              />
-              <div style={{ height: 20 }} />
-            </div>
-            <div>
-              <NumberInput
-                label="Keepalive Retries"
-                size="sm"
-                radius="sm"
-                value={greState.keepaliveRetries}
-                onChange={(val) => updateGRE('keepaliveRetries', typeof val === 'number' ? val : 10)}
-                min={0}
-              />
-              <div style={{ height: 20 }} />
-            </div>
-            <div>
-              <NumberInput
-                label="MTU"
-                size="sm"
-                radius="sm"
-                value={greState.mtu}
-                onChange={(val) => updateGRE('mtu', typeof val === 'number' ? val : 1476)}
-                min={68}
-                max={65535}
-              />
-              <div style={{ height: 20 }} />
-            </div>
-          </div>
-          <div>
-            <PasswordInput
-              label="IPsec Secret"
-              placeholder="Leave empty for no encryption"
+            <NumberInput
+              label="Keepalive"
+              placeholder="0 to disable"
+              suffix="s"
               size="sm"
               radius="sm"
-              value={greState.ipsecSecret}
-              onChange={(e) => updateGRE('ipsecSecret', e.currentTarget.value)}
+              value={greState.keepaliveInterval}
+              onChange={(val) => updateGRE('keepaliveInterval', typeof val === 'number' ? val : 10)}
+              min={0}
             />
-            <div style={{ height: 20 }} />
-          </div>
-          <div>
-            <TextInput
-              label="Comment"
-              placeholder="Optional description"
+            <NumberInput
+              label="Retries"
               size="sm"
               radius="sm"
-              value={greState.comment}
-              onChange={(e) => updateGRE('comment', e.currentTarget.value)}
+              value={greState.keepaliveRetries}
+              onChange={(val) => updateGRE('keepaliveRetries', typeof val === 'number' ? val : 10)}
+              min={0}
             />
-            <div style={{ height: 20 }} />
           </div>
-          <Group justify="space-between" mt="sm">
+          <PasswordInput
+            label="IPsec Secret"
+            placeholder="Leave empty for no encryption"
+            size="sm"
+            radius="sm"
+            value={greState.ipsecSecret}
+            onChange={(e) => updateGRE('ipsecSecret', e.currentTarget.value)}
+          />
+          <TextInput
+            label="Comment"
+            placeholder="Optional description"
+            size="sm"
+            radius="sm"
+            value={greState.comment}
+            onChange={(e) => updateGRE('comment', e.currentTarget.value)}
+          />
+          <Group justify="space-between" mt="xs">
             <Button variant="default" size="sm" onClick={onClose}>
               Cancel
             </Button>
