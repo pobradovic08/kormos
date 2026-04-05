@@ -1,6 +1,6 @@
 import { Combobox, InputBase, useCombobox, Group, Text, Box } from '@mantine/core';
 import { IconSelector } from '@tabler/icons-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useRouters } from '../../features/routers/routersApi';
 import { useRouterStore } from '../../stores/useRouterStore';
 import type { Router } from '../../api/types';
@@ -31,6 +31,7 @@ export default function RouterSelector() {
   const selectedRouterId = useRouterStore((s) => s.selectedRouterId);
   const selectRouter = useRouterStore((s) => s.selectRouter);
   const navigate = useNavigate();
+  const location = useLocation();
 
   const combobox = useCombobox({
     onDropdownClose: () => combobox.resetSelectedOption(),
@@ -53,6 +54,13 @@ export default function RouterSelector() {
           navigate('/routers');
         } else {
           selectRouter(val);
+          // If on a configure page, navigate to same sub-page with new cluster ID
+          if (location.pathname.startsWith('/configure/')) {
+            const parts = location.pathname.split('/');
+            // parts: ['', 'configure', oldClusterId, ...subPath]
+            const subPath = parts.slice(3).join('/');
+            navigate(`/configure/${val}/${subPath}`);
+          }
         }
         combobox.closeDropdown();
       }}
