@@ -7,15 +7,15 @@ import {
   Stack,
   Tabs,
 } from '@mantine/core';
-import { IconRouter } from '@tabler/icons-react';
-import { useRouterStore } from '../../stores/useRouterStore';
+import { useParams } from 'react-router-dom';
 import { useWireGuardInterfaces } from './wireguardApi';
 import ErrorBanner from '../../components/common/ErrorBanner';
 import WireGuardInterfaceTab from './WireGuardInterface';
 import WireGuardPeers from './WireGuardPeers';
 
 export default function WireGuardPage() {
-  const selectedRouterId = useRouterStore((s) => s.selectedRouterId);
+  const { clusterId } = useParams<{ clusterId: string }>();
+  const selectedRouterId = clusterId ?? null;
   const { isLoading, error, refetch } = useWireGuardInterfaces(selectedRouterId);
 
   const [activeTab, setActiveTab] = useState<string | null>('interface');
@@ -27,15 +27,6 @@ export default function WireGuardPage() {
       prevRouterId.current = selectedRouterId;
     }
   }, [selectedRouterId]);
-
-  if (!selectedRouterId) {
-    return (
-      <Stack align="center" mt="xl" gap="md">
-        <IconRouter size={48} stroke={1.5} color="var(--mantine-color-dimmed)" />
-        <Text c="dimmed" size="lg">Select a router to view WireGuard configuration</Text>
-      </Stack>
-    );
-  }
 
   if (isLoading) {
     return (
