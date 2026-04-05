@@ -13,6 +13,7 @@ import InterfacesPage from '../features/interfaces/InterfacesPage';
 import RoutesPage from '../features/routes/RoutesPage';
 import AddressListsPage from '../features/address-lists/AddressListsPage';
 import TunnelsPage from '../features/tunnels/TunnelsPage';
+import WireGuardPage from '../features/wireguard/WireGuardPage';
 import ConfigureLandingPage from '../features/configure/ConfigureLandingPage';
 import DashboardPage from '../features/dashboard/DashboardPage';
 import TenantSettingsPage from '../features/tenant/TenantSettingsPage';
@@ -126,6 +127,10 @@ export const router = createBrowserRouter([
           {
             path: 'configure/tunnels',
             element: <TunnelsPage />,
+          },
+          {
+            path: 'configure/wireguard',
+            element: <WireGuardPage />,
           },
           {
             path: 'routers',

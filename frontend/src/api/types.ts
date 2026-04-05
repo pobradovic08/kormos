@@ -200,3 +200,35 @@ export interface AuditEntry {
   error_details?: string;
   created_at: string;
 }
+
+// ─── WireGuard ────────────────────────────────────────────────────────────────
+
+export interface WireGuardInterface {
+  name: string;
+  listenPort: number;
+  mtu: number;
+  privateKey: string;
+  publicKey: string;
+  gatewayAddress: string;
+  dns: string;
+  clientAllowedIPs: string;
+  disabled: boolean;
+}
+
+export interface WireGuardPeer {
+  id: string;
+  interface: string;
+  name: string;
+  publicKey: string;
+  presharedKey: string;
+  allowedAddress: string;
+  endpointAddress: string;
+  endpointPort: number;
+  lastHandshake: string;
+  rx: number;
+  tx: number;
+  persistentKeepalive: number;
+  disabled: boolean;
+  comment: string;
+  clientPrivateKey?: string;
+}
