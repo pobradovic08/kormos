@@ -261,15 +261,13 @@ export default function TunnelsPage() {
         onDelete={handleDelete}
       />
 
-      {selectedRouterId && (
-        <TunnelForm
-          isOpen={formOpen}
-          onClose={handleFormClose}
-          routerId={selectedRouterId}
-          tunnelType={formType}
-          editTunnel={editTunnel}
-        />
-      )}
+      <TunnelForm
+        isOpen={formOpen}
+        onClose={handleFormClose}
+        routerId={selectedRouterId}
+        tunnelType={formType}
+        editTunnel={editTunnel}
+      />
 
       <ConfirmDialog
         isOpen={!!deleteTarget}

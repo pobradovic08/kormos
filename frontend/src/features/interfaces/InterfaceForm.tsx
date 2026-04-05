@@ -167,7 +167,6 @@ export default function InterfaceForm({
   }));
 
   const handleSubmit = (values: InterfaceFormValues) => {
-    if (!selectedRouterId) return;
 
     const cleanedValues = {
       ...values,
