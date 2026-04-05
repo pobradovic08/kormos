@@ -2,6 +2,7 @@ import { Combobox, InputBase, useCombobox, Group, Text, Box } from '@mantine/cor
 import { IconSelector } from '@tabler/icons-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useRouters } from '../../features/routers/routersApi';
+import { configurePath } from '../../features/configure/moduleConfig';
 import { useRouterStore } from '../../stores/useRouterStore';
 import type { Router } from '../../api/types';
 
@@ -54,12 +55,9 @@ export default function RouterSelector() {
           navigate('/routers');
         } else {
           selectRouter(val);
-          // If on a configure page, navigate to same sub-page with new cluster ID
           if (location.pathname.startsWith('/configure/')) {
-            const parts = location.pathname.split('/');
-            // parts: ['', 'configure', oldClusterId, ...subPath]
-            const subPath = parts.slice(3).join('/');
-            navigate(subPath ? `/configure/${val}/${subPath}` : `/configure/${val}`);
+            const subPath = location.pathname.split('/').slice(3).join('/');
+            navigate(configurePath(val, subPath || undefined));
           }
         }
         combobox.closeDropdown();

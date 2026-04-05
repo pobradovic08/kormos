@@ -17,6 +17,10 @@ export interface ModuleConfig {
   isEnabled: boolean;
 }
 
+export function configurePath(clusterId: string, slug?: string): string {
+  return slug ? `/configure/${clusterId}/${slug}` : `/configure/${clusterId}`;
+}
+
 export const modules: ModuleConfig[] = [
   { title: 'Interfaces', subtitle: 'Configure interface addresses', icon: IconNetwork, route: 'interfaces', isEnabled: true },
   { title: 'Routes', subtitle: 'Configure static routes', icon: IconRouteAltRight, route: 'routes', isEnabled: true },

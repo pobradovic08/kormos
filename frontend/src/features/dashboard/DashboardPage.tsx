@@ -22,6 +22,7 @@ import {
 import { useAuthStore } from '../../stores/useAuthStore';
 import { useCommitStore } from '../../stores/useCommitStore';
 import { useRouterStore } from '../../stores/useRouterStore';
+import { configurePath } from '../configure/moduleConfig';
 import { useRouters } from '../routers/routersApi';
 import { useAuditLog } from '../audit/auditApi';
 
@@ -205,7 +206,7 @@ export default function DashboardPage() {
 
         <UnstyledButton onClick={() => {
           if (selectedRouterId) {
-            navigate(`/configure/${selectedRouterId}/interfaces`);
+            navigate(configurePath(selectedRouterId, 'interfaces'));
           } else {
             navigate('/routers');
           }

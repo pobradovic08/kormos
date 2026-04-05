@@ -13,7 +13,7 @@ import CommitPanel from '../commit/CommitPanel';
 import RouterSelector from './RouterSelector';
 import CommitButton from './CommitButton';
 import UserMenu from './UserMenu';
-import { modules } from '../../features/configure/moduleConfig';
+import { modules, configurePath } from '../../features/configure/moduleConfig';
 import { usePortalStore } from '../../stores/usePortalStore';
 import { useRouterStore } from '../../stores/useRouterStore';
 
@@ -145,7 +145,7 @@ export default function AppShellLayout() {
                       isActive={isConfigureActive}
                       onClick={() => {
                         if (configureClusterId) {
-                          navigate(`/configure/${configureClusterId}`);
+                          navigate(configurePath(configureClusterId));
                         } else {
                           navigate('/routers');
                         }
@@ -172,7 +172,7 @@ export default function AppShellLayout() {
                         onClick={() => {
                           if (mod.isEnabled) {
                             if (configureClusterId) {
-                              navigate(`/configure/${configureClusterId}/${mod.route}`);
+                              navigate(configurePath(configureClusterId, mod.route));
                             } else {
                               navigate('/routers');
                             }

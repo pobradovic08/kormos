@@ -15,7 +15,7 @@ import {
   IconBuilding,
   IconChevronDown,
 } from '@tabler/icons-react';
-import { useParams } from 'react-router-dom';
+import { useClusterId } from '../../hooks/useClusterId';
 import { looksLikeCIDR, prefixOverlaps } from '../../utils/cidr';
 import { useTunnels, useDeleteTunnel } from './tunnelsApi';
 import TunnelTable, { TunnelTableSkeleton } from './TunnelTable';
@@ -92,8 +92,7 @@ function matchesTunnel(
 }
 
 export default function TunnelsPage() {
-  const { clusterId } = useParams<{ clusterId: string }>();
-  const selectedRouterId = clusterId!;
+  const selectedRouterId = useClusterId();
   const { data: tunnels, isLoading, error, refetch } = useTunnels(selectedRouterId);
   const deleteMutation = useDeleteTunnel(selectedRouterId);
 

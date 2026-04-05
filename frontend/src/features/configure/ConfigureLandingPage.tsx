@@ -1,4 +1,5 @@
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
+import { useClusterId } from '../../hooks/useClusterId';
 import {
   Text,
   SimpleGrid,
@@ -13,11 +14,11 @@ import {
   UnstyledButton,
 } from '@mantine/core';
 import { IconHeadset } from '@tabler/icons-react';
-import { modules } from './moduleConfig';
+import { modules, configurePath } from './moduleConfig';
 
 export default function ConfigureLandingPage() {
   const navigate = useNavigate();
-  const { clusterId } = useParams<{ clusterId: string }>();
+  const clusterId = useClusterId();
 
   return (
     <Stack gap="xl">
@@ -67,7 +68,7 @@ export default function ConfigureLandingPage() {
           return (
             <UnstyledButton
               key={mod.title}
-              onClick={() => navigate(`/configure/${clusterId}/${mod.route}`)}
+              onClick={() => navigate(configurePath(clusterId, mod.route))}
               style={{ display: 'block' }}
             >
               <Card

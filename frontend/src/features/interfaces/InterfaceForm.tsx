@@ -16,7 +16,7 @@ import { useForm } from '@mantine/form';
 import { notifications } from '@mantine/notifications';
 import { IconInfoCircle } from '@tabler/icons-react';
 import IpAddressInput from '../../components/common/IpAddressInput';
-import { useParams } from 'react-router-dom';
+import { useClusterId } from '../../hooks/useClusterId';
 import { useCommitStore } from '../../stores/useCommitStore';
 import { useInterfaces } from './interfacesApi';
 import type { RouterInterface } from '../../api/types';
@@ -102,8 +102,7 @@ export default function InterfaceForm({
   isNew = false,
   onClose,
 }: InterfaceFormProps) {
-  const { clusterId } = useParams<{ clusterId: string }>();
-  const selectedRouterId = clusterId!;
+  const selectedRouterId = useClusterId();
   const stageChange = useCommitStore((s) => s.stageChange);
   const { data: existingInterfaces } = useInterfaces(selectedRouterId);
 

@@ -12,7 +12,7 @@ import {
   IconSearch,
   IconRouteAltRight,
 } from '@tabler/icons-react';
-import { useParams } from 'react-router-dom';
+import { useClusterId } from '../../hooks/useClusterId';
 import { useRoutes } from './routesApi';
 import { routeColumns } from './routeColumns';
 import RouteDetail from './RouteDetail';
@@ -110,8 +110,7 @@ function LoadingSkeleton() {
 }
 
 export default function RoutesPage() {
-  const { clusterId } = useParams<{ clusterId: string }>();
-  const selectedRouterId = clusterId!;
+  const selectedRouterId = useClusterId();
   const { data: routes, isLoading, error, refetch } = useRoutes(selectedRouterId);
 
   const [search, setSearch] = useState('');
@@ -247,7 +246,7 @@ export default function RoutesPage() {
                       >
                         {col.render(route, {
                           onEdit: handleEdit,
-                          clusterId: clusterId ?? undefined,
+                          clusterId: selectedRouterId,
                         })}
                       </Table.Td>
                     ))}

@@ -7,15 +7,14 @@ import {
   Stack,
   Tabs,
 } from '@mantine/core';
-import { useParams } from 'react-router-dom';
+import { useClusterId } from '../../hooks/useClusterId';
 import { useWireGuardInterfaces } from './wireguardApi';
 import ErrorBanner from '../../components/common/ErrorBanner';
 import WireGuardInterfaceTab from './WireGuardInterface';
 import WireGuardPeers from './WireGuardPeers';
 
 export default function WireGuardPage() {
-  const { clusterId } = useParams<{ clusterId: string }>();
-  const selectedRouterId = clusterId!;
+  const selectedRouterId = useClusterId();
   const { isLoading, error, refetch } = useWireGuardInterfaces(selectedRouterId);
 
   const [activeTab, setActiveTab] = useState<string | null>('interface');

@@ -13,7 +13,7 @@ import {
   IconSearch,
   IconListDetails,
 } from '@tabler/icons-react';
-import { useParams } from 'react-router-dom';
+import { useClusterId } from '../../hooks/useClusterId';
 import { looksLikeCIDR, prefixOverlaps } from '../../utils/cidr';
 import { useAddressLists, useDeleteAddressList, useDeleteEntries } from './addressListsApi';
 import AddressListGroup from './AddressListGroup';
@@ -45,8 +45,7 @@ function LoadingSkeleton() {
 }
 
 export default function AddressListsPage() {
-  const { clusterId } = useParams<{ clusterId: string }>();
-  const selectedRouterId = clusterId!;
+  const selectedRouterId = useClusterId();
   const { data: lists, isLoading, error, refetch } = useAddressLists(selectedRouterId);
   const deleteMutation = useDeleteAddressList(selectedRouterId);
   const deleteEntriesMutation = useDeleteEntries(selectedRouterId);

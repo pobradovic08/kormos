@@ -14,6 +14,7 @@ import {
 } from '@tabler/icons-react';
 import { Link } from 'react-router-dom';
 import MonoText from '../../components/common/MonoText';
+import { configurePath } from '../configure/moduleConfig';
 import type { Route } from '../../api/types';
 
 function getRouteFlags(route: Route): string {
@@ -96,7 +97,7 @@ export const routeColumns: RouteColumn[] = [
             via{' '}
             <Text
               component={Link}
-              to={ctx?.clusterId ? `/configure/${ctx.clusterId}/interfaces` : '#'}
+              to={ctx?.clusterId ? configurePath(ctx.clusterId, 'interfaces') : '#'}
               size="xs"
               fw={600}
               c="blue"

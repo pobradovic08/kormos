@@ -12,7 +12,7 @@ import {
   IconSearch,
   IconNetwork,
 } from '@tabler/icons-react';
-import { useParams } from 'react-router-dom';
+import { useClusterId } from '../../hooks/useClusterId';
 import { useInterfaces } from './interfacesApi';
 import { interfaceColumns } from './interfaceColumns';
 import InterfaceDetail from './InterfaceDetail';
@@ -111,8 +111,7 @@ function LoadingSkeleton() {
 }
 
 export default function InterfacesPage() {
-  const { clusterId } = useParams<{ clusterId: string }>();
-  const selectedRouterId = clusterId!;
+  const selectedRouterId = useClusterId();
   const { data: interfaces, isLoading, error, refetch } = useInterfaces(selectedRouterId);
 
   const [search, setSearch] = useState('');
