@@ -35,11 +35,14 @@ function HeaderLabel({ children }: { children: string }) {
   );
 }
 
-const tableStyle = {
-  borderCollapse: 'collapse' as const,
+const tableWrapperStyle = {
   border: '1px solid var(--mantine-color-gray-3)',
   borderRadius: 4,
-  overflow: 'hidden',
+  overflow: 'hidden' as const,
+};
+
+const tableStyle = {
+  borderCollapse: 'collapse' as const,
 };
 
 const headerRowStyle = {
@@ -49,6 +52,7 @@ const headerRowStyle = {
 
 function LoadingSkeleton() {
   return (
+    <div style={tableWrapperStyle}>
     <Table withRowBorders={false} style={tableStyle}>
       <Table.Thead>
         <Table.Tr style={headerRowStyle}>
@@ -103,6 +107,7 @@ function LoadingSkeleton() {
         ))}
       </Table.Tbody>
     </Table>
+    </div>
   );
 }
 
@@ -204,6 +209,7 @@ export default function InterfacesPage() {
             mb="md"
           />
 
+          <div style={tableWrapperStyle}>
           <Table withRowBorders={false} style={tableStyle}>
             <Table.Thead>
               <Table.Tr style={headerRowStyle}>
@@ -230,7 +236,7 @@ export default function InterfacesPage() {
                     style={{
                       cursor: 'pointer',
                       borderBottom: isLast
-                        ? '1px solid var(--mantine-color-gray-2)'
+                        ? undefined
                         : '1px solid var(--mantine-color-gray-1)',
                     }}
                   >
@@ -258,6 +264,7 @@ export default function InterfacesPage() {
               )}
             </Table.Tbody>
           </Table>
+          </div>
         </>
       ) : (
         <EmptyState

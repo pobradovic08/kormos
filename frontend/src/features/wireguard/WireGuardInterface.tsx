@@ -7,6 +7,7 @@ import {
   TextInput,
   Button,
   Badge,
+  Menu,
   CopyButton,
   ActionIcon,
   Tooltip,
@@ -18,6 +19,9 @@ import {
   IconCopy,
   IconCheck,
   IconLock,
+  IconPencil,
+  IconChevronDown,
+  IconTrash,
 } from '@tabler/icons-react';
 import MonoText from '../../components/common/MonoText';
 import StatusIndicator from '../../components/common/StatusIndicator';
@@ -25,7 +29,7 @@ import EmptyState from '../../components/common/EmptyState';
 import ConfirmDialog from '../../components/common/ConfirmDialog';
 import WireGuardInterfaceForm from './WireGuardInterfaceForm';
 import WireGuardInterfaceDetail from './WireGuardInterfaceDetail';
-import { useWireGuardInterfaces, useDeleteWireGuardInterface } from './wireguardApi';
+import { useWireGuardInterfaces, useWireGuardPeers, useDeleteWireGuardInterface } from './wireguardApi';
 import type { WireGuardInterface as WireGuardInterfaceType } from '../../api/types';
 
 function HeaderLabel({ children }: { children: string }) {
@@ -54,6 +58,7 @@ interface WireGuardInterfaceTabProps {
 
 export default function WireGuardInterfaceTab({ routerId }: WireGuardInterfaceTabProps) {
   const { data: wgInterfaces, isLoading } = useWireGuardInterfaces(routerId);
+  const { data: allPeers } = useWireGuardPeers(routerId);
   const deleteMutation = useDeleteWireGuardInterface(routerId);
 
   const [search, setSearch] = useState('');
@@ -132,7 +137,8 @@ export default function WireGuardInterfaceTab({ routerId }: WireGuardInterfaceTa
                 Add WireGuard
               </Button>
             </Group>
-          <Table withRowBorders={false} style={tableStyle}>
+          <div style={{ border: '1px solid var(--mantine-color-gray-3)', borderRadius: 4, overflow: 'hidden' }}>
+          <Table withRowBorders={false} style={{ borderCollapse: 'collapse' as const }}>
             <Table.Thead>
               <Table.Tr style={headerRowStyle}>
                 <Table.Th><HeaderLabel>Name</HeaderLabel></Table.Th>
@@ -140,8 +146,8 @@ export default function WireGuardInterfaceTab({ routerId }: WireGuardInterfaceTa
                 <Table.Th style={{ width: 140 }}><HeaderLabel>VPN Gateway</HeaderLabel></Table.Th>
                 <Table.Th style={{ width: 100, textAlign: 'center' }}><HeaderLabel>Mode</HeaderLabel></Table.Th>
                 <Table.Th><HeaderLabel>Public Key</HeaderLabel></Table.Th>
-                <Table.Th style={{ width: 80, textAlign: 'center' }}><HeaderLabel>Peers</HeaderLabel></Table.Th>
                 <Table.Th style={{ width: 120 }}><HeaderLabel>Status</HeaderLabel></Table.Th>
+                <Table.Th style={{ width: 120 }}><HeaderLabel>Actions</HeaderLabel></Table.Th>
               </Table.Tr>
             </Table.Thead>
             <Table.Tbody>
@@ -155,12 +161,18 @@ export default function WireGuardInterfaceTab({ routerId }: WireGuardInterfaceTa
                       cursor: 'pointer',
                       opacity: iface.disabled ? 0.5 : undefined,
                       borderBottom: isLast
-                        ? '1px solid var(--mantine-color-gray-2)'
+                        ? undefined
                         : '1px solid var(--mantine-color-gray-1)',
                     }}
                   >
                     <Table.Td>
                       <Text fw={500} size="xs">{iface.name}</Text>
+                      <Text size="xs" c="dimmed">
+                        {(() => {
+                          const count = (allPeers ?? []).filter((p) => p.interface === iface.name).length;
+                          return count === 0 ? 'No peers' : `${count} ${count === 1 ? 'peer' : 'peers'} configured`;
+                        })()}
+                      </Text>
                     </Table.Td>
                     <Table.Td style={{ width: 80 }}>
                       <MonoText size="xs">{iface.listenPort}</MonoText>
@@ -196,14 +208,6 @@ export default function WireGuardInterfaceTab({ routerId }: WireGuardInterfaceTa
                         </CopyButton>
                       </Group>
                     </Table.Td>
-                    <Table.Td style={{ width: 80, textAlign: 'center' }}>
-                      <Group justify="center">
-                        <Badge variant="light" size="sm" radius="sm" color="blue">
-                          {/* Peer count would come from peers data, show placeholder */}
-                          —
-                        </Badge>
-                      </Group>
-                    </Table.Td>
                     <Table.Td style={{ width: 120 }}>
                       <Group>
                         {iface.disabled ? (
@@ -212,6 +216,30 @@ export default function WireGuardInterfaceTab({ routerId }: WireGuardInterfaceTa
                           <StatusIndicator status="running" label="Active" />
                         )}
                       </Group>
+                    </Table.Td>
+                    <Table.Td style={{ width: 120 }}>
+                      <Button.Group>
+                        <Button variant="light" color="gray" size="xs"
+                          leftSection={<IconPencil size={14} />}
+                          onClick={(e) => { e.stopPropagation(); handleEdit(iface); }}>
+                          Edit
+                        </Button>
+                        <Menu position="bottom-end">
+                          <Menu.Target>
+                            <Button variant="light" color="gray" size="xs"
+                              onClick={(e) => e.stopPropagation()}
+                              style={{ paddingLeft: 6, paddingRight: 6, borderLeft: '1px solid var(--mantine-color-gray-4)' }}>
+                              <IconChevronDown size={14} />
+                            </Button>
+                          </Menu.Target>
+                          <Menu.Dropdown>
+                            <Menu.Item fz="xs" color="red" leftSection={<IconTrash size={14} />}
+                              onClick={() => handleDelete(iface)}>
+                              Delete
+                            </Menu.Item>
+                          </Menu.Dropdown>
+                        </Menu>
+                      </Button.Group>
                     </Table.Td>
                   </Table.Tr>
                 );
@@ -227,6 +255,7 @@ export default function WireGuardInterfaceTab({ routerId }: WireGuardInterfaceTa
               )}
             </Table.Tbody>
           </Table>
+          </div>
           </>
         ) : (
           <EmptyState

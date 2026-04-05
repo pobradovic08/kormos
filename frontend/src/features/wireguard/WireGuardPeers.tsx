@@ -4,10 +4,11 @@ import {
   Text,
   Group,
   Button,
+  Menu,
   TextInput,
   Skeleton,
 } from '@mantine/core';
-import { IconPlus, IconSearch, IconUsers, IconLock } from '@tabler/icons-react';
+import { IconPlus, IconSearch, IconUsers, IconLock, IconPencil, IconChevronDown, IconTrash } from '@tabler/icons-react';
 import MonoText from '../../components/common/MonoText';
 import StatusIndicator from '../../components/common/StatusIndicator';
 import EmptyState from '../../components/common/EmptyState';
@@ -64,9 +65,12 @@ function getPeerStatus(peer: WireGuardPeer): { status: 'running' | 'stopped' | '
 
 const columns = [
   { key: 'name', header: 'Name', width: undefined },
+  { key: 'interface', header: 'Interface', width: 120 },
   { key: 'allowedAddress', header: 'Allowed Address', width: 200 },
+  { key: 'dns', header: 'DNS', width: 140 },
   { key: 'endpoint', header: 'Endpoint', width: 200 },
   { key: 'status', header: 'Status', width: 120 },
+  { key: 'actions', header: 'Actions', width: 120 },
 ];
 
 export default function WireGuardPeers({ routerId }: WireGuardPeersProps) {
@@ -89,6 +93,7 @@ export default function WireGuardPeers({ routerId }: WireGuardPeersProps) {
     return peers.filter(
       (p) =>
         p.name.toLowerCase().includes(trimmed) ||
+        p.interface.toLowerCase().includes(trimmed) ||
         p.allowedAddress.toLowerCase().includes(trimmed) ||
         p.endpointAddress.toLowerCase().includes(trimmed),
     );
@@ -192,7 +197,8 @@ export default function WireGuardPeers({ routerId }: WireGuardPeersProps) {
             </Button>
           </Group>
 
-          <Table withRowBorders={false} style={tableStyle}>
+          <div style={{ border: '1px solid var(--mantine-color-gray-3)', borderRadius: 4, overflow: 'hidden' }}>
+          <Table withRowBorders={false} style={{ borderCollapse: 'collapse' as const }}>
             <Table.Thead>
               <Table.Tr style={headerRowStyle}>
                 {columns.map((col) => (
@@ -220,7 +226,7 @@ export default function WireGuardPeers({ routerId }: WireGuardPeersProps) {
                       cursor: 'pointer',
                       opacity: isDisabled ? 0.5 : undefined,
                       borderBottom: isLast
-                        ? '1px solid var(--mantine-color-gray-2)'
+                        ? undefined
                         : '1px solid var(--mantine-color-gray-1)',
                     }}
                   >
@@ -229,16 +235,48 @@ export default function WireGuardPeers({ routerId }: WireGuardPeersProps) {
                         {peer.name}
                       </Text>
                     </Table.Td>
+                    <Table.Td style={{ width: 120 }}>
+                      <MonoText size="xs">{peer.interface}</MonoText>
+                    </Table.Td>
                     <Table.Td>
                       <MonoText size="xs">{peer.allowedAddress}</MonoText>
                     </Table.Td>
+                    <Table.Td style={{ width: 140 }}>
+                      <MonoText size="xs">{findInterface(peer)?.dns || '\u2014'}</MonoText>
+                    </Table.Td>
                     <Table.Td>
-                      <MonoText size="xs">{endpoint}</MonoText>
+                      <span style={{ backgroundColor: 'var(--mantine-color-yellow-0)', padding: '2px 6px', borderRadius: 4, display: 'inline-block' }}>
+                        <MonoText size="xs">{endpoint}</MonoText>
+                      </span>
                     </Table.Td>
                     <Table.Td style={{ width: 120 }}>
                       <Group>
                         <StatusIndicator status={peerStatus.status} label={peerStatus.label} />
                       </Group>
+                    </Table.Td>
+                    <Table.Td style={{ width: 120 }}>
+                      <Button.Group>
+                        <Button variant="light" color="gray" size="xs"
+                          leftSection={<IconPencil size={14} />}
+                          onClick={(e) => { e.stopPropagation(); handleEdit(peer); }}>
+                          Edit
+                        </Button>
+                        <Menu position="bottom-end">
+                          <Menu.Target>
+                            <Button variant="light" color="gray" size="xs"
+                              onClick={(e) => e.stopPropagation()}
+                              style={{ paddingLeft: 6, paddingRight: 6, borderLeft: '1px solid var(--mantine-color-gray-4)' }}>
+                              <IconChevronDown size={14} />
+                            </Button>
+                          </Menu.Target>
+                          <Menu.Dropdown>
+                            <Menu.Item fz="xs" color="red" leftSection={<IconTrash size={14} />}
+                              onClick={() => handleDelete(peer)}>
+                              Delete
+                            </Menu.Item>
+                          </Menu.Dropdown>
+                        </Menu>
+                      </Button.Group>
                     </Table.Td>
                   </Table.Tr>
                 );
@@ -254,6 +292,7 @@ export default function WireGuardPeers({ routerId }: WireGuardPeersProps) {
               )}
             </Table.Tbody>
           </Table>
+          </div>
         </>
       ) : (
         <EmptyState
@@ -316,7 +355,8 @@ export default function WireGuardPeers({ routerId }: WireGuardPeersProps) {
 
 function PeerTableSkeleton() {
   return (
-    <Table withRowBorders={false} style={tableStyle}>
+    <div style={{ border: '1px solid var(--mantine-color-gray-3)', borderRadius: 4, overflow: 'hidden' }}>
+    <Table withRowBorders={false} style={{ borderCollapse: 'collapse' as const }}>
       <Table.Thead>
         <Table.Tr style={headerRowStyle}>
           {columns.map((col) => (
@@ -348,5 +388,6 @@ function PeerTableSkeleton() {
         ))}
       </Table.Tbody>
     </Table>
+    </div>
   );
 }
