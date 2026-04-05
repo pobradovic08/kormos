@@ -5,14 +5,14 @@ const seedData: Record<string, Tunnel[]> = {
   'mock-1': [
     {
       id: 'gre-1-1', name: 'gre-to-branch-bgd', tunnelType: 'gre',
-      localAddress: '203.0.113.2', remoteAddress: '172.16.10.1', localInterface: 'ether1',
-      mtu: 1476, keepaliveInterval: 10, keepaliveRetries: 3,
+      localAddress: '203.0.113.2', remoteAddress: '172.16.10.1',
+      mtu: 1476, keepaliveInterval: 10, keepaliveRetries: 10, ipsecSecret: '',
       disabled: false, running: true, comment: 'GRE to Belgrade branch',
     } as GRETunnel,
     {
       id: 'gre-1-2', name: 'gre-to-branch-nis', tunnelType: 'gre',
-      localAddress: '203.0.113.2', remoteAddress: '172.16.20.1', localInterface: 'ether1',
-      mtu: 1476, keepaliveInterval: 10, keepaliveRetries: 3,
+      localAddress: '203.0.113.2', remoteAddress: '172.16.20.1',
+      mtu: 1476, keepaliveInterval: 10, keepaliveRetries: 10, ipsecSecret: '',
       disabled: false, running: false, comment: 'GRE to Nis branch',
     } as GRETunnel,
     {
@@ -39,8 +39,8 @@ const seedData: Record<string, Tunnel[]> = {
   'mock-2': [
     {
       id: 'gre-2-1', name: 'gre-backup-bgd', tunnelType: 'gre',
-      localAddress: '203.0.113.3', remoteAddress: '172.16.10.1', localInterface: 'ether1',
-      mtu: 1476, keepaliveInterval: 10, keepaliveRetries: 3,
+      localAddress: '203.0.113.3', remoteAddress: '172.16.10.1',
+      mtu: 1476, keepaliveInterval: 10, keepaliveRetries: 10, ipsecSecret: '',
       disabled: false, running: true, comment: 'Backup GRE to Belgrade',
     } as GRETunnel,
     {
@@ -64,8 +64,8 @@ const seedData: Record<string, Tunnel[]> = {
   'mock-5': [
     {
       id: 'gre-5-1', name: 'gre-to-hq', tunnelType: 'gre',
-      localAddress: '172.16.10.1', remoteAddress: '203.0.113.2', localInterface: 'ether1',
-      mtu: 1476, keepaliveInterval: 10, keepaliveRetries: 3,
+      localAddress: '172.16.10.1', remoteAddress: '203.0.113.2',
+      mtu: 1476, keepaliveInterval: 10, keepaliveRetries: 10, ipsecSecret: '',
       disabled: false, running: true, comment: 'GRE to HQ',
     } as GRETunnel,
     {
@@ -83,8 +83,8 @@ const seedData: Record<string, Tunnel[]> = {
   'mock-6': [
     {
       id: 'gre-6-1', name: 'gre-to-hq', tunnelType: 'gre',
-      localAddress: '172.16.20.1', remoteAddress: '203.0.113.2', localInterface: 'ether1',
-      mtu: 1476, keepaliveInterval: 10, keepaliveRetries: 3,
+      localAddress: '172.16.20.1', remoteAddress: '203.0.113.2',
+      mtu: 1476, keepaliveInterval: 10, keepaliveRetries: 10, ipsecSecret: '',
       disabled: false, running: false, comment: 'GRE to HQ',
     } as GRETunnel,
     {

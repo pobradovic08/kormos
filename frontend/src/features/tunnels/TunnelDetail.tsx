@@ -106,21 +106,20 @@ export default function TunnelDetail({
                 GRE Configuration
               </Text>
               <Stack gap="xs">
-                <DetailField label="Local Interface">
-                  <MonoText>{(tunnel as GRETunnel).localInterface}</MonoText>
-                </DetailField>
                 <DetailField label="MTU">
                   <MonoText>{(tunnel as GRETunnel).mtu}</MonoText>
                 </DetailField>
-                <DetailField label="Keepalive Interval">
+                <DetailField label="Keepalive">
                   <Text size="sm">
-                    {(tunnel as GRETunnel).keepaliveInterval === 0
+                    {(tunnel as GRETunnel).keepaliveInterval === 0 && (tunnel as GRETunnel).keepaliveRetries === 0
                       ? 'Disabled'
-                      : `${(tunnel as GRETunnel).keepaliveInterval}s`}
+                      : `${(tunnel as GRETunnel).keepaliveInterval}s, ${(tunnel as GRETunnel).keepaliveRetries} retries`}
                   </Text>
                 </DetailField>
-                <DetailField label="Keepalive Retries">
-                  <Text size="sm">{(tunnel as GRETunnel).keepaliveRetries}</Text>
+                <DetailField label="IPsec Secret">
+                  <Text size="sm">
+                    {(tunnel as GRETunnel).ipsecSecret ? '••••••••' : 'None'}
+                  </Text>
                 </DetailField>
               </Stack>
             </Box>

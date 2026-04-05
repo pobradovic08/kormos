@@ -105,6 +105,49 @@ export interface AddressList {
   entries: AddressEntry[];
 }
 
+export interface GRETunnel {
+  id: string;
+  name: string;
+  tunnelType: 'gre';
+  localAddress: string;
+  remoteAddress: string;
+  mtu: number;
+  keepaliveInterval: number;
+  keepaliveRetries: number;
+  ipsecSecret: string;
+  disabled: boolean;
+  running: boolean;
+  comment: string;
+}
+
+export interface IPsecPhaseProposal {
+  encryption: string;
+  hash: string;
+  dhGroup: number;
+  lifetime: string;
+}
+
+export interface IPsecTunnel {
+  id: string;
+  name: string;
+  tunnelType: 'ipsec';
+  mode: 'route-based' | 'policy-based';
+  localAddress: string;
+  remoteAddress: string;
+  ikeVersion: 1 | 2;
+  authMethod: 'pre-shared-key' | 'certificate';
+  phase1: IPsecPhaseProposal;
+  phase2: Omit<IPsecPhaseProposal, 'dhGroup'> & { pfsGroup: number };
+  tunnelInterface: string;
+  localSubnet: string;
+  remoteSubnet: string;
+  disabled: boolean;
+  established: boolean;
+  comment: string;
+}
+
+export type Tunnel = GRETunnel | IPsecTunnel;
+
 export interface PendingChange {
   id: string;
   routerId: string;

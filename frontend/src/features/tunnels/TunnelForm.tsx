@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   Drawer,
   Stepper,
   TextInput,
   NumberInput,
+  PasswordInput,
   Select,
   SegmentedControl,
   Button,
@@ -13,6 +14,7 @@ import {
 } from '@mantine/core';
 import type { Tunnel, GRETunnel, IPsecTunnel } from '../../api/types';
 import { useAddTunnel, useUpdateTunnel } from './tunnelsApi';
+import { useInterfaces } from '../interfaces/interfacesApi';
 
 type TunnelType = 'gre' | 'ipsec';
 
@@ -28,13 +30,13 @@ interface TunnelFormProps {
 
 interface GREFormState {
   name: string;
-  localAddress: string;
   remoteAddress: string;
-  localInterface: string;
-  comment: string;
-  mtu: number;
+  localAddress: string;
   keepaliveInterval: number;
   keepaliveRetries: number;
+  mtu: number;
+  ipsecSecret: string;
+  comment: string;
 }
 
 function getInitialGREState(tunnel?: Tunnel | null): GREFormState {
@@ -42,24 +44,24 @@ function getInitialGREState(tunnel?: Tunnel | null): GREFormState {
     const gre = tunnel as GRETunnel;
     return {
       name: gre.name,
-      localAddress: gre.localAddress,
       remoteAddress: gre.remoteAddress,
-      localInterface: gre.localInterface,
-      comment: gre.comment,
-      mtu: gre.mtu,
+      localAddress: gre.localAddress || '0.0.0.0',
       keepaliveInterval: gre.keepaliveInterval,
       keepaliveRetries: gre.keepaliveRetries,
+      mtu: gre.mtu,
+      ipsecSecret: gre.ipsecSecret,
+      comment: gre.comment,
     };
   }
   return {
     name: '',
-    localAddress: '',
     remoteAddress: '',
-    localInterface: 'ether1',
-    comment: '',
-    mtu: 1476,
+    localAddress: '0.0.0.0',
     keepaliveInterval: 10,
-    keepaliveRetries: 3,
+    keepaliveRetries: 10,
+    mtu: 1476,
+    ipsecSecret: '',
+    comment: '',
   };
 }
 
@@ -189,10 +191,11 @@ export default function TunnelForm({
   editTunnel,
 }: TunnelFormProps) {
   const isEdit = !!editTunnel;
-  const totalSteps = tunnelType === 'gre' ? 2 : 3;
+  const totalSteps = tunnelType === 'gre' ? 1 : 3;
 
   const [activeStep, setActiveStep] = useState(0);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [submitted, setSubmitted] = useState(false);
   const [saving, setSaving] = useState(false);
 
   const [greState, setGreState] = useState<GREFormState>(getInitialGREState(editTunnel));
@@ -201,11 +204,26 @@ export default function TunnelForm({
   const addMutation = useAddTunnel(routerId);
   const updateMutation = useUpdateTunnel(routerId);
 
+  // Fetch router addresses for Local Address dropdown
+  const { data: interfaces } = useInterfaces(routerId);
+  const addressOptions = useMemo(() => {
+    const auto = { value: '0.0.0.0', label: 'Auto (0.0.0.0)' };
+    if (!interfaces) return [auto];
+    const addrs = interfaces.flatMap((iface) =>
+      iface.addresses.map((a) => ({
+        value: a.address.split('/')[0],
+        label: `${a.address.split('/')[0]} (${iface.name})`,
+      }))
+    );
+    return [auto, ...addrs];
+  }, [interfaces]);
+
   // Reset form when drawer opens/closes
   useEffect(() => {
     if (isOpen) {
       setActiveStep(0);
       setErrors({});
+      setSubmitted(false);
       setSaving(false);
       setGreState(getInitialGREState(editTunnel));
       setIpsecState(getInitialIPsecState(editTunnel));
@@ -214,15 +232,10 @@ export default function TunnelForm({
 
   // ─── GRE validation ────────────────────────────────────────────────────────
 
-  function validateGREStep(step: number): boolean {
+  function validateGRE(): boolean {
     const newErrors: Record<string, string> = {};
-
-    if (step === 0) {
-      if (!greState.name.trim()) newErrors.name = 'Name is required';
-      if (!greState.localAddress.trim()) newErrors.localAddress = 'Local address is required';
-      if (!greState.remoteAddress.trim()) newErrors.remoteAddress = 'Remote address is required';
-    }
-
+    if (!greState.name.trim()) newErrors.name = 'Name is required';
+    if (!greState.remoteAddress.trim()) newErrors.remoteAddress = 'Remote address is required';
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   }
@@ -252,12 +265,7 @@ export default function TunnelForm({
   // ─── Navigation ───────────────────────────────────────────────────────────
 
   function handleNext() {
-    const isValid = tunnelType === 'gre'
-      ? validateGREStep(activeStep)
-      : validateIPsecStep(activeStep);
-
-    if (!isValid) return;
-
+    if (!validateIPsecStep(activeStep)) return;
     if (activeStep < totalSteps - 1) {
       setActiveStep((s) => s + 1);
     }
@@ -271,8 +279,9 @@ export default function TunnelForm({
   // ─── Submit ───────────────────────────────────────────────────────────────
 
   async function handleSubmit() {
+    setSubmitted(true);
     const isValid = tunnelType === 'gre'
-      ? validateGREStep(activeStep)
+      ? validateGRE()
       : validateIPsecStep(activeStep);
 
     if (!isValid) return;
@@ -283,13 +292,13 @@ export default function TunnelForm({
         const tunnelData: Omit<GRETunnel, 'id'> = {
           tunnelType: 'gre',
           name: greState.name.trim(),
-          localAddress: greState.localAddress.trim(),
           remoteAddress: greState.remoteAddress.trim(),
-          localInterface: greState.localInterface.trim(),
-          comment: greState.comment.trim(),
+          localAddress: greState.localAddress,
           mtu: greState.mtu,
           keepaliveInterval: greState.keepaliveInterval,
           keepaliveRetries: greState.keepaliveRetries,
+          ipsecSecret: greState.ipsecSecret,
+          comment: greState.comment.trim(),
           disabled: false,
           running: true,
         };
@@ -370,7 +379,7 @@ export default function TunnelForm({
   // ─── Title ────────────────────────────────────────────────────────────────
 
   const typeLabel = tunnelType === 'gre' ? 'GRE' : 'IPsec';
-  const title = isEdit ? `Edit ${typeLabel} Tunnel` : `Add ${typeLabel} Tunnel`;
+  const title = isEdit ? `Edit ${typeLabel} Tunnel` : `Add ${typeLabel}`;
 
   // ─── Is on final step? ────────────────────────────────────────────────────
 
@@ -386,139 +395,162 @@ export default function TunnelForm({
       position="right"
       size="xl"
       padding="xl"
-      title={title}
+      title={<Text fw={600}>{title}</Text>}
     >
-      <Stack gap="lg">
-        {/* Step indicator (visual only — content rendered below) */}
-        {tunnelType === 'gre' ? (
-          <Stepper active={activeStep} size="sm" allowNextStepsSelect={isEdit}>
-            <Stepper.Step label="Connection" description="Basic settings" />
-            <Stepper.Step label="GRE Parameters" description="Tunnel settings" />
-          </Stepper>
-        ) : (
+      {tunnelType === 'gre' ? (
+        /* ─── GRE: flat form, no stepper ─────────────────────────── */
+        <Stack gap="xs">
+          <div>
+            <TextInput
+              label="Name"
+              placeholder="e.g. gre-to-branch"
+              required
+              size="sm"
+              radius="sm"
+              value={greState.name}
+              onChange={(e) => updateGRE('name', e.currentTarget.value)}
+              error={submitted ? errors.name : undefined}
+            />
+            {!errors.name && <div style={{ height: 20 }} />}
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--mantine-spacing-sm)' }}>
+            <div>
+              <TextInput
+                label="Remote Tunnel Endpoint"
+                placeholder="e.g. 172.16.10.1"
+                required
+                size="sm"
+                radius="sm"
+                value={greState.remoteAddress}
+                onChange={(e) => updateGRE('remoteAddress', e.currentTarget.value)}
+                error={submitted ? errors.remoteAddress : undefined}
+              />
+              {!errors.remoteAddress && <div style={{ height: 20 }} />}
+            </div>
+            <div>
+              <Select
+                label="Local Tunnel Endpoint"
+                size="sm"
+                radius="sm"
+                data={addressOptions}
+                value={greState.localAddress}
+                onChange={(val) => updateGRE('localAddress', val ?? '0.0.0.0')}
+              />
+              <div style={{ height: 20 }} />
+            </div>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 'var(--mantine-spacing-sm)' }}>
+            <div>
+              <NumberInput
+                label="Keepalive Interval"
+                placeholder="0 to disable"
+                suffix="s"
+                size="sm"
+                radius="sm"
+                value={greState.keepaliveInterval}
+                onChange={(val) => updateGRE('keepaliveInterval', typeof val === 'number' ? val : 10)}
+                min={0}
+              />
+              <div style={{ height: 20 }} />
+            </div>
+            <div>
+              <NumberInput
+                label="Keepalive Retries"
+                size="sm"
+                radius="sm"
+                value={greState.keepaliveRetries}
+                onChange={(val) => updateGRE('keepaliveRetries', typeof val === 'number' ? val : 10)}
+                min={0}
+              />
+              <div style={{ height: 20 }} />
+            </div>
+            <div>
+              <NumberInput
+                label="MTU"
+                size="sm"
+                radius="sm"
+                value={greState.mtu}
+                onChange={(val) => updateGRE('mtu', typeof val === 'number' ? val : 1476)}
+                min={68}
+                max={65535}
+              />
+              <div style={{ height: 20 }} />
+            </div>
+          </div>
+          <div>
+            <PasswordInput
+              label="IPsec Secret"
+              placeholder="Leave empty for no encryption"
+              size="sm"
+              radius="sm"
+              value={greState.ipsecSecret}
+              onChange={(e) => updateGRE('ipsecSecret', e.currentTarget.value)}
+            />
+            <div style={{ height: 20 }} />
+          </div>
+          <div>
+            <TextInput
+              label="Comment"
+              placeholder="Optional description"
+              size="sm"
+              radius="sm"
+              value={greState.comment}
+              onChange={(e) => updateGRE('comment', e.currentTarget.value)}
+            />
+            <div style={{ height: 20 }} />
+          </div>
+          <Group justify="space-between" mt="sm">
+            <Button variant="default" size="sm" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button size="sm" onClick={handleSubmit} loading={saving}>
+              {submitLabel}
+            </Button>
+          </Group>
+        </Stack>
+      ) : (
+        /* ─── IPsec: stepper form ────────────────────────────────── */
+        <Stack gap="lg">
           <Stepper active={activeStep} size="sm" allowNextStepsSelect={isEdit}>
             <Stepper.Step label="Connection" description="Basic settings" />
             <Stepper.Step label="Phase 1" description="IKE proposal" />
             <Stepper.Step label="Phase 2" description="IPsec proposal" />
           </Stepper>
-        )}
 
-        {/* Step content */}
-        {tunnelType === 'gre' && activeStep === 0 && (
-          <GREConnectionStep state={greState} errors={errors} onUpdate={updateGRE} />
-        )}
-        {tunnelType === 'gre' && activeStep === 1 && (
-          <GREParametersStep state={greState} onUpdate={updateGRE} />
-        )}
-        {tunnelType === 'ipsec' && activeStep === 0 && (
-          <IPsecConnectionStep state={ipsecState} errors={errors} onUpdate={updateIPsec} />
-        )}
-        {tunnelType === 'ipsec' && activeStep === 1 && (
-          <IPsecPhase1Step state={ipsecState} onUpdate={updateIPsec} />
-        )}
-        {tunnelType === 'ipsec' && activeStep === 2 && (
-          <IPsecPhase2Step state={ipsecState} onUpdate={updateIPsec} />
-        )}
+          {activeStep === 0 && (
+            <IPsecConnectionStep state={ipsecState} errors={errors} onUpdate={updateIPsec} />
+          )}
+          {activeStep === 1 && (
+            <IPsecPhase1Step state={ipsecState} onUpdate={updateIPsec} />
+          )}
+          {activeStep === 2 && (
+            <IPsecPhase2Step state={ipsecState} onUpdate={updateIPsec} />
+          )}
 
-        {/* Navigation buttons */}
-        <Group justify="space-between">
-          <Button variant="default" onClick={onClose}>
-            Cancel
-          </Button>
-          <Group gap="sm">
-            {activeStep > 0 && (
-              <Button variant="default" onClick={handleBack}>
-                Back
-              </Button>
-            )}
-            {isLastStep ? (
-              <Button onClick={handleSubmit} loading={saving}>
-                {submitLabel}
-              </Button>
-            ) : (
-              <Button onClick={handleNext}>
-                Next
-              </Button>
-            )}
+          <Group justify="space-between">
+            <Button variant="default" onClick={onClose}>
+              Cancel
+            </Button>
+            <Group gap="sm">
+              {activeStep > 0 && (
+                <Button variant="default" onClick={handleBack}>
+                  Back
+                </Button>
+              )}
+              {isLastStep ? (
+                <Button onClick={handleSubmit} loading={saving}>
+                  {submitLabel}
+                </Button>
+              ) : (
+                <Button onClick={handleNext}>
+                  Next
+                </Button>
+              )}
+            </Group>
           </Group>
-        </Group>
-      </Stack>
+        </Stack>
+      )}
     </Drawer>
-  );
-}
-
-// ─── GRE Step Components ──────────────────────────────────────────────────────
-
-interface GREStepProps {
-  state: GREFormState;
-  errors?: Record<string, string>;
-  onUpdate: <K extends keyof GREFormState>(field: K, value: GREFormState[K]) => void;
-}
-
-function GREConnectionStep({ state, errors = {}, onUpdate }: GREStepProps) {
-  return (
-    <Stack gap="md" mt="md">
-      <TextInput
-        label="Name"
-        placeholder="e.g. gre-to-branch"
-        required
-        value={state.name}
-        onChange={(e) => onUpdate('name', e.currentTarget.value)}
-        error={errors.name}
-      />
-      <Group grow>
-        <TextInput
-          label="Local Address"
-          required
-          value={state.localAddress}
-          onChange={(e) => onUpdate('localAddress', e.currentTarget.value)}
-          error={errors.localAddress}
-        />
-        <TextInput
-          label="Remote Address"
-          required
-          value={state.remoteAddress}
-          onChange={(e) => onUpdate('remoteAddress', e.currentTarget.value)}
-          error={errors.remoteAddress}
-        />
-      </Group>
-      <TextInput
-        label="Local Interface"
-        value={state.localInterface}
-        onChange={(e) => onUpdate('localInterface', e.currentTarget.value)}
-      />
-      <TextInput
-        label="Comment"
-        value={state.comment}
-        onChange={(e) => onUpdate('comment', e.currentTarget.value)}
-      />
-    </Stack>
-  );
-}
-
-function GREParametersStep({ state, onUpdate }: GREStepProps) {
-  return (
-    <Stack gap="md" mt="md">
-      <NumberInput
-        label="MTU"
-        value={state.mtu}
-        onChange={(val) => onUpdate('mtu', typeof val === 'number' ? val : 1476)}
-        min={68}
-        max={65535}
-      />
-      <NumberInput
-        label="Keepalive Interval"
-        description="Set to 0 to disable"
-        suffix="s"
-        value={state.keepaliveInterval}
-        onChange={(val) => onUpdate('keepaliveInterval', typeof val === 'number' ? val : 10)}
-      />
-      <NumberInput
-        label="Keepalive Retries"
-        value={state.keepaliveRetries}
-        onChange={(val) => onUpdate('keepaliveRetries', typeof val === 'number' ? val : 0)}
-      />
-    </Stack>
   );
 }
 
@@ -687,3 +719,4 @@ function IPsecPhase2Step({ state, onUpdate }: IPsecStepProps) {
     </Stack>
   );
 }
+
