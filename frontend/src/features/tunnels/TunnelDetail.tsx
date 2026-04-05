@@ -127,101 +127,118 @@ export default function TunnelDetail({
         )}
 
         {/* Section 2: IPsec Configuration */}
-        {tunnel.tunnelType === 'ipsec' && (
-          <>
-            <Divider />
-            <Box>
-              <Text fw={600} size="sm" mb="sm">
-                IPsec Configuration
-              </Text>
-              <Stack gap="xs">
-                <DetailField label="Mode">
-                  <Badge
-                    variant="light"
-                    size="sm"
-                    radius="sm"
-                    color={(tunnel as IPsecTunnel).mode === 'route-based' ? 'blue' : 'violet'}
-                  >
-                    {(tunnel as IPsecTunnel).mode}
-                  </Badge>
-                </DetailField>
-                <DetailField label="IKE Version">
-                  <Text size="sm">v{(tunnel as IPsecTunnel).ikeVersion}</Text>
-                </DetailField>
-                <DetailField label="Authentication">
-                  <Text size="sm">
-                    {(tunnel as IPsecTunnel).authMethod === 'pre-shared-key'
-                      ? 'Pre-shared Key'
-                      : 'Certificate'}
-                  </Text>
-                </DetailField>
-                {(tunnel as IPsecTunnel).mode === 'route-based' && (
-                  <DetailField label="Tunnel Interface">
-                    <MonoText>{(tunnel as IPsecTunnel).tunnelInterface}</MonoText>
+        {tunnel.tunnelType === 'ipsec' && (() => {
+          const ipsec = tunnel as IPsecTunnel;
+          return (
+            <>
+              <Divider />
+              <Box>
+                <Text fw={600} size="sm" mb="sm">
+                  IPsec Configuration
+                </Text>
+                <Stack gap="xs">
+                  <DetailField label="Mode">
+                    <Badge variant="light" size="sm" radius="sm"
+                      color={ipsec.mode === 'route-based' ? 'blue' : 'violet'}>
+                      {ipsec.mode}
+                    </Badge>
                   </DetailField>
-                )}
-                {(tunnel as IPsecTunnel).mode === 'policy-based' && (
-                  <>
-                    <DetailField label="Local Subnet">
-                      <MonoText>{(tunnel as IPsecTunnel).localSubnet}</MonoText>
-                    </DetailField>
-                    <DetailField label="Remote Subnet">
-                      <MonoText>{(tunnel as IPsecTunnel).remoteSubnet}</MonoText>
-                    </DetailField>
-                  </>
-                )}
-              </Stack>
-            </Box>
+                  <DetailField label="Authentication">
+                    <Text size="sm">
+                      {ipsec.authMethod === 'pre-shared-key' ? 'Pre-shared Key' : 'Certificate'}
+                    </Text>
+                  </DetailField>
+                  <DetailField label="IPsec Secret">
+                    <Text size="sm">{ipsec.ipsecSecret ? '••••••••' : 'None'}</Text>
+                  </DetailField>
+                </Stack>
+              </Box>
 
-            {/* Section 3: Phase 1 Proposal */}
-            <Divider />
-            <Box>
-              <Text fw={600} size="sm" mb="sm">
-                Phase 1 Proposal
-              </Text>
-              <Stack gap="xs">
-                <DetailField label="Encryption">
-                  <Text size="sm">{(tunnel as IPsecTunnel).phase1.encryption}</Text>
-                </DetailField>
-                <DetailField label="Hash">
-                  <Text size="sm">{(tunnel as IPsecTunnel).phase1.hash}</Text>
-                </DetailField>
-                <DetailField label="DH Group">
-                  <Text size="sm">{(tunnel as IPsecTunnel).phase1.dhGroup}</Text>
-                </DetailField>
-                <DetailField label="Lifetime">
-                  <Text size="sm">{(tunnel as IPsecTunnel).phase1.lifetime}</Text>
-                </DetailField>
-              </Stack>
-            </Box>
+              {/* Phase 1 */}
+              <Divider />
+              <Box>
+                <Text fw={600} size="sm" mb="sm">
+                  Phase 1 (IKE Profile)
+                </Text>
+                <Stack gap="xs">
+                  <DetailField label="Encryption">
+                    <Text size="sm">{ipsec.phase1.encryption}</Text>
+                  </DetailField>
+                  <DetailField label="Hash">
+                    <Text size="sm">{ipsec.phase1.hash}</Text>
+                  </DetailField>
+                  <DetailField label="DH Group">
+                    <Text size="sm">{ipsec.phase1.dhGroup}</Text>
+                  </DetailField>
+                  <DetailField label="Lifetime">
+                    <Text size="sm">{ipsec.phase1.lifetime}</Text>
+                  </DetailField>
+                </Stack>
+              </Box>
 
-            {/* Section 4: Phase 2 Proposal */}
-            <Divider />
-            <Box>
-              <Text fw={600} size="sm" mb="sm">
-                Phase 2 Proposal
-              </Text>
-              <Stack gap="xs">
-                <DetailField label="Encryption">
-                  <Text size="sm">{(tunnel as IPsecTunnel).phase2.encryption}</Text>
-                </DetailField>
-                <DetailField label="Hash">
-                  <Text size="sm">{(tunnel as IPsecTunnel).phase2.hash}</Text>
-                </DetailField>
-                <DetailField label="PFS Group">
-                  <Text size="sm">
-                    {(tunnel as IPsecTunnel).phase2.pfsGroup === 0
-                      ? 'None'
-                      : (tunnel as IPsecTunnel).phase2.pfsGroup}
-                  </Text>
-                </DetailField>
-                <DetailField label="Lifetime">
-                  <Text size="sm">{(tunnel as IPsecTunnel).phase2.lifetime}</Text>
-                </DetailField>
-              </Stack>
-            </Box>
-          </>
-        )}
+              {/* Phase 2 */}
+              <Divider />
+              <Box>
+                <Text fw={600} size="sm" mb="sm">
+                  Phase 2 (ESP Proposal)
+                </Text>
+                <Stack gap="xs">
+                  <DetailField label="Encryption">
+                    <Text size="sm">{ipsec.phase2.encryption}</Text>
+                  </DetailField>
+                  <DetailField label="Auth Algorithm">
+                    <Text size="sm">{ipsec.phase2.authAlgorithm === 'null' ? 'None' : ipsec.phase2.authAlgorithm}</Text>
+                  </DetailField>
+                  <DetailField label="PFS Group">
+                    <Text size="sm">{ipsec.phase2.pfsGroup === 'none' ? 'None' : ipsec.phase2.pfsGroup}</Text>
+                  </DetailField>
+                  <DetailField label="Lifetime">
+                    <Text size="sm">{ipsec.phase2.lifetime}</Text>
+                  </DetailField>
+                </Stack>
+              </Box>
+
+              {/* Protected Networks or Tunnel Routes */}
+              {(ipsec.mode === 'policy-based' && ipsec.localSubnets.length > 0) && (
+                <>
+                  <Divider />
+                  <Box>
+                    <Text fw={600} size="sm" mb="sm">Protected Networks</Text>
+                    <Stack gap="xs">
+                      <DetailField label="Local Subnets">
+                        <Stack gap={2}>{ipsec.localSubnets.map((s) => <MonoText key={s}>{s}</MonoText>)}</Stack>
+                      </DetailField>
+                      <DetailField label="Remote Subnets">
+                        <Stack gap={2}>{ipsec.remoteSubnets.map((s) => <MonoText key={s}>{s}</MonoText>)}</Stack>
+                      </DetailField>
+                    </Stack>
+                  </Box>
+                </>
+              )}
+              {(ipsec.mode === 'route-based' && ipsec.tunnelRoutes.length > 0) && (
+                <>
+                  <Divider />
+                  <Box>
+                    <Text fw={600} size="sm" mb="sm">Tunnel Routes</Text>
+                    <Stack gap={2}>{ipsec.tunnelRoutes.map((r) => <MonoText key={r}>{r}</MonoText>)}</Stack>
+                  </Box>
+                </>
+              )}
+
+              {/* Advanced defaults */}
+              <Divider />
+              <Box>
+                <Text fw={600} size="sm" mb="sm">Advanced</Text>
+                <Stack gap="xs">
+                  <DetailField label="IKE Version"><Text size="sm">v2</Text></DetailField>
+                  <DetailField label="NAT Traversal"><Text size="sm">Enabled</Text></DetailField>
+                  <DetailField label="DPD Interval"><Text size="sm">2m</Text></DetailField>
+                  <DetailField label="DPD Max Failures"><Text size="sm">5</Text></DetailField>
+                </Stack>
+              </Box>
+            </>
+          );
+        })()}
 
         {/* Actions */}
         <Divider />

@@ -79,10 +79,9 @@ function matchesTunnel(
       return true;
     if (tunnel.tunnelType === 'ipsec') {
       const ipsec = tunnel as IPsecTunnel;
-      if (ipsec.localSubnet && prefixOverlaps(query, ipsec.localSubnet))
-        return true;
-      if (ipsec.remoteSubnet && prefixOverlaps(query, ipsec.remoteSubnet))
-        return true;
+      if (ipsec.localSubnets.some((s) => prefixOverlaps(query, s))) return true;
+      if (ipsec.remoteSubnets.some((s) => prefixOverlaps(query, s))) return true;
+      if (ipsec.tunnelRoutes.some((r) => prefixOverlaps(query, r))) return true;
     }
   } else {
     if (tunnel.localAddress.includes(query)) return true;

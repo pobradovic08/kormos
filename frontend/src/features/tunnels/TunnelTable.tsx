@@ -51,11 +51,11 @@ export function getStatus(tunnel: Tunnel): { status: 'running' | 'stopped' | 'di
 
 const columns = [
   { key: 'name', header: 'Name', width: undefined },
-  { key: 'type', header: 'Type', width: 80 },
-  { key: 'mode', header: 'Mode', width: 100 },
-  { key: 'localAddress', header: 'Local Address', width: undefined },
-  { key: 'remoteAddress', header: 'Remote Address', width: undefined },
-  { key: 'status', header: 'Status', width: 100 },
+  { key: 'type', header: 'Type', width: 80, align: 'center' as const },
+  { key: 'mode', header: 'Mode', width: 130, align: 'center' as const },
+  { key: 'localAddress', header: 'Local Address', width: 250 },
+  { key: 'remoteAddress', header: 'Remote Address', width: 250 },
+  { key: 'status', header: 'Status', width: 120 },
 ];
 
 export default function TunnelTable({ tunnels, search, onRowClick }: TunnelTableProps) {
@@ -64,7 +64,7 @@ export default function TunnelTable({ tunnels, search, onRowClick }: TunnelTable
       <Table.Thead>
         <Table.Tr style={headerRowStyle}>
           {columns.map((col) => (
-            <Table.Th key={col.key} style={{ width: col.width }}>
+            <Table.Th key={col.key} style={{ width: col.width, textAlign: (col as any).align }}>
               <HeaderLabel>{col.header}</HeaderLabel>
             </Table.Th>
           ))}
@@ -93,11 +93,11 @@ export default function TunnelTable({ tunnels, search, onRowClick }: TunnelTable
                   {tunnel.name}
                 </Text>
               </Table.Td>
-              <Table.Td style={{ width: 80 }}>
-                <Group>
+              <Table.Td style={{ width: 80, textAlign: 'center' }}>
+                <Group justify="center">
                   <Badge
                     variant="light"
-                    size="xs"
+                    size="sm"
                     radius="sm"
                     color={tunnel.tunnelType === 'gre' ? 'blue' : 'violet'}
                   >
@@ -105,22 +105,30 @@ export default function TunnelTable({ tunnels, search, onRowClick }: TunnelTable
                   </Badge>
                 </Group>
               </Table.Td>
-              <Table.Td style={{ width: 100 }}>
+              <Table.Td style={{ width: 130, textAlign: 'center' }}>
                 {tunnel.tunnelType === 'ipsec' ? (
-                  <Group>
+                  <Group justify="center">
                     <Badge
                       variant="light"
-                      size="xs"
+                      size="sm"
                       radius="sm"
                       color={(tunnel as IPsecTunnel).mode === 'route-based' ? 'blue' : 'violet'}
                     >
                       {(tunnel as IPsecTunnel).mode === 'route-based' ? 'route' : 'policy'}
                     </Badge>
                   </Group>
+                ) : (tunnel as GRETunnel).ipsecSecret ? (
+                  <Group justify="center">
+                    <Badge variant="light" size="sm" radius="sm" color="green">
+                      encrypted
+                    </Badge>
+                  </Group>
                 ) : (
-                  <Text size="xs" c="dimmed">
-                    &mdash;
-                  </Text>
+                  <Group justify="center">
+                    <Badge variant="light" size="sm" radius="sm" color="gray">
+                      unencrypted
+                    </Badge>
+                  </Group>
                 )}
               </Table.Td>
               <Table.Td>
@@ -157,7 +165,7 @@ export function TunnelTableSkeleton() {
       <Table.Thead>
         <Table.Tr style={headerRowStyle}>
           {columns.map((col) => (
-            <Table.Th key={col.key} style={{ width: col.width }}>
+            <Table.Th key={col.key} style={{ width: col.width, textAlign: (col as any).align }}>
               <HeaderLabel>{col.header}</HeaderLabel>
             </Table.Th>
           ))}

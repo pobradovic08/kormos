@@ -8,14 +8,15 @@ import {
   Select,
   SegmentedControl,
   Button,
+  ActionIcon,
   Group,
   Stack,
-  Box,
+  Table,
   Text,
-  Divider,
   SimpleGrid,
+  Alert,
 } from '@mantine/core';
-import { IconBuildingTunnel } from '@tabler/icons-react';
+import { IconBuildingTunnel, IconInfoCircle, IconPlus, IconTrash } from '@tabler/icons-react';
 import type { Tunnel, GRETunnel, IPsecTunnel } from '../../api/types';
 import { useAddTunnel, useUpdateTunnel } from './tunnelsApi';
 import { useInterfaces } from '../interfaces/interfacesApi';
@@ -74,24 +75,22 @@ function getInitialGREState(tunnel?: Tunnel | null): GREFormState {
 interface IPsecFormState {
   name: string;
   mode: 'route-based' | 'policy-based';
-  localAddress: string;
   remoteAddress: string;
-  ikeVersion: string;
+  localAddress: string;
   authMethod: string;
-  tunnelInterface: string;
-  localSubnet: string;
-  remoteSubnet: string;
+  ipsecSecret: string;
   comment: string;
-  // Phase 1
   p1Encryption: string;
   p1Hash: string;
   p1DhGroup: string;
   p1Lifetime: string;
-  // Phase 2
   p2Encryption: string;
-  p2Hash: string;
+  p2AuthAlgorithm: string;
   p2PfsGroup: string;
   p2Lifetime: string;
+  localSubnets: string[];
+  remoteSubnets: string[];
+  tunnelRoutes: string[];
 }
 
 function getInitialIPsecState(tunnel?: Tunnel | null): IPsecFormState {
@@ -100,89 +99,95 @@ function getInitialIPsecState(tunnel?: Tunnel | null): IPsecFormState {
     return {
       name: ipsec.name,
       mode: ipsec.mode,
-      localAddress: ipsec.localAddress,
       remoteAddress: ipsec.remoteAddress,
-      ikeVersion: String(ipsec.ikeVersion),
+      localAddress: ipsec.localAddress || '0.0.0.0',
       authMethod: ipsec.authMethod,
-      tunnelInterface: ipsec.tunnelInterface,
-      localSubnet: ipsec.localSubnet,
-      remoteSubnet: ipsec.remoteSubnet,
+      ipsecSecret: ipsec.ipsecSecret,
       comment: ipsec.comment,
       p1Encryption: ipsec.phase1.encryption,
       p1Hash: ipsec.phase1.hash,
-      p1DhGroup: String(ipsec.phase1.dhGroup),
+      p1DhGroup: ipsec.phase1.dhGroup,
       p1Lifetime: ipsec.phase1.lifetime,
       p2Encryption: ipsec.phase2.encryption,
-      p2Hash: ipsec.phase2.hash,
-      p2PfsGroup: String(ipsec.phase2.pfsGroup),
+      p2AuthAlgorithm: ipsec.phase2.authAlgorithm,
+      p2PfsGroup: ipsec.phase2.pfsGroup,
       p2Lifetime: ipsec.phase2.lifetime,
+      localSubnets: [...ipsec.localSubnets],
+      remoteSubnets: [...ipsec.remoteSubnets],
+      tunnelRoutes: [...ipsec.tunnelRoutes],
     };
   }
   return {
     name: '',
     mode: 'route-based',
-    localAddress: '',
     remoteAddress: '',
-    ikeVersion: '2',
+    localAddress: '0.0.0.0',
     authMethod: 'pre-shared-key',
-    tunnelInterface: '',
-    localSubnet: '',
-    remoteSubnet: '',
+    ipsecSecret: '',
     comment: '',
-    p1Encryption: 'aes-256-cbc',
-    p1Hash: 'sha256',
-    p1DhGroup: '14',
-    p1Lifetime: '8h',
+    p1Encryption: 'aes-256',
+    p1Hash: 'sha512',
+    p1DhGroup: 'ecp384',
+    p1Lifetime: '1d',
     p2Encryption: 'aes-256-cbc',
-    p2Hash: 'sha256',
-    p2PfsGroup: '14',
-    p2Lifetime: '1h',
+    p2AuthAlgorithm: 'sha512',
+    p2PfsGroup: 'ecp384',
+    p2Lifetime: '30m',
+    localSubnets: [],
+    remoteSubnets: [],
+    tunnelRoutes: [],
   };
 }
 
 // ─── Select options ─────────────────────────────────────────────────────────
 
-const ENCRYPTION_OPTIONS = [
+// Phase 1 (IKE Profile) options
+const P1_ENCRYPTION_OPTIONS = [
+  { value: 'aes-128', label: 'AES-128' },
+  { value: 'aes-192', label: 'AES-192' },
+  { value: 'aes-256', label: 'AES-256' },
+];
+
+const P1_HASH_OPTIONS = [
+  { value: 'sha256', label: 'SHA256' },
+  { value: 'sha384', label: 'SHA384' },
+  { value: 'sha512', label: 'SHA512' },
+];
+
+const DH_GROUP_OPTIONS = [
+  { value: 'modp2048', label: 'modp2048 (Group 14)' },
+  { value: 'modp3072', label: 'modp3072 (Group 15)' },
+  { value: 'modp4096', label: 'modp4096 (Group 16)' },
+  { value: 'ecp256', label: 'ecp256 (Group 19)' },
+  { value: 'ecp384', label: 'ecp384 (Group 20)' },
+  { value: 'ecp521', label: 'ecp521 (Group 21)' },
+];
+
+// Phase 2 (ESP Proposal) options
+const P2_ENCRYPTION_OPTIONS = [
   { value: 'aes-128-cbc', label: 'AES-128-CBC' },
   { value: 'aes-256-cbc', label: 'AES-256-CBC' },
   { value: 'aes-128-gcm', label: 'AES-128-GCM' },
   { value: 'aes-256-gcm', label: 'AES-256-GCM' },
 ];
 
-const HASH_OPTIONS = [
-  { value: 'sha1', label: 'SHA1' },
+const P2_AUTH_OPTIONS = [
   { value: 'sha256', label: 'SHA256' },
   { value: 'sha512', label: 'SHA512' },
-  { value: 'none', label: 'None' },
-];
-
-const DH_GROUP_OPTIONS = [
-  { value: '1', label: 'Group 1' },
-  { value: '2', label: 'Group 2' },
-  { value: '5', label: 'Group 5' },
-  { value: '14', label: 'Group 14' },
-  { value: '19', label: 'Group 19' },
-  { value: '20', label: 'Group 20' },
+  { value: 'null', label: 'None (GCM)' },
 ];
 
 const PFS_GROUP_OPTIONS = [
-  { value: '0', label: 'None' },
-  { value: '1', label: 'Group 1' },
-  { value: '2', label: 'Group 2' },
-  { value: '5', label: 'Group 5' },
-  { value: '14', label: 'Group 14' },
-  { value: '19', label: 'Group 19' },
-  { value: '20', label: 'Group 20' },
-];
-
-const IKE_VERSION_OPTIONS = [
-  { value: '1', label: 'IKEv1' },
-  { value: '2', label: 'IKEv2' },
+  { value: 'none', label: 'None' },
+  { value: 'modp2048', label: 'modp2048 (Group 14)' },
+  { value: 'modp3072', label: 'modp3072 (Group 15)' },
+  { value: 'ecp256', label: 'ecp256 (Group 19)' },
+  { value: 'ecp384', label: 'ecp384 (Group 20)' },
 ];
 
 const AUTH_METHOD_OPTIONS = [
   { value: 'pre-shared-key', label: 'Pre-shared Key' },
-  { value: 'certificate', label: 'Certificate' },
+  { value: 'digital-signature', label: 'Certificate' },
 ];
 
 // ─── Component ──────────────────────────────────────────────────────────────
@@ -195,7 +200,7 @@ export default function TunnelForm({
   editTunnel,
 }: TunnelFormProps) {
   const isEdit = !!editTunnel;
-  const totalSteps = tunnelType === 'gre' ? 1 : 3;
+  const totalSteps = tunnelType === 'gre' ? 1 : 4;
 
   const [activeStep, setActiveStep] = useState(0);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -251,14 +256,17 @@ export default function TunnelForm({
 
     if (step === 0) {
       if (!ipsecState.name.trim()) newErrors.name = 'Name is required';
-      if (!ipsecState.localAddress.trim()) newErrors.localAddress = 'Local address is required';
       if (!ipsecState.remoteAddress.trim()) newErrors.remoteAddress = 'Remote address is required';
-      if (ipsecState.mode === 'route-based' && !ipsecState.tunnelInterface.trim()) {
-        newErrors.tunnelInterface = 'Tunnel interface is required for route-based mode';
+      if (ipsecState.authMethod === 'pre-shared-key' && !ipsecState.ipsecSecret.trim()) {
+        newErrors.ipsecSecret = 'Pre-shared key is required';
       }
+    }
+    if (step === 3) {
       if (ipsecState.mode === 'policy-based') {
-        if (!ipsecState.localSubnet.trim()) newErrors.localSubnet = 'Local subnet is required';
-        if (!ipsecState.remoteSubnet.trim()) newErrors.remoteSubnet = 'Remote subnet is required';
+        if (ipsecState.localSubnets.length === 0) newErrors.localSubnets = 'At least one local subnet required';
+        if (ipsecState.remoteSubnets.length === 0) newErrors.remoteSubnets = 'At least one remote subnet required';
+      } else {
+        if (ipsecState.tunnelRoutes.length === 0) newErrors.tunnelRoutes = 'At least one route required';
       }
     }
 
@@ -317,26 +325,26 @@ export default function TunnelForm({
           tunnelType: 'ipsec',
           name: ipsecState.name.trim(),
           mode: ipsecState.mode,
-          localAddress: ipsecState.localAddress.trim(),
           remoteAddress: ipsecState.remoteAddress.trim(),
-          ikeVersion: Number(ipsecState.ikeVersion) as 1 | 2,
-          authMethod: ipsecState.authMethod as 'pre-shared-key' | 'certificate',
-          tunnelInterface: ipsecState.tunnelInterface.trim(),
-          localSubnet: ipsecState.localSubnet.trim(),
-          remoteSubnet: ipsecState.remoteSubnet.trim(),
+          localAddress: ipsecState.localAddress,
+          authMethod: ipsecState.authMethod as 'pre-shared-key' | 'digital-signature',
+          ipsecSecret: ipsecState.ipsecSecret,
           comment: ipsecState.comment.trim(),
           phase1: {
             encryption: ipsecState.p1Encryption,
             hash: ipsecState.p1Hash,
-            dhGroup: Number(ipsecState.p1DhGroup),
+            dhGroup: ipsecState.p1DhGroup,
             lifetime: ipsecState.p1Lifetime,
           },
           phase2: {
             encryption: ipsecState.p2Encryption,
-            hash: ipsecState.p2Hash,
-            pfsGroup: Number(ipsecState.p2PfsGroup),
+            authAlgorithm: ipsecState.p2AuthAlgorithm,
+            pfsGroup: ipsecState.p2PfsGroup,
             lifetime: ipsecState.p2Lifetime,
           },
+          localSubnets: ipsecState.localSubnets,
+          remoteSubnets: ipsecState.remoteSubnets,
+          tunnelRoutes: ipsecState.tunnelRoutes,
           disabled: false,
           established: false,
         };
@@ -489,16 +497,17 @@ export default function TunnelForm({
           </Group>
         </Stack>
       ) : (
-        /* ─── IPsec: stepper form ────────────────────────────────── */
-        <Stack gap="lg">
+        /* ─── IPsec: 4-step stepper form ─────────────────────────── */
+        <Stack gap="md">
           <Stepper active={activeStep} size="sm" allowNextStepsSelect={isEdit}>
-            <Stepper.Step label="Connection" description="Basic settings" />
-            <Stepper.Step label="Phase 1" description="IKE proposal" />
-            <Stepper.Step label="Phase 2" description="IPsec proposal" />
+            <Stepper.Step label="Connection" description="Auth & endpoints" />
+            <Stepper.Step label="Phase 1" description="IKE profile" />
+            <Stepper.Step label="Phase 2" description="ESP proposal" />
+            <Stepper.Step label="Networks" description="Traffic selectors" />
           </Stepper>
 
           {activeStep === 0 && (
-            <IPsecConnectionStep state={ipsecState} errors={errors} onUpdate={updateIPsec} />
+            <IPsecConnectionStep state={ipsecState} errors={errors} onUpdate={updateIPsec} addressOptions={addressOptions} />
           )}
           {activeStep === 1 && (
             <IPsecPhase1Step state={ipsecState} onUpdate={updateIPsec} />
@@ -506,23 +515,26 @@ export default function TunnelForm({
           {activeStep === 2 && (
             <IPsecPhase2Step state={ipsecState} onUpdate={updateIPsec} />
           )}
+          {activeStep === 3 && (
+            <IPsecNetworksStep state={ipsecState} errors={errors} onUpdate={updateIPsec} />
+          )}
 
           <Group justify="space-between">
-            <Button variant="default" onClick={onClose}>
+            <Button variant="default" size="sm" onClick={onClose}>
               Cancel
             </Button>
             <Group gap="sm">
               {activeStep > 0 && (
-                <Button variant="default" onClick={handleBack}>
+                <Button variant="default" size="sm" onClick={handleBack}>
                   Back
                 </Button>
               )}
               {isLastStep ? (
-                <Button onClick={handleSubmit} loading={saving}>
+                <Button size="sm" onClick={handleSubmit} loading={saving}>
                   {submitLabel}
                 </Button>
               ) : (
-                <Button onClick={handleNext}>
+                <Button size="sm" onClick={handleNext}>
                   Next
                 </Button>
               )}
@@ -540,91 +552,67 @@ interface IPsecStepProps {
   state: IPsecFormState;
   errors?: Record<string, string>;
   onUpdate: <K extends keyof IPsecFormState>(field: K, value: IPsecFormState[K]) => void;
+  addressOptions?: { value: string; label: string }[];
 }
 
-function IPsecConnectionStep({ state, errors = {}, onUpdate }: IPsecStepProps) {
+function IPsecConnectionStep({ state, errors = {}, onUpdate, addressOptions = [] }: IPsecStepProps) {
   return (
-    <Stack gap="md" mt="md">
-      <TextInput
-        label="Name"
-        required
-        value={state.name}
-        onChange={(e) => onUpdate('name', e.currentTarget.value)}
-        error={errors.name}
-      />
-      <div>
-        <Text size="sm" fw={500} mb={4}>
-          Mode
-        </Text>
-        <SegmentedControl
-          fullWidth
-          value={state.mode}
-          onChange={(val) => onUpdate('mode', val as 'route-based' | 'policy-based')}
-          data={[
-            { value: 'route-based', label: 'Route-based' },
-            { value: 'policy-based', label: 'Policy-based' },
-          ]}
+    <Stack gap="md">
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--mantine-spacing-sm)' }}>
+        <TextInput
+          label="Name" required size="sm" radius="sm"
+          value={state.name}
+          onChange={(e) => onUpdate('name', e.currentTarget.value)}
+          error={errors.name}
         />
+        <div>
+          <Text size="sm" fw={500} mb={4}>Mode</Text>
+          <SegmentedControl
+            fullWidth size="sm" radius="md"
+            styles={{ indicator: { boxShadow: 'none' } }}
+            value={state.mode}
+            onChange={(val) => onUpdate('mode', val as 'route-based' | 'policy-based')}
+            data={[
+              { value: 'route-based', label: 'Route-based' },
+              { value: 'policy-based', label: 'Policy-based' },
+            ]}
+          />
+        </div>
       </div>
-      <Group grow>
+      <SimpleGrid cols={2} spacing="sm">
         <TextInput
-          label="Local Address"
-          required
-          value={state.localAddress}
-          onChange={(e) => onUpdate('localAddress', e.currentTarget.value)}
-          error={errors.localAddress}
-        />
-        <TextInput
-          label="Remote Address"
-          required
+          label="Remote Address" required size="sm" radius="sm"
+          placeholder="e.g. 172.16.10.1"
           value={state.remoteAddress}
           onChange={(e) => onUpdate('remoteAddress', e.currentTarget.value)}
           error={errors.remoteAddress}
         />
-      </Group>
-      <Group grow>
         <Select
-          label="IKE Version"
-          data={IKE_VERSION_OPTIONS}
-          value={state.ikeVersion}
-          onChange={(val) => onUpdate('ikeVersion', val ?? '2')}
+          label="Local Address" size="sm" radius="sm"
+          data={addressOptions}
+          value={state.localAddress}
+          onChange={(val) => onUpdate('localAddress', val ?? '0.0.0.0')}
         />
+      </SimpleGrid>
+      <SimpleGrid cols={2} spacing="sm">
         <Select
-          label="Auth Method"
+          label="Auth Method" size="sm" radius="sm"
           data={AUTH_METHOD_OPTIONS}
           value={state.authMethod}
           onChange={(val) => onUpdate('authMethod', val ?? 'pre-shared-key')}
         />
-      </Group>
-      {state.mode === 'route-based' && (
-        <TextInput
-          label="Tunnel Interface"
-          required
-          value={state.tunnelInterface}
-          onChange={(e) => onUpdate('tunnelInterface', e.currentTarget.value)}
-          error={errors.tunnelInterface}
-        />
-      )}
-      {state.mode === 'policy-based' && (
-        <Group grow>
-          <TextInput
-            label="Local Subnet"
-            required
-            value={state.localSubnet}
-            onChange={(e) => onUpdate('localSubnet', e.currentTarget.value)}
-            error={errors.localSubnet}
+        {state.authMethod === 'pre-shared-key' && (
+          <PasswordInput
+            label="Pre-shared Key" required size="sm" radius="sm"
+            value={state.ipsecSecret}
+            onChange={(e) => onUpdate('ipsecSecret', e.currentTarget.value)}
+            error={errors.ipsecSecret}
           />
-          <TextInput
-            label="Remote Subnet"
-            required
-            value={state.remoteSubnet}
-            onChange={(e) => onUpdate('remoteSubnet', e.currentTarget.value)}
-            error={errors.remoteSubnet}
-          />
-        </Group>
-      )}
+        )}
+      </SimpleGrid>
       <TextInput
-        label="Comment"
+        label="Comment" size="sm" radius="sm"
+        placeholder="Optional description"
         value={state.comment}
         onChange={(e) => onUpdate('comment', e.currentTarget.value)}
       />
@@ -634,68 +622,195 @@ function IPsecConnectionStep({ state, errors = {}, onUpdate }: IPsecStepProps) {
 
 function IPsecPhase1Step({ state, onUpdate }: IPsecStepProps) {
   return (
-    <Stack gap="md" mt="md">
-      <Group grow>
+    <Stack gap="md">
+      <Alert variant="light" color="blue" radius="sm" title="Deprecation notice" icon={false}
+        styles={{
+          title: { fontSize: 'var(--mantine-font-size-sm)' },
+          message: { fontSize: 'var(--mantine-font-size-xs)' },
+        }}>
+        IKEv1, 3DES, SHA1, and DH Groups 1, 2, 5 are not available due to
+        known security vulnerabilities and NIST deprecation.
+      </Alert>
+      <SimpleGrid cols={2} spacing="sm">
         <Select
-          label="Encryption"
-          data={ENCRYPTION_OPTIONS}
+          label="Encryption" size="sm" radius="sm"
+          data={P1_ENCRYPTION_OPTIONS}
           value={state.p1Encryption}
-          onChange={(val) => onUpdate('p1Encryption', val ?? 'aes-256-cbc')}
+          onChange={(val) => onUpdate('p1Encryption', val ?? 'aes-256')}
         />
         <Select
-          label="Hash"
-          data={HASH_OPTIONS}
+          label="Hash" size="sm" radius="sm"
+          data={P1_HASH_OPTIONS}
           value={state.p1Hash}
-          onChange={(val) => onUpdate('p1Hash', val ?? 'sha256')}
+          onChange={(val) => onUpdate('p1Hash', val ?? 'sha512')}
         />
-      </Group>
-      <Group grow>
+      </SimpleGrid>
+      <SimpleGrid cols={2} spacing="sm">
         <Select
-          label="DH Group"
+          label="DH Group" size="sm" radius="sm"
           data={DH_GROUP_OPTIONS}
           value={state.p1DhGroup}
-          onChange={(val) => onUpdate('p1DhGroup', val ?? '14')}
+          onChange={(val) => onUpdate('p1DhGroup', val ?? 'ecp384')}
         />
         <TextInput
-          label="Lifetime"
+          label="Lifetime" size="sm" radius="sm"
           value={state.p1Lifetime}
           onChange={(e) => onUpdate('p1Lifetime', e.currentTarget.value)}
         />
-      </Group>
+      </SimpleGrid>
     </Stack>
   );
 }
 
 function IPsecPhase2Step({ state, onUpdate }: IPsecStepProps) {
   return (
-    <Stack gap="md" mt="md">
-      <Group grow>
+    <Stack gap="md">
+      <Alert variant="light" color="blue" radius="sm" title="Deprecation notice" icon={false}
+        styles={{
+          title: { fontSize: 'var(--mantine-font-size-sm)' },
+          message: { fontSize: 'var(--mantine-font-size-xs)' },
+        }}>
+        SHA1 and PFS Groups 1, 2, 5 are not available due to known security
+        vulnerabilities and NIST deprecation.
+      </Alert>
+      <SimpleGrid cols={2} spacing="sm">
         <Select
-          label="Encryption"
-          data={ENCRYPTION_OPTIONS}
+          label="Encryption" size="sm" radius="sm"
+          data={P2_ENCRYPTION_OPTIONS}
           value={state.p2Encryption}
           onChange={(val) => onUpdate('p2Encryption', val ?? 'aes-256-cbc')}
         />
         <Select
-          label="Hash"
-          data={HASH_OPTIONS}
-          value={state.p2Hash}
-          onChange={(val) => onUpdate('p2Hash', val ?? 'sha256')}
+          label="Auth Algorithm" size="sm" radius="sm"
+          data={P2_AUTH_OPTIONS}
+          value={state.p2AuthAlgorithm}
+          onChange={(val) => onUpdate('p2AuthAlgorithm', val ?? 'sha256')}
         />
-      </Group>
-      <Group grow>
+      </SimpleGrid>
+      <SimpleGrid cols={2} spacing="sm">
         <Select
-          label="PFS Group"
+          label="PFS Group" size="sm" radius="sm"
           data={PFS_GROUP_OPTIONS}
           value={state.p2PfsGroup}
-          onChange={(val) => onUpdate('p2PfsGroup', val ?? '14')}
+          onChange={(val) => onUpdate('p2PfsGroup', val ?? 'modp2048')}
         />
         <TextInput
-          label="Lifetime"
+          label="Lifetime" size="sm" radius="sm"
           value={state.p2Lifetime}
           onChange={(e) => onUpdate('p2Lifetime', e.currentTarget.value)}
         />
+      </SimpleGrid>
+    </Stack>
+  );
+}
+
+function SubnetList({ items, onRemove, onAdd, placeholder, error }: {
+  items: string[];
+  onRemove: (index: number) => void;
+  onAdd: (value: string) => void;
+  placeholder: string;
+  error?: string;
+}) {
+  const [input, setInput] = useState('');
+
+  const handleAdd = () => {
+    if (input.trim()) {
+      onAdd(input.trim());
+      setInput('');
+    }
+  };
+
+  return (
+    <Stack gap="sm">
+      <Group gap="sm">
+        <TextInput
+          placeholder={placeholder}
+          size="sm" radius="sm"
+          style={{ flex: 1 }}
+          value={input}
+          onChange={(e) => setInput(e.currentTarget.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter') handleAdd(); }}
+          error={error}
+        />
+        <Button size="sm" variant="light" leftSection={<IconPlus size={14} />}
+          disabled={!input.trim()} onClick={handleAdd}>
+          Add
+        </Button>
       </Group>
+      {items.length > 0 && (
+        <Table withRowBorders={false} style={{
+          borderCollapse: 'collapse' as const,
+          border: '1px solid var(--mantine-color-gray-3)',
+          borderRadius: 4,
+          overflow: 'hidden',
+        }}>
+          <Table.Tbody>
+            {items.map((item, i) => (
+              <Table.Tr key={`${item}-${i}`} style={{
+                borderBottom: i < items.length - 1 ? '1px solid var(--mantine-color-gray-1)' : undefined,
+              }}>
+                <Table.Td>
+                  <Text size="sm" ff="monospace">{item}</Text>
+                </Table.Td>
+                <Table.Td style={{ width: 40 }}>
+                  <ActionIcon size="sm" variant="subtle" color="red" onClick={() => onRemove(i)}>
+                    <IconTrash size={14} />
+                  </ActionIcon>
+                </Table.Td>
+              </Table.Tr>
+            ))}
+          </Table.Tbody>
+        </Table>
+      )}
+    </Stack>
+  );
+}
+
+function IPsecNetworksStep({ state, errors = {}, onUpdate }: IPsecStepProps) {
+  if (state.mode === 'route-based') {
+    return (
+      <Stack gap="md">
+        <Text size="sm" c="dimmed">
+          Add destination networks to route through this tunnel.
+        </Text>
+        <SubnetList
+          items={state.tunnelRoutes}
+          placeholder="e.g. 10.20.0.0/24"
+          error={errors.tunnelRoutes}
+          onAdd={(v) => onUpdate('tunnelRoutes', [...state.tunnelRoutes, v])}
+          onRemove={(i) => onUpdate('tunnelRoutes', state.tunnelRoutes.filter((_, j) => j !== i))}
+        />
+      </Stack>
+    );
+  }
+
+  return (
+    <Stack gap="md">
+      <Text size="sm" c="dimmed">
+        Add local and remote subnets. Policies will be created for every combination.
+      </Text>
+      <SimpleGrid cols={2} spacing="sm">
+        <Stack gap="xs">
+          <Text size="xs" fw={600} c="dimmed" tt="uppercase" style={{ letterSpacing: 0.5 }}>Local Subnets</Text>
+          <SubnetList
+            items={state.localSubnets}
+            placeholder="e.g. 10.0.1.0/24"
+            error={errors.localSubnets}
+            onAdd={(v) => onUpdate('localSubnets', [...state.localSubnets, v])}
+            onRemove={(i) => onUpdate('localSubnets', state.localSubnets.filter((_, j) => j !== i))}
+          />
+        </Stack>
+        <Stack gap="xs">
+          <Text size="xs" fw={600} c="dimmed" tt="uppercase" style={{ letterSpacing: 0.5 }}>Remote Subnets</Text>
+          <SubnetList
+            items={state.remoteSubnets}
+            placeholder="e.g. 10.20.0.0/24"
+            error={errors.remoteSubnets}
+            onAdd={(v) => onUpdate('remoteSubnets', [...state.remoteSubnets, v])}
+            onRemove={(i) => onUpdate('remoteSubnets', state.remoteSubnets.filter((_, j) => j !== i))}
+          />
+        </Stack>
+      </SimpleGrid>
     </Stack>
   );
 }

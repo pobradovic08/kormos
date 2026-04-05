@@ -120,27 +120,30 @@ export interface GRETunnel {
   comment: string;
 }
 
-export interface IPsecPhaseProposal {
-  encryption: string;
-  hash: string;
-  dhGroup: number;
-  lifetime: string;
-}
-
 export interface IPsecTunnel {
   id: string;
   name: string;
   tunnelType: 'ipsec';
   mode: 'route-based' | 'policy-based';
-  localAddress: string;
   remoteAddress: string;
-  ikeVersion: 1 | 2;
-  authMethod: 'pre-shared-key' | 'certificate';
-  phase1: IPsecPhaseProposal;
-  phase2: Omit<IPsecPhaseProposal, 'dhGroup'> & { pfsGroup: number };
-  tunnelInterface: string;
-  localSubnet: string;
-  remoteSubnet: string;
+  localAddress: string;
+  authMethod: 'pre-shared-key' | 'digital-signature';
+  ipsecSecret: string;
+  phase1: {
+    encryption: string;
+    hash: string;
+    dhGroup: string;
+    lifetime: string;
+  };
+  phase2: {
+    encryption: string;
+    authAlgorithm: string;
+    pfsGroup: string;
+    lifetime: string;
+  };
+  localSubnets: string[];
+  remoteSubnets: string[];
+  tunnelRoutes: string[];
   disabled: boolean;
   established: boolean;
   comment: string;
