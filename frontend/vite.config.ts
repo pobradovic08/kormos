@@ -5,6 +5,9 @@ export default defineConfig({
   plugins: [react()],
   server: {
     port: 15400,
+    watch: {
+      useFsEvents: false,
+    },
     proxy: {
       '/api': {
         target: 'http://localhost:15480',

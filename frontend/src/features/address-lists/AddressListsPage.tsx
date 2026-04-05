@@ -19,8 +19,7 @@ import { looksLikeCIDR, prefixOverlaps } from '../../utils/cidr';
 import { useAddressLists, useDeleteAddressList, useDeleteEntries } from './addressListsApi';
 import AddressListGroup from './AddressListGroup';
 import AddressListForm from './AddressListForm';
-import AddressEntryForm from './AddressEntryForm';
-import ImportDrawer from './ImportDrawer';
+
 import EmptyState from '../../components/common/EmptyState';
 import ErrorBanner from '../../components/common/ErrorBanner';
 import ConfirmDialog from '../../components/common/ConfirmDialog';
@@ -57,7 +56,7 @@ export default function AddressListsPage() {
   const [selectedEntries, setSelectedEntries] = useState<Record<string, Set<string>>>({});
   const [addListOpen, setAddListOpen] = useState(false);
   const [addEntryTarget, setAddEntryTarget] = useState<string | null>(null);
-  const [importTarget, setImportTarget] = useState<string | null>(null);
+
   const [deleteListTarget, setDeleteListTarget] = useState<string | null>(null);
 
   // Reset state when router changes
@@ -245,7 +244,7 @@ export default function AddressListsPage() {
                 selectedEntries={selectedEntries[list.name] ?? new Set()}
                 onSelectionChange={(selected) => handleSelectionChange(list.name, selected)}
                 onAddEntry={(name) => setAddEntryTarget(name)}
-                onImport={(name) => setImportTarget(name)}
+
                 onDelete={(name) => setDeleteListTarget(name)}
                 onDeleteEntries={(name) => handleDeleteEntries(name)}
               />
@@ -278,24 +277,16 @@ export default function AddressListsPage() {
       />
 
       {addEntryTarget && (
-        <AddressEntryForm
+        <AddressListForm
           isOpen={!!addEntryTarget}
           onClose={() => setAddEntryTarget(null)}
           routerId={selectedRouterId}
-          listName={addEntryTarget}
-          existingPrefixes={getExistingPrefixes(addEntryTarget)}
+          existingNames={existingNames}
+          targetListName={addEntryTarget}
+          targetExistingPrefixes={getExistingPrefixes(addEntryTarget)}
         />
       )}
 
-      {importTarget && (
-        <ImportDrawer
-          isOpen={!!importTarget}
-          onClose={() => setImportTarget(null)}
-          routerId={selectedRouterId}
-          listName={importTarget}
-          existingPrefixes={getExistingPrefixes(importTarget)}
-        />
-      )}
 
       <ConfirmDialog
         isOpen={!!deleteListTarget}

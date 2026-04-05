@@ -29,6 +29,10 @@ interface AddressListFormProps {
   onClose: () => void;
   routerId: string;
   existingNames: string[];
+  /** When set, the drawer adds entries to this existing list instead of creating a new one */
+  targetListName?: string;
+  /** Existing prefixes in the target list (for duplicate detection) */
+  targetExistingPrefixes?: string[];
 }
 
 interface ManualEntry {
@@ -78,7 +82,10 @@ export default function AddressListForm({
   onClose,
   routerId,
   existingNames,
+  targetListName,
+  targetExistingPrefixes = [],
 }: AddressListFormProps) {
+  const isAddEntryMode = !!targetListName;
   // Name state
   const [name, setName] = useState('');
   const [nameError, setNameError] = useState<string | null>(null);
@@ -110,7 +117,8 @@ export default function AddressListForm({
   };
 
   const allPrefixes = useMemo(() => {
-    const prefixes = manualEntries.map((e) => e.prefix.toLowerCase());
+    const prefixes = targetExistingPrefixes.map((p) => p.toLowerCase());
+    for (const e of manualEntries) prefixes.push(e.prefix.toLowerCase());
     for (const e of importedEntries) {
       if (e.status === 'valid') prefixes.push(e.prefix.toLowerCase());
     }
@@ -146,7 +154,10 @@ export default function AddressListForm({
     if (!text && url.trim()) {
       text = SAMPLE_CSV;
     }
-    const existing = manualEntries.map((e) => e.prefix);
+    const existing = [
+      ...targetExistingPrefixes,
+      ...manualEntries.map((e) => e.prefix),
+    ];
     const parsed = parseCSV(text, existing);
     setImportedEntries(parsed);
     setImportParsed(true);
@@ -171,20 +182,26 @@ export default function AddressListForm({
 
   const totalEntries = manualEntries.length + validImportedEntries.length;
 
-  const handleCreate = async () => {
-    const nameErr = validateName(name);
-    if (nameErr) {
-      setNameError(nameErr);
-      return;
+  const handleSubmit = async () => {
+    const listName = isAddEntryMode ? targetListName! : name.trim();
+
+    if (!isAddEntryMode) {
+      const nameErr = validateName(name);
+      if (nameErr) {
+        setNameError(nameErr);
+        return;
+      }
     }
 
     setCreating(true);
     try {
-      await createMutation.mutateAsync({ name: name.trim() });
+      if (!isAddEntryMode) {
+        await createMutation.mutateAsync({ name: listName });
+      }
 
       for (const entry of manualEntries) {
         await addMutation.mutateAsync({
-          listName: name.trim(),
+          listName,
           prefix: entry.prefix,
           comment: entry.comment,
         });
@@ -192,7 +209,7 @@ export default function AddressListForm({
 
       for (const entry of validImportedEntries) {
         await addMutation.mutateAsync({
-          listName: name.trim(),
+          listName,
           prefix: entry.prefix,
           comment: entry.comment,
         });
@@ -219,7 +236,9 @@ export default function AddressListForm({
     onClose();
   };
 
-  const canCreate = name.trim() !== '' && !validateName(name);
+  const canSubmit = isAddEntryMode
+    ? totalEntries > 0
+    : name.trim() !== '' && !validateName(name);
 
   return (
     <Drawer
@@ -228,10 +247,11 @@ export default function AddressListForm({
       position="right"
       size="xl"
       padding="xl"
-      title="Add Address List"
+      title={isAddEntryMode ? `Add Entries to ${targetListName}` : 'Add Address List'}
     >
       <Stack gap="lg">
-        {/* List Name */}
+        {/* List Name — only when creating a new list */}
+        {!isAddEntryMode && (
         <TextInput
           label="List name"
           placeholder="e.g., blocked-ips"
@@ -245,6 +265,7 @@ export default function AddressListForm({
           }}
           error={nameError}
         />
+        )}
 
         {/* Entries Tabs */}
         <Tabs defaultValue="manual">
@@ -449,8 +470,8 @@ export default function AddressListForm({
             <Button variant="default" onClick={handleClose}>
               Cancel
             </Button>
-            <Button onClick={handleCreate} loading={creating} disabled={!canCreate}>
-              Create
+            <Button onClick={handleSubmit} loading={creating} disabled={!canSubmit}>
+              {isAddEntryMode ? 'Add Entries' : 'Create'}
             </Button>
           </Group>
         </Group>
