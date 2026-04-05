@@ -244,7 +244,7 @@ export default function TunnelsPage() {
       {hasTunnels ? (
         <>
           <TextInput
-            placeholder="Search tunnels..."
+            placeholder="Search by name, address, type..."
             leftSection={<IconSearch size={16} />}
             value={search}
             onChange={(e) => setSearch(e.currentTarget.value)}

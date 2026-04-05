@@ -82,12 +82,13 @@ export default function TunnelTable({ tunnels, search, onRowClick }: TunnelTable
               onClick={() => onRowClick(tunnel)}
               style={{
                 cursor: 'pointer',
+                opacity: isDisabled ? 0.5 : undefined,
                 borderBottom: isLast
                   ? '1px solid var(--mantine-color-gray-2)'
                   : '1px solid var(--mantine-color-gray-1)',
               }}
             >
-              <Table.Td style={{ opacity: isDisabled ? 0.5 : undefined }}>
+              <Table.Td>
                 <Text fw={500} size="xs">
                   {tunnel.name}
                 </Text>
@@ -122,10 +123,10 @@ export default function TunnelTable({ tunnels, search, onRowClick }: TunnelTable
                   </Text>
                 )}
               </Table.Td>
-              <Table.Td style={{ opacity: isDisabled ? 0.5 : undefined }}>
+              <Table.Td>
                 <MonoText size="xs">{tunnel.localAddress}</MonoText>
               </Table.Td>
-              <Table.Td style={{ opacity: isDisabled ? 0.5 : undefined }}>
+              <Table.Td>
                 <MonoText size="xs">
                   {tunnel.remoteAddress || '\u2014'}
                 </MonoText>

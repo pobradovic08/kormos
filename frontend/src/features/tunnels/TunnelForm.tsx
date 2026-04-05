@@ -59,7 +59,7 @@ function getInitialGREState(tunnel?: Tunnel | null): GREFormState {
     comment: '',
     mtu: 1476,
     keepaliveInterval: 10,
-    keepaliveRetries: 0,
+    keepaliveRetries: 3,
   };
 }
 
