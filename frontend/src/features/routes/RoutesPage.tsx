@@ -246,6 +246,7 @@ export default function RoutesPage() {
                       >
                         {col.render(route, {
                           onEdit: handleEdit,
+                          clusterId: clusterId ?? undefined,
                         })}
                       </Table.Td>
                     ))}

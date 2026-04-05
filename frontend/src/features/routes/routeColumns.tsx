@@ -41,6 +41,7 @@ export interface RouteColumn {
     route: Route,
     actions?: {
       onEdit: (route: Route) => void;
+      clusterId?: string;
     },
   ) => React.ReactNode;
 }
@@ -85,7 +86,7 @@ export const routeColumns: RouteColumn[] = [
     accessor: 'gateway',
     header: 'Next Hop',
     width: 280,
-    render: (route) => (
+    render: (route, ctx) => (
       <div>
         <MonoText fw={500} size="xs">
           {route.gateway || '\u2014'}
@@ -95,7 +96,7 @@ export const routeColumns: RouteColumn[] = [
             via{' '}
             <Text
               component={Link}
-              to="/configure/interfaces"
+              to={ctx?.clusterId ? `/configure/${ctx.clusterId}/interfaces` : '#'}
               size="xs"
               fw={600}
               c="blue"
