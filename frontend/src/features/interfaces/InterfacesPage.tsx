@@ -10,10 +10,9 @@ import {
 } from '@mantine/core';
 import {
   IconSearch,
-  IconRouter,
   IconNetwork,
 } from '@tabler/icons-react';
-import { useRouterStore } from '../../stores/useRouterStore';
+import { useParams } from 'react-router-dom';
 import { useInterfaces } from './interfacesApi';
 import { interfaceColumns } from './interfaceColumns';
 import InterfaceDetail from './InterfaceDetail';
@@ -112,8 +111,8 @@ function LoadingSkeleton() {
 }
 
 export default function InterfacesPage() {
-  const selectedRouterId = useRouterStore((s) => s.selectedRouterId);
-  const { data: interfaces, isLoading, error, refetch } = useInterfaces(selectedRouterId);
+  const { clusterId } = useParams<{ clusterId: string }>();
+  const { data: interfaces, isLoading, error, refetch } = useInterfaces(clusterId ?? null);
 
   const [search, setSearch] = useState('');
   const [selectedInterface, setSelectedInterface] =
@@ -147,17 +146,6 @@ export default function InterfacesPage() {
     setSelectedInterface(iface);
     setDetailOpen(true);
   };
-
-  if (!selectedRouterId) {
-    return (
-      <Stack align="center" mt="xl" gap="md">
-        <IconRouter size={48} stroke={1.5} color="var(--mantine-color-dimmed)" />
-        <Text c="dimmed" size="lg">
-          Select a router to view interfaces
-        </Text>
-      </Stack>
-    );
-  }
 
   const hasInterfaces = interfaces && interfaces.length > 0;
 
