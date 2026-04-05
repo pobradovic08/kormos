@@ -10,6 +10,7 @@ import {
   Box,
 } from '@mantine/core';
 import { IconCopy, IconCheck, IconDownload } from '@tabler/icons-react';
+import { QRCodeSVG } from 'qrcode.react';
 import type { WireGuardInterface, WireGuardPeer } from '../../api/types';
 
 interface WireGuardConfigDisplayProps {
@@ -75,16 +76,8 @@ export default function WireGuardConfigDisplay({
           {configText}
         </Code>
 
-        <Box
-          style={{
-            padding: 'var(--mantine-spacing-sm)',
-            backgroundColor: 'var(--mantine-color-gray-1)',
-            borderRadius: 'var(--mantine-radius-sm)',
-          }}
-        >
-          <Text size="xs" c="dimmed" ta="center">
-            QR code generation requires qrcode library
-          </Text>
+        <Box style={{ display: 'flex', justifyContent: 'center', padding: 'var(--mantine-spacing-md)' }}>
+          <QRCodeSVG value={configText} size={200} level="M" />
         </Box>
 
         <Group justify="flex-end" gap="sm">

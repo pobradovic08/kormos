@@ -204,6 +204,7 @@ export interface AuditEntry {
 // ─── WireGuard ────────────────────────────────────────────────────────────────
 
 export interface WireGuardInterface {
+  id: string;
   name: string;
   listenPort: number;
   mtu: number;

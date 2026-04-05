@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import {
   Drawer,
   TextInput,
+  Select,
   Checkbox,
   Button,
   Group,
@@ -18,7 +19,7 @@ interface WireGuardPeerFormProps {
   isOpen: boolean;
   onClose: () => void;
   routerId: string;
-  wgInterface: WireGuardInterface;
+  wgInterfaces: WireGuardInterface[];
   editPeer?: WireGuardPeer | null;
   onCreated?: (peer: WireGuardPeer) => void;
 }
@@ -29,6 +30,7 @@ function mockKey(prefix: string): string {
 
 interface FormState {
   mode: 'generate' | 'provide';
+  interfaceName: string;
   name: string;
   publicKey: string;
   allowedAddress: string;
@@ -36,10 +38,11 @@ interface FormState {
   comment: string;
 }
 
-function getInitialState(routerId: string, editPeer?: WireGuardPeer | null): FormState {
+function getInitialState(routerId: string, defaultIfaceName: string, editPeer?: WireGuardPeer | null): FormState {
   if (editPeer) {
     return {
       mode: 'generate',
+      interfaceName: editPeer.interface,
       name: editPeer.name,
       publicKey: editPeer.publicKey,
       allowedAddress: editPeer.allowedAddress,
@@ -47,9 +50,10 @@ function getInitialState(routerId: string, editPeer?: WireGuardPeer | null): For
       comment: editPeer.comment,
     };
   }
-  const nextIP = getNextAvailableIP(routerId);
+  const nextIP = getNextAvailableIP(routerId, defaultIfaceName);
   return {
     mode: 'generate',
+    interfaceName: defaultIfaceName,
     name: '',
     publicKey: '',
     allowedAddress: nextIP ?? '',
@@ -62,12 +66,13 @@ export default function WireGuardPeerForm({
   isOpen,
   onClose,
   routerId,
-  wgInterface,
+  wgInterfaces,
   editPeer,
   onCreated,
 }: WireGuardPeerFormProps) {
   const isEdit = !!editPeer;
-  const [state, setState] = useState<FormState>(getInitialState(routerId, editPeer));
+  const defaultIfaceName = wgInterfaces[0]?.name ?? '';
+  const [state, setState] = useState<FormState>(getInitialState(routerId, defaultIfaceName, editPeer));
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitted, setSubmitted] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -77,7 +82,7 @@ export default function WireGuardPeerForm({
 
   useEffect(() => {
     if (isOpen) {
-      setState(getInitialState(routerId, editPeer));
+      setState(getInitialState(routerId, defaultIfaceName, editPeer));
       setErrors({});
       setSubmitted(false);
       setSaving(false);
@@ -130,7 +135,7 @@ export default function WireGuardPeerForm({
         const presharedKey = state.presharedKey ? mockKey('psk-') : '';
 
         const peerData: Omit<WireGuardPeer, 'id'> = {
-          interface: wgInterface.name,
+          interface: state.interfaceName,
           name: state.name.trim(),
           publicKey,
           presharedKey,
@@ -194,6 +199,21 @@ export default function WireGuardPeerForm({
               />
             </div>
           </>
+        )}
+
+        {!isEdit && wgInterfaces.length > 1 && (
+          <Select
+            label="Interface"
+            size="sm"
+            radius="sm"
+            data={wgInterfaces.map((i) => ({ value: i.name, label: `${i.name} (${i.gatewayAddress})` }))}
+            value={state.interfaceName}
+            onChange={(val) => {
+              const newIface = val ?? defaultIfaceName;
+              const nextIP = getNextAvailableIP(routerId, newIface);
+              setState((prev) => ({ ...prev, interfaceName: newIface, allowedAddress: nextIP ?? prev.allowedAddress }));
+            }}
+          />
         )}
 
         <TextInput

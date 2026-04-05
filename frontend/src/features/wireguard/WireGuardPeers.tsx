@@ -15,12 +15,11 @@ import ConfirmDialog from '../../components/common/ConfirmDialog';
 import WireGuardPeerForm from './WireGuardPeerForm';
 import WireGuardPeerDetail from './WireGuardPeerDetail';
 import WireGuardConfigDisplay from './WireGuardConfigDisplay';
-import { useWireGuardPeers, useDeletePeer } from './wireguardApi';
+import { useWireGuardInterfaces, useWireGuardPeers, useDeletePeer } from './wireguardApi';
 import type { WireGuardInterface, WireGuardPeer } from '../../api/types';
 
 interface WireGuardPeersProps {
   routerId: string;
-  wgInterface: WireGuardInterface | null;
 }
 
 function HeaderLabel({ children }: { children: string }) {
@@ -70,7 +69,8 @@ const columns = [
   { key: 'status', header: 'Status', width: 120 },
 ];
 
-export default function WireGuardPeers({ routerId, wgInterface }: WireGuardPeersProps) {
+export default function WireGuardPeers({ routerId }: WireGuardPeersProps) {
+  const { data: wgInterfaces } = useWireGuardInterfaces(routerId);
   const { data: peers, isLoading } = useWireGuardPeers(routerId);
   const deleteMutation = useDeletePeer(routerId);
 
@@ -139,16 +139,22 @@ export default function WireGuardPeers({ routerId, wgInterface }: WireGuardPeers
     setConfigPeer(peer);
   };
 
+  const hasInterfaces = wgInterfaces && wgInterfaces.length > 0;
+
   // No interface configured
-  if (!wgInterface) {
+  if (!hasInterfaces) {
     return (
       <EmptyState
         icon={IconLock}
         title="Configure WireGuard interface first"
-        description="You need to configure a WireGuard interface before adding peers. Switch to the Interface tab to get started."
+        description="You need to configure a WireGuard interface before adding peers. Switch to the Interfaces tab to get started."
       />
     );
   }
+
+  // Find the interface for a given peer
+  const findInterface = (peer: WireGuardPeer): WireGuardInterface | undefined =>
+    wgInterfaces.find((i) => i.name === peer.interface);
 
   // Loading
   if (isLoading) {
@@ -281,7 +287,7 @@ export default function WireGuardPeers({ routerId, wgInterface }: WireGuardPeers
         isOpen={formOpen}
         onClose={handleFormClose}
         routerId={routerId}
-        wgInterface={wgInterface}
+        wgInterfaces={wgInterfaces}
         editPeer={editPeer}
         onCreated={handlePeerCreated}
       />
@@ -296,12 +302,12 @@ export default function WireGuardPeers({ routerId, wgInterface }: WireGuardPeers
         confirmColor="red"
       />
 
-      {configPeer && wgInterface && (
+      {configPeer && findInterface(configPeer) && (
         <WireGuardConfigDisplay
           isOpen={!!configPeer}
           onClose={() => setConfigPeer(null)}
           peer={configPeer}
-          wgInterface={wgInterface}
+          wgInterface={findInterface(configPeer)!}
         />
       )}
     </>

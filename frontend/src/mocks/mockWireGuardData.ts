@@ -1,53 +1,46 @@
 import type { WireGuardInterface, WireGuardPeer } from '../api/types';
 
-// ─── Mock keypairs (base64-like strings for display) ─────────────────────────
-
 function mockKey(prefix: string): string {
   return `${prefix}${'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdef'.slice(0, 32)}=`;
 }
 
-// ─── Seed data ───────────────────────────────────────────────────────────────
-
-const seedInterfaces: Record<string, WireGuardInterface | null> = {
-  'mock-1': {
-    name: 'wg0',
-    listenPort: 13231,
-    mtu: 1420,
-    privateKey: mockKey('srv-priv-'),
-    publicKey: mockKey('srv-pub-'),
-    gatewayAddress: '10.10.0.1/24',
-    dns: '10.0.1.1',
-    clientAllowedIPs: '10.0.0.0/8, 192.168.0.0/16',
-    disabled: false,
-  },
-  'mock-2': {
-    name: 'wg0',
-    listenPort: 51820,
-    mtu: 1420,
-    privateKey: mockKey('srv2-priv-'),
-    publicKey: mockKey('srv2-pub-'),
-    gatewayAddress: '10.20.0.1/24',
-    dns: '',
-    clientAllowedIPs: '0.0.0.0/0',
-    disabled: false,
-  },
-  'mock-3': null,
-  'mock-4': null,
-  'mock-5': null,
-  'mock-6': null,
-  'mock-7': null,
-  'mock-8': {
-    name: 'wg-vpn',
-    listenPort: 13231,
-    mtu: 1420,
-    privateKey: mockKey('vpn-priv-'),
-    publicKey: mockKey('vpn-pub-'),
-    gatewayAddress: '10.50.0.1/24',
-    dns: '10.0.1.1, 10.0.1.2',
-    clientAllowedIPs: '10.0.0.0/8',
-    disabled: false,
-  },
-  'mock-9': null,
+const seedInterfaces: Record<string, WireGuardInterface[]> = {
+  'mock-1': [
+    {
+      id: 'wg-iface-1-1', name: 'wg0', listenPort: 13231, mtu: 1420,
+      privateKey: mockKey('srv-priv-'), publicKey: mockKey('srv-pub-'),
+      gatewayAddress: '10.10.0.1/24', dns: '10.0.1.1',
+      clientAllowedIPs: '10.0.0.0/8, 192.168.0.0/16', disabled: false,
+    },
+    {
+      id: 'wg-iface-1-2', name: 'wg-guest', listenPort: 13232, mtu: 1420,
+      privateKey: mockKey('guest-priv-'), publicKey: mockKey('guest-pub-'),
+      gatewayAddress: '10.11.0.1/24', dns: '8.8.8.8',
+      clientAllowedIPs: '0.0.0.0/0', disabled: false,
+    },
+  ],
+  'mock-2': [
+    {
+      id: 'wg-iface-2-1', name: 'wg0', listenPort: 51820, mtu: 1420,
+      privateKey: mockKey('srv2-priv-'), publicKey: mockKey('srv2-pub-'),
+      gatewayAddress: '10.20.0.1/24', dns: '',
+      clientAllowedIPs: '0.0.0.0/0', disabled: false,
+    },
+  ],
+  'mock-3': [],
+  'mock-4': [],
+  'mock-5': [],
+  'mock-6': [],
+  'mock-7': [],
+  'mock-8': [
+    {
+      id: 'wg-iface-8-1', name: 'wg-vpn', listenPort: 13231, mtu: 1420,
+      privateKey: mockKey('vpn-priv-'), publicKey: mockKey('vpn-pub-'),
+      gatewayAddress: '10.50.0.1/24', dns: '10.0.1.1, 10.0.1.2',
+      clientAllowedIPs: '10.0.0.0/8', disabled: false,
+    },
+  ],
+  'mock-9': [],
 };
 
 const seedPeers: Record<string, WireGuardPeer[]> = {
@@ -86,6 +79,15 @@ const seedPeers: Record<string, WireGuardPeer[]> = {
       lastHandshake: '2026-03-01T08:00:00Z', rx: 102400, tx: 51200,
       persistentKeepalive: 0, disabled: true, comment: 'Decommissioned',
     },
+    {
+      id: 'wg-peer-1-5', interface: 'wg-guest', name: 'Guest user 1',
+      publicKey: mockKey('guest1-pub-'), presharedKey: '',
+      allowedAddress: '10.11.0.2/32',
+      endpointAddress: '93.87.50.20', endpointPort: 44000,
+      lastHandshake: '2026-04-05T12:00:00Z', rx: 1048576, tx: 524288,
+      persistentKeepalive: 25, disabled: false, comment: 'Guest access',
+      clientPrivateKey: mockKey('guest1-priv-'),
+    },
   ],
   'mock-2': [
     {
@@ -98,11 +100,7 @@ const seedPeers: Record<string, WireGuardPeer[]> = {
       clientPrivateKey: mockKey('adm-priv-'),
     },
   ],
-  'mock-3': [],
-  'mock-4': [],
-  'mock-5': [],
-  'mock-6': [],
-  'mock-7': [],
+  'mock-3': [], 'mock-4': [], 'mock-5': [], 'mock-6': [], 'mock-7': [],
   'mock-8': [
     {
       id: 'wg-peer-8-1', interface: 'wg-vpn', name: 'Site engineer',
@@ -125,46 +123,62 @@ const seedPeers: Record<string, WireGuardPeer[]> = {
   'mock-9': [],
 };
 
-// ─── Mutable state ───────────────────────────────────────────────────────────
-
 let interfaces = structuredClone(seedInterfaces);
 let peers = structuredClone(seedPeers);
+let nextIfaceId = 1000;
 let nextPeerId = 1000;
 
 // ─── Interface operations ────────────────────────────────────────────────────
 
-export function getWireGuardInterface(routerId: string): WireGuardInterface | null {
-  return interfaces[routerId] ?? null;
+export function listWireGuardInterfaces(routerId: string): WireGuardInterface[] {
+  return interfaces[routerId] ?? [];
 }
 
-export function createWireGuardInterface(routerId: string, wg: Omit<WireGuardInterface, 'publicKey' | 'privateKey'>): WireGuardInterface {
+export function getWireGuardInterface(routerId: string, id: string): WireGuardInterface | undefined {
+  return interfaces[routerId]?.find((i) => i.id === id);
+}
+
+export function createWireGuardInterface(routerId: string, wg: Omit<WireGuardInterface, 'id' | 'publicKey' | 'privateKey'>): WireGuardInterface {
+  if (!interfaces[routerId]) interfaces[routerId] = [];
   const iface: WireGuardInterface = {
     ...wg,
+    id: `wg-iface-${nextIfaceId++}`,
     privateKey: mockKey('gen-priv-'),
     publicKey: mockKey('gen-pub-'),
   };
-  interfaces[routerId] = iface;
-  if (!peers[routerId]) peers[routerId] = [];
+  interfaces[routerId].push(iface);
   return iface;
 }
 
-export function updateWireGuardInterface(routerId: string, updates: Partial<WireGuardInterface>): WireGuardInterface {
-  const existing = interfaces[routerId];
-  if (!existing) throw new Error('WireGuard interface not configured');
-  const updated = { ...existing, ...updates };
-  interfaces[routerId] = updated;
-  return updated;
+export function updateWireGuardInterface(routerId: string, id: string, updates: Partial<WireGuardInterface>): WireGuardInterface {
+  const list = interfaces[routerId];
+  if (!list) throw new Error('Router not found');
+  const index = list.findIndex((i) => i.id === id);
+  if (index === -1) throw new Error('Interface not found');
+  list[index] = { ...list[index], ...updates, id };
+  return list[index];
 }
 
-export function deleteWireGuardInterface(routerId: string): void {
-  interfaces[routerId] = null;
-  peers[routerId] = [];
+export function deleteWireGuardInterface(routerId: string, id: string): void {
+  if (!interfaces[routerId]) return;
+  const iface = interfaces[routerId].find((i) => i.id === id);
+  if (iface) {
+    // Remove peers belonging to this interface
+    if (peers[routerId]) {
+      peers[routerId] = peers[routerId].filter((p) => p.interface !== iface.name);
+    }
+  }
+  interfaces[routerId] = interfaces[routerId].filter((i) => i.id !== id);
 }
 
 // ─── Peer operations ─────────────────────────────────────────────────────────
 
 export function listPeers(routerId: string): WireGuardPeer[] {
   return peers[routerId] ?? [];
+}
+
+export function listPeersForInterface(routerId: string, ifaceName: string): WireGuardPeer[] {
+  return (peers[routerId] ?? []).filter((p) => p.interface === ifaceName);
 }
 
 export function getPeer(routerId: string, id: string): WireGuardPeer | undefined {
@@ -180,9 +194,9 @@ export function addPeer(routerId: string, peer: Omit<WireGuardPeer, 'id'>): Wire
 
 export function updatePeer(routerId: string, id: string, updates: Partial<WireGuardPeer>): WireGuardPeer {
   const list = peers[routerId];
-  if (!list) throw new Error(`Router ${routerId} not found`);
+  if (!list) throw new Error('Router not found');
   const index = list.findIndex((p) => p.id === id);
-  if (index === -1) throw new Error(`Peer ${id} not found`);
+  if (index === -1) throw new Error('Peer not found');
   list[index] = { ...list[index], ...updates, id };
   return list[index];
 }
@@ -192,18 +206,19 @@ export function deletePeer(routerId: string, id: string): void {
   peers[routerId] = peers[routerId].filter((p) => p.id !== id);
 }
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
-
-export function getNextAvailableIP(routerId: string): string | null {
-  const iface = interfaces[routerId];
+export function getNextAvailableIP(routerId: string, ifaceName: string): string | null {
+  const iface = (interfaces[routerId] ?? []).find((i) => i.name === ifaceName);
   if (!iface) return null;
 
   const gateway = iface.gatewayAddress.split('/')[0];
   const parts = gateway.split('.').map(Number);
-  const usedIPs = new Set((peers[routerId] ?? []).map((p) => p.allowedAddress.split('/')[0]));
+  const usedIPs = new Set(
+    (peers[routerId] ?? [])
+      .filter((p) => p.interface === ifaceName)
+      .map((p) => p.allowedAddress.split('/')[0])
+  );
   usedIPs.add(gateway);
 
-  // Simple: iterate .2 through .254
   for (let i = 2; i <= 254; i++) {
     const candidate = `${parts[0]}.${parts[1]}.${parts[2]}.${i}`;
     if (!usedIPs.has(candidate)) return `${candidate}/32`;
