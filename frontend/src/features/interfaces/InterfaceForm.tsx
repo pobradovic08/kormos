@@ -103,7 +103,7 @@ export default function InterfaceForm({
   onClose,
 }: InterfaceFormProps) {
   const { clusterId } = useParams<{ clusterId: string }>();
-  const selectedRouterId = clusterId ?? null;
+  const selectedRouterId = clusterId!;
   const stageChange = useCommitStore((s) => s.stageChange);
   const { data: existingInterfaces } = useInterfaces(selectedRouterId);
 

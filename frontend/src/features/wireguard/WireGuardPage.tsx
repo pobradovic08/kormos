@@ -15,7 +15,7 @@ import WireGuardPeers from './WireGuardPeers';
 
 export default function WireGuardPage() {
   const { clusterId } = useParams<{ clusterId: string }>();
-  const selectedRouterId = clusterId ?? null;
+  const selectedRouterId = clusterId!;
   const { isLoading, error, refetch } = useWireGuardInterfaces(selectedRouterId);
 
   const [activeTab, setActiveTab] = useState<string | null>('interface');

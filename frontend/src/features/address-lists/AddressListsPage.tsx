@@ -46,7 +46,7 @@ function LoadingSkeleton() {
 
 export default function AddressListsPage() {
   const { clusterId } = useParams<{ clusterId: string }>();
-  const selectedRouterId = clusterId ?? null;
+  const selectedRouterId = clusterId!;
   const { data: lists, isLoading, error, refetch } = useAddressLists(selectedRouterId);
   const deleteMutation = useDeleteAddressList(selectedRouterId);
   const deleteEntriesMutation = useDeleteEntries(selectedRouterId);

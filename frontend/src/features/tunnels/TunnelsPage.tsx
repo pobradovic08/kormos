@@ -93,7 +93,7 @@ function matchesTunnel(
 
 export default function TunnelsPage() {
   const { clusterId } = useParams<{ clusterId: string }>();
-  const selectedRouterId = clusterId ?? null;
+  const selectedRouterId = clusterId!;
   const { data: tunnels, isLoading, error, refetch } = useTunnels(selectedRouterId);
   const deleteMutation = useDeleteTunnel(selectedRouterId);
 
