@@ -6,10 +6,11 @@ interface RouterState {
   clearRouter: () => void;
 }
 
-export const useRouterStore = create<RouterState>((set) => ({
+export const useRouterStore = create<RouterState>((set, get) => ({
   selectedRouterId: localStorage.getItem('selected_router_id'),
 
   selectRouter: (id: string) => {
+    if (get().selectedRouterId === id) return;
     localStorage.setItem('selected_router_id', id);
     set({ selectedRouterId: id });
   },

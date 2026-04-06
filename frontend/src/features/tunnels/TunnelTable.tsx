@@ -23,11 +23,14 @@ function HeaderLabel({ children }: { children: string }) {
   );
 }
 
-const tableStyle = {
-  borderCollapse: 'collapse' as const,
+const tableWrapperStyle = {
   border: '1px solid var(--mantine-color-gray-3)',
   borderRadius: 4,
-  overflow: 'hidden',
+  overflow: 'hidden' as const,
+};
+
+const tableStyle = {
+  borderCollapse: 'collapse' as const,
 };
 
 const headerRowStyle = {
@@ -60,6 +63,7 @@ const columns = [
 
 export default function TunnelTable({ tunnels, search, onRowClick }: TunnelTableProps) {
   return (
+    <div style={tableWrapperStyle}>
     <Table withRowBorders={false} style={tableStyle}>
       <Table.Thead>
         <Table.Tr style={headerRowStyle}>
@@ -84,7 +88,7 @@ export default function TunnelTable({ tunnels, search, onRowClick }: TunnelTable
                 cursor: 'pointer',
                 opacity: isDisabled ? 0.5 : undefined,
                 borderBottom: isLast
-                  ? '1px solid var(--mantine-color-gray-2)'
+                  ? undefined
                   : '1px solid var(--mantine-color-gray-1)',
               }}
             >
@@ -156,11 +160,13 @@ export default function TunnelTable({ tunnels, search, onRowClick }: TunnelTable
         )}
       </Table.Tbody>
     </Table>
+    </div>
   );
 }
 
 export function TunnelTableSkeleton() {
   return (
+    <div style={tableWrapperStyle}>
     <Table withRowBorders={false} style={tableStyle}>
       <Table.Thead>
         <Table.Tr style={headerRowStyle}>
@@ -201,5 +207,6 @@ export function TunnelTableSkeleton() {
         ))}
       </Table.Tbody>
     </Table>
+    </div>
   );
 }

@@ -31,7 +31,7 @@ function HeaderLabel({ children }: { children: string }) {
 }
 
 const wrapperStyle = {
-  border: '1px solid var(--mantine-color-gray-1)',
+  border: '1px solid var(--mantine-color-gray-3)',
   borderRadius: 4,
   overflow: 'hidden',
 };

@@ -12,11 +12,10 @@ import {
 import {
   IconPlus,
   IconSearch,
-  IconRouter,
   IconBuilding,
   IconChevronDown,
 } from '@tabler/icons-react';
-import { useRouterStore } from '../../stores/useRouterStore';
+import { useClusterId } from '../../hooks/useClusterId';
 import { looksLikeCIDR, prefixOverlaps } from '../../utils/cidr';
 import { useTunnels, useDeleteTunnel } from './tunnelsApi';
 import TunnelTable, { TunnelTableSkeleton } from './TunnelTable';
@@ -93,7 +92,7 @@ function matchesTunnel(
 }
 
 export default function TunnelsPage() {
-  const selectedRouterId = useRouterStore((s) => s.selectedRouterId);
+  const selectedRouterId = useClusterId();
   const { data: tunnels, isLoading, error, refetch } = useTunnels(selectedRouterId);
   const deleteMutation = useDeleteTunnel(selectedRouterId);
 
@@ -182,22 +181,6 @@ export default function TunnelsPage() {
     setEditTunnel(null);
   };
 
-  // No router selected
-  if (!selectedRouterId) {
-    return (
-      <Stack align="center" mt="xl" gap="md">
-        <IconRouter
-          size={48}
-          stroke={1.5}
-          color="var(--mantine-color-dimmed)"
-        />
-        <Text c="dimmed" size="lg">
-          Select a router to view tunnels
-        </Text>
-      </Stack>
-    );
-  }
-
   // Loading
   if (isLoading) {
     return (
@@ -278,15 +261,13 @@ export default function TunnelsPage() {
         onDelete={handleDelete}
       />
 
-      {selectedRouterId && (
-        <TunnelForm
-          isOpen={formOpen}
-          onClose={handleFormClose}
-          routerId={selectedRouterId}
-          tunnelType={formType}
-          editTunnel={editTunnel}
-        />
-      )}
+      <TunnelForm
+        isOpen={formOpen}
+        onClose={handleFormClose}
+        routerId={selectedRouterId}
+        tunnelType={formType}
+        editTunnel={editTunnel}
+      />
 
       <ConfirmDialog
         isOpen={!!deleteTarget}

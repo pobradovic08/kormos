@@ -13,8 +13,9 @@ import CommitPanel from '../commit/CommitPanel';
 import RouterSelector from './RouterSelector';
 import CommitButton from './CommitButton';
 import UserMenu from './UserMenu';
-import { modules } from '../../features/configure/moduleConfig';
+import { modules, configurePath } from '../../features/configure/moduleConfig';
 import { usePortalStore } from '../../stores/usePortalStore';
+import { useRouterStore } from '../../stores/useRouterStore';
 
 const simpleNavLinks = [
   { label: 'Dashboard', to: '/dashboard' },
@@ -86,6 +87,13 @@ export default function AppShellLayout() {
 
   const isConfigureActive = location.pathname.startsWith('/configure');
 
+  const selectedRouterId = useRouterStore((s) => s.selectedRouterId);
+
+  // Extract clusterId from URL if on a configure page, else fall back to store
+  const configureClusterId = isConfigureActive
+    ? location.pathname.split('/')[2] ?? selectedRouterId
+    : selectedRouterId;
+
   return (
     <AppShell
       header={{ height: 56 }}
@@ -135,7 +143,13 @@ export default function AppShellLayout() {
                   <div>
                     <NavLink
                       isActive={isConfigureActive}
-                      onClick={() => navigate('/configure')}
+                      onClick={() => {
+                        if (configureClusterId) {
+                          navigate(configurePath(configureClusterId));
+                        } else {
+                          navigate('/routers');
+                        }
+                      }}
                       rightSection={
                         <IconChevronDown
                           size={14}
@@ -156,7 +170,13 @@ export default function AppShellLayout() {
                         leftSection={<Icon size={16} />}
                         disabled={!mod.isEnabled}
                         onClick={() => {
-                          if (mod.isEnabled) navigate(mod.route);
+                          if (mod.isEnabled) {
+                            if (configureClusterId) {
+                              navigate(configurePath(configureClusterId, mod.route));
+                            } else {
+                              navigate('/routers');
+                            }
+                          }
                         }}
                       >
                         {mod.title}
