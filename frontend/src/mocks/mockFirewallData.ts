@@ -3,35 +3,35 @@ import type { FirewallRule } from '../api/types';
 const seedData: Record<string, FirewallRule[]> = {
   'mock-1': [
     // chain=input (Router inbound)
-    { id: 'fw-1-1', chain: 'input', action: 'accept', connectionState: ['established', 'related', 'untracked'], disabled: false, comment: 'Accept established, related, untracked' },
-    { id: 'fw-1-2', chain: 'input', action: 'drop', connectionState: ['invalid'], disabled: false, comment: 'Drop invalid' },
-    { id: 'fw-1-3', chain: 'input', action: 'accept', protocol: 'icmp', disabled: false, comment: 'Accept ICMP' },
-    { id: 'fw-1-4', chain: 'input', action: 'accept', srcAddressList: 'LAN', disabled: false, comment: 'Accept from LAN' },
-    { id: 'fw-1-5', chain: 'input', action: 'drop', disabled: false, comment: 'Drop all other input' },
+    { id: '*1', chain: 'input', action: 'accept', connectionState: ['established', 'related', 'untracked'], disabled: false, comment: 'Accept established, related, untracked' },
+    { id: '*2', chain: 'input', action: 'drop', connectionState: ['invalid'], disabled: false, comment: 'Drop invalid' },
+    { id: '*3', chain: 'input', action: 'accept', protocol: 'icmp', disabled: false, comment: 'Accept ICMP' },
+    { id: '*4', chain: 'input', action: 'accept', srcAddressList: 'LAN', disabled: false, comment: 'Accept from LAN' },
+    { id: '*5', chain: 'input', action: 'drop', disabled: false, comment: 'Drop all other input' },
     // chain=forward (Forwarding)
-    { id: 'fw-1-6', chain: 'forward', action: 'fasttrack-connection', connectionState: ['established', 'related'], disabled: false, comment: 'Fasttrack established, related' },
-    { id: 'fw-1-7', chain: 'forward', action: 'accept', connectionState: ['established', 'related', 'untracked'], disabled: false, comment: 'Accept established, related, untracked' },
-    { id: 'fw-1-8', chain: 'forward', action: 'drop', connectionState: ['invalid'], disabled: false, comment: 'Drop invalid' },
-    { id: 'fw-1-9', chain: 'forward', action: 'accept', srcAddressList: 'LAN', outInterface: 'ether1', disabled: false, comment: 'Accept LAN to WAN' },
-    { id: 'fw-1-10', chain: 'forward', action: 'accept', protocol: 'tcp', dstPort: '443', connectionState: ['new'], disabled: false, comment: 'Accept HTTPS port forwarding' },
-    { id: 'fw-1-11', chain: 'forward', action: 'accept', protocol: 'tcp', dstPort: '80', connectionState: ['new'], disabled: true, comment: 'HTTP port forwarding (disabled)' },
-    { id: 'fw-1-12', chain: 'forward', action: 'drop', disabled: false, comment: 'Drop all other forward' },
+    { id: '*6', chain: 'forward', action: 'fasttrack-connection', connectionState: ['established', 'related'], disabled: false, comment: 'Fasttrack established, related' },
+    { id: '*7', chain: 'forward', action: 'accept', connectionState: ['established', 'related', 'untracked'], disabled: false, comment: 'Accept established, related, untracked' },
+    { id: '*8', chain: 'forward', action: 'drop', connectionState: ['invalid'], disabled: false, comment: 'Drop invalid' },
+    { id: '*9', chain: 'forward', action: 'accept', srcAddressList: 'LAN', outInterface: 'ether1', disabled: false, comment: 'Accept LAN to WAN' },
+    { id: '*A', chain: 'forward', action: 'accept', protocol: 'tcp', dstPort: '443', connectionState: ['new'], disabled: false, comment: 'Accept HTTPS port forwarding' },
+    { id: '*B', chain: 'forward', action: 'accept', protocol: 'tcp', dstPort: '80', connectionState: ['new'], disabled: true, comment: 'HTTP port forwarding (disabled)' },
+    { id: '*C', chain: 'forward', action: 'drop', disabled: false, comment: 'Drop all other forward' },
     // chain=output (Router outbound)
-    { id: 'fw-1-13', chain: 'output', action: 'accept', disabled: false, comment: 'Accept all outbound' },
+    { id: '*D', chain: 'output', action: 'accept', disabled: false, comment: 'Accept all outbound' },
   ],
   'mock-2': [
-    { id: 'fw-2-1', chain: 'input', action: 'accept', connectionState: ['established', 'related'], disabled: false, comment: 'Accept established, related' },
-    { id: 'fw-2-2', chain: 'input', action: 'drop', connectionState: ['invalid'], disabled: false, comment: 'Drop invalid' },
-    { id: 'fw-2-3', chain: 'input', action: 'accept', protocol: 'icmp', disabled: false, comment: 'Accept ICMP' },
-    { id: 'fw-2-4', chain: 'input', action: 'drop', disabled: false, comment: 'Drop all other input' },
-    { id: 'fw-2-5', chain: 'forward', action: 'accept', connectionState: ['established', 'related'], disabled: false, comment: 'Accept established, related' },
-    { id: 'fw-2-6', chain: 'forward', action: 'drop', disabled: false, comment: 'Drop all other forward' },
-    { id: 'fw-2-7', chain: 'output', action: 'accept', disabled: false, comment: 'Accept all outbound' },
+    { id: '*1', chain: 'input', action: 'accept', connectionState: ['established', 'related'], disabled: false, comment: 'Accept established, related' },
+    { id: '*2', chain: 'input', action: 'drop', connectionState: ['invalid'], disabled: false, comment: 'Drop invalid' },
+    { id: '*3', chain: 'input', action: 'accept', protocol: 'icmp', disabled: false, comment: 'Accept ICMP' },
+    { id: '*4', chain: 'input', action: 'drop', disabled: false, comment: 'Drop all other input' },
+    { id: '*5', chain: 'forward', action: 'accept', connectionState: ['established', 'related'], disabled: false, comment: 'Accept established, related' },
+    { id: '*6', chain: 'forward', action: 'drop', disabled: false, comment: 'Drop all other forward' },
+    { id: '*7', chain: 'output', action: 'accept', disabled: false, comment: 'Accept all outbound' },
   ],
 };
 
 let data = structuredClone(seedData);
-let nextId = 1000;
+let nextId = 0x100;
 
 export function listFirewallRules(routerId: string): FirewallRule[] {
   return [...(data[routerId] ?? [])];
@@ -39,7 +39,7 @@ export function listFirewallRules(routerId: string): FirewallRule[] {
 
 export function addFirewallRule(routerId: string, rule: Omit<FirewallRule, 'id'>): FirewallRule {
   if (!data[routerId]) data[routerId] = [];
-  const newRule: FirewallRule = { ...rule, id: `fw-new-${nextId++}` };
+  const newRule: FirewallRule = { ...rule, id: `*${(nextId++).toString(16).toUpperCase()}` };
   data[routerId].push(newRule);
   return newRule;
 }
