@@ -268,38 +268,6 @@ function SortableRow({
         <MonoText size="xs" c="dimmed">{rule.id}</MonoText>
       </Table.Td>
 
-      {/* Action */}
-      <Table.Td>
-        {editingAction ? (
-          <Select
-            autoFocus
-            size="xs"
-            data={ACTION_OPTIONS}
-            value={rule.action}
-            onChange={(val) => {
-              setEditingAction(false);
-              if (val && val !== rule.action) {
-                onUpdate(rule.id, { action: val as FirewallAction });
-              }
-            }}
-            onBlur={() => setEditingAction(false)}
-            onClick={(e) => e.stopPropagation()}
-            style={{ width: '100%' }}
-          />
-        ) : (
-          <EditableCell onEdit={() => setEditingAction(true)}>
-            <Badge
-              variant="light"
-              size="sm"
-              radius="sm"
-              color={ACTION_COLORS[rule.action]}
-            >
-              {rule.action}
-            </Badge>
-          </EditableCell>
-        )}
-      </Table.Td>
-
       {/* Source */}
       <Table.Td>
         {renderAddressCell(
@@ -410,6 +378,38 @@ function SortableRow({
         )}
       </Table.Td>
 
+      {/* Action */}
+      <Table.Td>
+        {editingAction ? (
+          <Select
+            autoFocus
+            size="xs"
+            data={ACTION_OPTIONS}
+            value={rule.action}
+            onChange={(val) => {
+              setEditingAction(false);
+              if (val && val !== rule.action) {
+                onUpdate(rule.id, { action: val as FirewallAction });
+              }
+            }}
+            onBlur={() => setEditingAction(false)}
+            onClick={(e) => e.stopPropagation()}
+            style={{ width: '100%' }}
+          />
+        ) : (
+          <EditableCell onEdit={() => setEditingAction(true)}>
+            <Badge
+              variant="light"
+              size="sm"
+              radius="sm"
+              color={ACTION_COLORS[rule.action]}
+            >
+              {rule.action}
+            </Badge>
+          </EditableCell>
+        )}
+      </Table.Td>
+
       {/* Actions */}
       <Table.Td>
         <Group gap={4} wrap="nowrap">
@@ -500,16 +500,13 @@ export default function FirewallTable({
             <Table.Thead>
               <Table.Tr style={headerRowStyle}>
                 <Table.Th style={{ width: 32 }} />
-                <Table.Th style={{ width: 50, textAlign: 'center' }}>
+                <Table.Th style={{ width: 44, textAlign: 'center' }}>
                   <HeaderLabel>#</HeaderLabel>
                 </Table.Th>
-                <Table.Th style={{ width: 90 }}>
-                  <HeaderLabel>Action</HeaderLabel>
-                </Table.Th>
-                <Table.Th style={{ width: '18%' }}>
+                <Table.Th>
                   <HeaderLabel>Source</HeaderLabel>
                 </Table.Th>
-                <Table.Th style={{ width: '18%' }}>
+                <Table.Th>
                   <HeaderLabel>Destination</HeaderLabel>
                 </Table.Th>
                 <Table.Th style={{ width: 70 }}>
@@ -520,6 +517,9 @@ export default function FirewallTable({
                 </Table.Th>
                 <Table.Th style={{ width: 150 }}>
                   <HeaderLabel>Conn. State</HeaderLabel>
+                </Table.Th>
+                <Table.Th style={{ width: 90 }}>
+                  <HeaderLabel>Action</HeaderLabel>
                 </Table.Th>
                 <Table.Th style={{ width: 140 }}>
                   <HeaderLabel>Actions</HeaderLabel>
@@ -586,6 +586,9 @@ export function FirewallTableSkeleton() {
             <Table.Th style={{ width: 150 }}>
               <HeaderLabel>Conn. State</HeaderLabel>
             </Table.Th>
+            <Table.Th style={{ width: 90 }}>
+              <HeaderLabel>Action</HeaderLabel>
+            </Table.Th>
             <Table.Th style={{ width: 140 }}>
               <HeaderLabel>Actions</HeaderLabel>
             </Table.Th>
@@ -597,34 +600,27 @@ export function FirewallTableSkeleton() {
               key={i}
               style={{ borderBottom: '1px solid var(--mantine-color-gray-1)' }}
             >
-              <Table.Td>
-                <Skeleton height={14} width={14} radius="sm" />
-              </Table.Td>
+              {/* Drag */}
+              <Table.Td><Skeleton height={14} width={14} radius="sm" /></Table.Td>
+              {/* # + ID */}
               <Table.Td>
                 <Skeleton height={14} width={20} radius="sm" />
                 <Skeleton height={10} width={24} radius="sm" mt={2} />
               </Table.Td>
-              <Table.Td>
-                <Skeleton height={18} width={60} radius="sm" />
-              </Table.Td>
-              <Table.Td>
-                <Skeleton height={14} width={110} radius="sm" />
-              </Table.Td>
-              <Table.Td>
-                <Skeleton height={14} width={110} radius="sm" />
-              </Table.Td>
-              <Table.Td>
-                <Skeleton height={14} width={40} radius="sm" />
-              </Table.Td>
-              <Table.Td>
-                <Skeleton height={14} width={80} radius="sm" />
-              </Table.Td>
-              <Table.Td>
-                <Skeleton height={18} width={100} radius="sm" />
-              </Table.Td>
-              <Table.Td>
-                <Skeleton height={22} width={100} radius="sm" />
-              </Table.Td>
+              {/* Source */}
+              <Table.Td><Skeleton height={14} width={110} radius="sm" /></Table.Td>
+              {/* Destination */}
+              <Table.Td><Skeleton height={14} width={110} radius="sm" /></Table.Td>
+              {/* Proto */}
+              <Table.Td><Skeleton height={14} width={40} radius="sm" /></Table.Td>
+              {/* Interface */}
+              <Table.Td><Skeleton height={14} width={80} radius="sm" /></Table.Td>
+              {/* Conn. State */}
+              <Table.Td><Skeleton height={18} width={100} radius="sm" /></Table.Td>
+              {/* Action */}
+              <Table.Td><Skeleton height={18} width={60} radius="sm" /></Table.Td>
+              {/* Actions */}
+              <Table.Td><Skeleton height={22} width={100} radius="sm" /></Table.Td>
             </Table.Tr>
           ))}
         </Table.Tbody>
