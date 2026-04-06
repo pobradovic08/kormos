@@ -233,3 +233,27 @@ export interface WireGuardPeer {
   comment: string;
   clientPrivateKey?: string;
 }
+
+// ─── Firewall ─────────────────────────────────────────────────────────────────
+
+export type FirewallChain = 'forward' | 'input' | 'output';
+export type FirewallAction = 'accept' | 'drop' | 'reject' | 'fasttrack-connection' | 'passthrough';
+export type ConnectionState = 'established' | 'related' | 'new' | 'invalid' | 'untracked';
+
+export interface FirewallRule {
+  id: string;
+  chain: FirewallChain;
+  action: FirewallAction;
+  protocol?: string;
+  srcAddress?: string;
+  dstAddress?: string;
+  srcAddressList?: string;
+  dstAddressList?: string;
+  srcPort?: string;
+  dstPort?: string;
+  inInterface?: string;
+  outInterface?: string;
+  connectionState?: ConnectionState[];
+  disabled: boolean;
+  comment: string;
+}
