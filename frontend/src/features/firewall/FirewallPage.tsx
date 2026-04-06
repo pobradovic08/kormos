@@ -1,0 +1,249 @@
+import { useState, useMemo, useEffect, useRef } from 'react';
+import {
+  Title,
+  Button,
+  Group,
+  Text,
+  Stack,
+  TextInput,
+  Tabs,
+} from '@mantine/core';
+import { IconPlus, IconSearch, IconShield } from '@tabler/icons-react';
+import { useClusterId } from '../../hooks/useClusterId';
+import {
+  useFirewallRules,
+  useUpdateFirewallRule,
+  useDeleteFirewallRule,
+  useMoveFirewallRule,
+} from './firewallApi';
+import FirewallTable, { FirewallTableSkeleton } from './FirewallTable';
+import FirewallDetail from './FirewallDetail';
+import FirewallForm from './FirewallForm';
+import EmptyState from '../../components/common/EmptyState';
+import ErrorBanner from '../../components/common/ErrorBanner';
+import ConfirmDialog from '../../components/common/ConfirmDialog';
+import type { FirewallRule, FirewallChain } from '../../api/types';
+
+function matchesRule(rule: FirewallRule, query: string): boolean {
+  const fields = [
+    rule.comment,
+    rule.action,
+    rule.protocol,
+    rule.srcAddress,
+    rule.dstAddress,
+    rule.srcAddressList,
+    rule.dstAddressList,
+    rule.srcPort,
+    rule.dstPort,
+    rule.inInterface,
+    rule.outInterface,
+  ];
+  return fields.some((f) => f && f.toLowerCase().includes(query));
+}
+
+export default function FirewallPage() {
+  const selectedRouterId = useClusterId();
+  const { data: rules, isLoading, error, refetch } = useFirewallRules(selectedRouterId);
+  const updateMutation = useUpdateFirewallRule(selectedRouterId);
+  const deleteMutation = useDeleteFirewallRule(selectedRouterId);
+  const moveMutation = useMoveFirewallRule(selectedRouterId);
+
+  const [activeTab, setActiveTab] = useState<FirewallChain>('forward');
+  const [search, setSearch] = useState('');
+  const [selectedRule, setSelectedRule] = useState<FirewallRule | null>(null);
+  const [detailOpen, setDetailOpen] = useState(false);
+  const [formOpen, setFormOpen] = useState(false);
+  const [editRule, setEditRule] = useState<FirewallRule | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<FirewallRule | null>(null);
+
+  // Reset state when router changes
+  const prevRouterId = useRef(selectedRouterId);
+  useEffect(() => {
+    if (prevRouterId.current !== selectedRouterId) {
+      setActiveTab('forward');
+      setSearch('');
+      setSelectedRule(null);
+      setDetailOpen(false);
+      setFormOpen(false);
+      setEditRule(null);
+      setDeleteTarget(null);
+      prevRouterId.current = selectedRouterId;
+    }
+  }, [selectedRouterId]);
+
+  const activeChain: FirewallChain = activeTab;
+
+  // Filter rules: first by chain, then by search query
+  const filtered = useMemo(() => {
+    if (!rules) return [];
+    const byChain = rules.filter((r) => r.chain === activeChain);
+    const trimmed = search.trim();
+    if (!trimmed) return byChain;
+    const query = trimmed.toLowerCase();
+    return byChain.filter((r) => matchesRule(r, query));
+  }, [rules, activeChain, search]);
+
+  // CRUD handlers
+  const handleAddRule = () => {
+    setEditRule(null);
+    setFormOpen(true);
+  };
+
+  const handleRowClick = (rule: FirewallRule) => {
+    setSelectedRule(rule);
+    setDetailOpen(true);
+  };
+
+  const handleDetailClose = () => {
+    setDetailOpen(false);
+  };
+
+  const handleEdit = (rule: FirewallRule) => {
+    setDetailOpen(false);
+    setEditRule(rule);
+    setFormOpen(true);
+  };
+
+  const handleDelete = (rule: FirewallRule) => {
+    setDetailOpen(false);
+    setDeleteTarget(rule);
+  };
+
+  const handleDeleteConfirm = () => {
+    if (!deleteTarget) return;
+    deleteMutation.mutate(
+      { id: deleteTarget.id },
+      {
+        onSuccess: () => {
+          setDeleteTarget(null);
+          setSelectedRule(null);
+        },
+      },
+    );
+  };
+
+  const handleFormClose = () => {
+    setFormOpen(false);
+    setEditRule(null);
+  };
+
+  const handleUpdate = (id: string, updates: Partial<FirewallRule>) => {
+    updateMutation.mutate({ id, updates });
+  };
+
+  const handleReorder = (activeId: string, overId: string) => {
+    moveMutation.mutate({ ruleId: activeId, destinationId: overId });
+  };
+
+  // Loading
+  if (isLoading) {
+    return (
+      <>
+        <Group justify="space-between" align="flex-start" mb="lg">
+          <Stack gap={4}>
+            <Title order={2}>Firewall</Title>
+            <Text size="sm" c="dimmed">
+              Filter rules for this router
+            </Text>
+          </Stack>
+        </Group>
+        <FirewallTableSkeleton />
+      </>
+    );
+  }
+
+  // Error
+  if (error) {
+    return (
+      <ErrorBanner
+        message="Failed to load firewall rules. Please try again later."
+        onRetry={() => void refetch()}
+      />
+    );
+  }
+
+  const chainRules = rules ? rules.filter((r) => r.chain === activeChain) : [];
+  const hasRules = chainRules.length > 0;
+
+  return (
+    <>
+      <Group justify="space-between" align="flex-start" mb="lg">
+        <Stack gap={4}>
+          <Title order={2}>Firewall</Title>
+          <Text size="sm" c="dimmed">
+            Filter rules for this router
+          </Text>
+        </Stack>
+        <Button leftSection={<IconPlus size={16} />} onClick={handleAddRule}>
+          Add Rule
+        </Button>
+      </Group>
+
+      <Tabs value={activeTab} onChange={(v) => setActiveTab(v as FirewallChain)} mb="md">
+        <Tabs.List>
+          <Tabs.Tab value="forward">Forwarding</Tabs.Tab>
+          <Tabs.Tab value="input">Router inbound</Tabs.Tab>
+          <Tabs.Tab value="output">Router outbound</Tabs.Tab>
+        </Tabs.List>
+      </Tabs>
+
+      {hasRules ? (
+        <>
+          <TextInput
+            placeholder="Search by comment, address, protocol, interface..."
+            leftSection={<IconSearch size={16} />}
+            value={search}
+            onChange={(e) => setSearch(e.currentTarget.value)}
+            radius="sm"
+            mb="md"
+          />
+          <FirewallTable
+            rules={filtered}
+            onRowClick={handleRowClick}
+            onUpdate={handleUpdate}
+            onReorder={handleReorder}
+            onEdit={handleEdit}
+            onDelete={handleDelete}
+          />
+        </>
+      ) : (
+        <EmptyState
+          icon={IconShield}
+          title="No rules configured"
+          description={`This router has no firewall rules in the ${activeChain === 'forward' ? 'forwarding' : activeChain === 'input' ? 'router inbound' : 'router outbound'} chain.`}
+          action={
+            <Button leftSection={<IconPlus size={16} />} onClick={handleAddRule}>
+              Add Rule
+            </Button>
+          }
+        />
+      )}
+
+      <FirewallDetail
+        rule={selectedRule}
+        isOpen={detailOpen}
+        onClose={handleDetailClose}
+        onEdit={handleEdit}
+        onDelete={handleDelete}
+      />
+
+      <FirewallForm
+        isOpen={formOpen}
+        onClose={handleFormClose}
+        routerId={selectedRouterId}
+        chain={activeChain}
+        editRule={editRule}
+      />
+
+      <ConfirmDialog
+        isOpen={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={handleDeleteConfirm}
+        title="Delete Rule"
+        message={`Are you sure you want to delete this firewall rule? This action cannot be undone.`}
+        confirmLabel="Delete"
+        confirmColor="red"
+      />
+    </>
+  );
+}
