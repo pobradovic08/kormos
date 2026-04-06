@@ -9,7 +9,7 @@ import {
   Menu,
   Select,
   MultiSelect,
-  TextInput,
+  Autocomplete,
 } from '@mantine/core';
 import {
   DndContext,
@@ -27,16 +27,48 @@ import {
   sortableKeyboardCoordinates,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { IconGripVertical, IconPencil, IconChevronDown, IconTrash, IconInfoCircle } from '@tabler/icons-react';
+import {
+  IconGripVertical, IconPencil, IconChevronDown, IconTrash, IconInfoCircle,
+  IconCloudNetwork, IconAddressBook,
+  IconCircleCheck, IconCircleX, IconBan, IconBolt, IconArrowRight,
+} from '@tabler/icons-react';
 import MonoText from '../../components/common/MonoText';
 import type { FirewallRule, FirewallAction, ConnectionState } from '../../api/types';
 import {
-  ACTION_COLORS,
   CONNECTION_STATE_ABBR,
   ACTION_OPTIONS,
   PROTOCOL_OPTIONS,
   CONNECTION_STATE_OPTIONS,
 } from './FirewallDetail';
+
+// ─── Action icons ─────────────────────────────────────────────────────────────
+
+const ACTION_ICON_MAP: Record<string, { icon: React.ComponentType<any>; color: string }> = {
+  accept: { icon: IconCircleCheck, color: 'var(--mantine-color-green-6)' },
+  drop: { icon: IconCircleX, color: 'var(--mantine-color-red-6)' },
+  reject: { icon: IconBan, color: 'var(--mantine-color-red-6)' },
+  'fasttrack-connection': { icon: IconBolt, color: 'var(--mantine-color-blue-6)' },
+  passthrough: { icon: IconArrowRight, color: 'var(--mantine-color-gray-5)' },
+};
+
+function ActionIcon({ action }: { action: string }) {
+  const config = ACTION_ICON_MAP[action];
+  if (!config) return <Text size="xs">{action}</Text>;
+  const Icon = config.icon;
+  return <Icon size={20} color={config.color} />;
+}
+
+function renderSelectOption({ option }: { option: { value: string; label: string } }) {
+  const config = ACTION_ICON_MAP[option.value];
+  if (!config) return <Text size="xs">{option.label}</Text>;
+  const Icon = config.icon;
+  return (
+    <Group gap={8} wrap="nowrap">
+      <Icon size={16} color={config.color} />
+      <Text size="xs">{option.label}</Text>
+    </Group>
+  );
+}
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
@@ -74,16 +106,28 @@ function HeaderLabel({ children }: { children: string }) {
 interface EditableCellProps {
   children: React.ReactNode;
   onEdit: () => void;
+  centered?: boolean;
 }
 
-function EditableCell({ children, onEdit }: EditableCellProps) {
+function EditableCell({ children, onEdit, centered }: EditableCellProps) {
   return (
     <div
+      className="editable-cell"
       onDoubleClick={(e) => {
         e.stopPropagation();
         onEdit();
       }}
-      style={{ cursor: 'default', minHeight: 24 }}
+      style={{
+        cursor: 'pointer',
+        height: '100%',
+        width: '100%',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: centered ? 'center' : undefined,
+        border: '1px dashed transparent',
+        borderRadius: 4,
+        padding: '2px 6px',
+      }}
     >
       {children}
     </div>
@@ -94,6 +138,8 @@ function EditableCell({ children, onEdit }: EditableCellProps) {
 
 export interface FirewallTableProps {
   rules: FirewallRule[];
+  interfaceOptions: { value: string; label: string }[];
+  addressListNames: string[];
   onInfo: (rule: FirewallRule) => void;
   onUpdate: (id: string, updates: Partial<FirewallRule>) => void;
   onReorder: (activeId: string, overId: string) => void;
@@ -107,6 +153,8 @@ interface SortableRowProps {
   rule: FirewallRule;
   index: number;
   isLast: boolean;
+  interfaceOptions: { value: string; label: string }[];
+  addressListNames: string[];
   onInfo: (rule: FirewallRule) => void;
   onUpdate: (id: string, updates: Partial<FirewallRule>) => void;
   onEdit: (rule: FirewallRule) => void;
@@ -117,6 +165,8 @@ function SortableRow({
   rule,
   index,
   isLast,
+  interfaceOptions,
+  addressListNames,
   onInfo,
   onUpdate,
   onEdit,
@@ -137,36 +187,75 @@ function SortableRow({
   // ─── Inline edit state ───────────────────────────────────────────────────
 
   const [editingAction, setEditingAction] = useState(false);
+  const [editingSrcIface, setEditingSrcIface] = useState(false);
   const [editingSrc, setEditingSrc] = useState(false);
+  const [editingDstIface, setEditingDstIface] = useState(false);
   const [editingDst, setEditingDst] = useState(false);
   const [editingProtocol, setEditingProtocol] = useState(false);
   const [editingConnState, setEditingConnState] = useState(false);
 
   const [srcValue, setSrcValue] = useState(rule.srcAddress ?? rule.srcAddressList ?? '');
   const [dstValue, setDstValue] = useState(rule.dstAddress ?? rule.dstAddressList ?? '');
+  const [srcError, setSrcError] = useState('');
+  const [dstError, setDstError] = useState('');
   const [protocolValue, setProtocolValue] = useState(rule.protocol ?? '');
   const [connStateValue, setConnStateValue] = useState<string[]>(rule.connectionState ?? []);
 
+  const validateAddress = useCallback(
+    (val: string): string => {
+      if (!val) return '';
+      if (addressListNames.includes(val)) return '';
+      // IPv4: 0-255 dotted quad, optional /0-32
+      const ipv4 = /^((25[0-5]|2[0-4]\d|[01]?\d\d?)\.){3}(25[0-5]|2[0-4]\d|[01]?\d\d?)(\/([0-9]|[12]\d|3[0-2]))?$/;
+      if (ipv4.test(val)) return '';
+      // IPv6: full or compressed, optional /0-128
+      const ipv6 = /^([0-9a-fA-F]{0,4}:){2,7}[0-9a-fA-F]{0,4}(\/([0-9]|[1-9]\d|1[0-1]\d|12[0-8]))?$/;
+      if (ipv6.test(val)) return '';
+      return 'Invalid IP address or prefix';
+    },
+    [addressListNames],
+  );
+
   const saveSource = useCallback(
     (val: string) => {
-      setEditingSrc(false);
       const trimmed = val.trim();
+      const error = validateAddress(trimmed);
+      if (error) {
+        setSrcError(error);
+        return;
+      }
+      setSrcError('');
+      setEditingSrc(false);
       if (trimmed !== (rule.srcAddress ?? rule.srcAddressList ?? '')) {
-        onUpdate(rule.id, { srcAddress: trimmed || undefined, srcAddressList: undefined });
+        if (addressListNames.includes(trimmed)) {
+          onUpdate(rule.id, { srcAddressList: trimmed, srcAddress: undefined });
+        } else {
+          onUpdate(rule.id, { srcAddress: trimmed || undefined, srcAddressList: undefined });
+        }
       }
     },
-    [rule, onUpdate],
+    [rule, onUpdate, addressListNames, validateAddress],
   );
 
   const saveDest = useCallback(
     (val: string) => {
-      setEditingDst(false);
       const trimmed = val.trim();
+      const error = validateAddress(trimmed);
+      if (error) {
+        setDstError(error);
+        return;
+      }
+      setDstError('');
+      setEditingDst(false);
       if (trimmed !== (rule.dstAddress ?? rule.dstAddressList ?? '')) {
-        onUpdate(rule.id, { dstAddress: trimmed || undefined, dstAddressList: undefined });
+        if (addressListNames.includes(trimmed)) {
+          onUpdate(rule.id, { dstAddressList: trimmed, dstAddress: undefined });
+        } else {
+          onUpdate(rule.id, { dstAddress: trimmed || undefined, dstAddressList: undefined });
+        }
       }
     },
-    [rule, onUpdate],
+    [rule, onUpdate, addressListNames, validateAddress],
   );
 
   const saveProtocol = useCallback(
@@ -192,14 +281,22 @@ function SortableRow({
     onSave: (v: string) => void,
     onCancel: () => void,
     onStartEdit: () => void,
+    error: string,
+    setError: (e: string) => void,
   ) {
     if (isEditing) {
       return (
-        <TextInput
+        <Autocomplete
           autoFocus
+          defaultDropdownOpened
           size="xs"
+          radius="sm"
+          styles={error ? { input: { borderColor: 'var(--mantine-color-red-6)', color: 'var(--mantine-color-red-6)' } } : undefined}
+          placeholder="IP address or address list"
+          data={addressListNames}
           value={value}
-          onChange={(e) => setValue(e.currentTarget.value)}
+          onChange={(val) => { setValue(val); if (error) setError(''); }}
+          onOptionSubmit={(val) => onSave(val)}
           onBlur={() => onSave(value)}
           onKeyDown={(e) => {
             if (e.key === 'Enter') onSave(value);
@@ -217,29 +314,23 @@ function SortableRow({
     return (
       <EditableCell onEdit={onStartEdit}>
         {addressList ? (
-          <div>
+          <Group gap={4} wrap="nowrap">
             <Badge variant="light" size="sm" radius="sm" color="violet">
               {addressList}
             </Badge>
             {port && (
-              <MonoText size="xs" c="dimmed">
-                :{port}
-              </MonoText>
+              <MonoText size="xs" c="dimmed">:{port}</MonoText>
             )}
-          </div>
+          </Group>
         ) : address ? (
           <div>
             <MonoText size="xs">{address}</MonoText>
             {port && (
-              <MonoText size="xs" c="dimmed">
-                :{port}
-              </MonoText>
+              <MonoText size="xs" c="dimmed">:{port}</MonoText>
             )}
           </div>
         ) : (
-          <Text size="xs" c="dimmed">
-            any
-          </Text>
+          <Text size="xs" c="dimmed">any</Text>
         )}
       </EditableCell>
     );
@@ -268,42 +359,111 @@ function SortableRow({
         <MonoText size="xs" c="dimmed">{rule.id}</MonoText>
       </Table.Td>
 
-      {/* Source */}
-      <Table.Td>
-        {renderAddressCell(
-          rule.srcAddress,
-          rule.srcAddressList,
-          rule.srcPort,
-          editingSrc,
-          srcValue,
-          setSrcValue,
-          saveSource,
-          () => { setSrcValue(rule.srcAddress ?? rule.srcAddressList ?? ''); setEditingSrc(false); },
-          () => { setSrcValue(rule.srcAddress ?? rule.srcAddressList ?? ''); setEditingSrc(true); },
-        )}
+      {/* Source (address + in-interface) */}
+      <Table.Td style={{ verticalAlign: 'top' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+        <div style={{ height: 28, display: 'flex', alignItems: 'center', gap: 6 }}>
+          <IconAddressBook size={16} color="var(--mantine-color-gray-5)" style={{ flexShrink: 0 }} />
+          {renderAddressCell(
+            rule.srcAddress,
+            rule.srcAddressList,
+            rule.srcPort,
+            editingSrc,
+            srcValue,
+            setSrcValue,
+            saveSource,
+            () => { setSrcValue(rule.srcAddress ?? rule.srcAddressList ?? ''); setSrcError(''); setEditingSrc(false); },
+            () => { setSrcValue(rule.srcAddress ?? rule.srcAddressList ?? ''); setSrcError(''); setEditingSrc(true); },
+            srcError,
+            setSrcError,
+          )}
+        </div>
+        <div style={{ height: 28, display: 'flex', alignItems: 'center', gap: 6 }}>
+          <IconCloudNetwork size={16} color="var(--mantine-color-gray-5)" style={{ flexShrink: 0 }} />
+          {editingSrcIface ? (
+            <Select
+              autoFocus
+              defaultDropdownOpened
+              size="xs"
+              radius="sm"
+              placeholder="Any"
+              data={interfaceOptions}
+              value={rule.inInterface ?? ''}
+              onChange={(val) => {
+                setEditingSrcIface(false);
+                onUpdate(rule.id, { inInterface: val || undefined });
+              }}
+              onBlur={() => setEditingSrcIface(false)}
+              onClick={(e) => e.stopPropagation()}
+              clearable
+              style={{ flex: 1 }}
+            />
+          ) : (
+            <EditableCell onEdit={() => setEditingSrcIface(true)}>
+              <Text size="xs" c="dimmed">{rule.inInterface ?? 'any'}</Text>
+            </EditableCell>
+          )}
+        </div>
+        </div>
       </Table.Td>
 
-      {/* Destination */}
-      <Table.Td>
-        {renderAddressCell(
-          rule.dstAddress,
-          rule.dstAddressList,
-          rule.dstPort,
-          editingDst,
-          dstValue,
-          setDstValue,
-          saveDest,
-          () => { setDstValue(rule.dstAddress ?? rule.dstAddressList ?? ''); setEditingDst(false); },
-          () => { setDstValue(rule.dstAddress ?? rule.dstAddressList ?? ''); setEditingDst(true); },
-        )}
+      {/* Destination (address + out-interface) */}
+      <Table.Td style={{ verticalAlign: 'top' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+        <div style={{ height: 28, display: 'flex', alignItems: 'center', gap: 6 }}>
+          <IconAddressBook size={16} color="var(--mantine-color-gray-5)" style={{ flexShrink: 0 }} />
+          {renderAddressCell(
+            rule.dstAddress,
+            rule.dstAddressList,
+            rule.dstPort,
+            editingDst,
+            dstValue,
+            setDstValue,
+            saveDest,
+            () => { setDstValue(rule.dstAddress ?? rule.dstAddressList ?? ''); setDstError(''); setEditingDst(false); },
+            () => { setDstValue(rule.dstAddress ?? rule.dstAddressList ?? ''); setDstError(''); setEditingDst(true); },
+            dstError,
+            setDstError,
+          )}
+        </div>
+        <div style={{ height: 28, display: 'flex', alignItems: 'center', gap: 6 }}>
+          <IconCloudNetwork size={16} color="var(--mantine-color-gray-5)" style={{ flexShrink: 0 }} />
+          {editingDstIface ? (
+            <Select
+              autoFocus
+              defaultDropdownOpened
+              size="xs"
+              radius="sm"
+              placeholder="Any"
+              data={interfaceOptions}
+              value={rule.outInterface ?? ''}
+              onChange={(val) => {
+                setEditingDstIface(false);
+                onUpdate(rule.id, { outInterface: val || undefined });
+              }}
+              onBlur={() => setEditingDstIface(false)}
+              onClick={(e) => e.stopPropagation()}
+              clearable
+              style={{ flex: 1 }}
+            />
+          ) : (
+            <EditableCell onEdit={() => setEditingDstIface(true)}>
+              <Text size="xs" c="dimmed">{rule.outInterface ?? 'any'}</Text>
+            </EditableCell>
+          )}
+        </div>
+        </div>
       </Table.Td>
 
       {/* Protocol */}
       <Table.Td>
+        <div style={{ height: 28, display: 'flex', alignItems: 'center' }}>
         {editingProtocol ? (
           <Select
             autoFocus
+            defaultDropdownOpened
             size="xs"
+            radius="sm"
             data={PROTOCOL_OPTIONS}
             value={protocolValue}
             onChange={(val) => {
@@ -320,36 +480,18 @@ function SortableRow({
             <MonoText size="xs">{rule.protocol ?? 'any'}</MonoText>
           </EditableCell>
         )}
-      </Table.Td>
-
-      {/* Interface */}
-      <Table.Td>
-        {(rule.inInterface || rule.outInterface) ? (
-          <div>
-            {rule.inInterface && (
-              <MonoText size="xs">
-                <Text component="span" size="xs" c="dimmed">in: </Text>
-                {rule.inInterface}
-              </MonoText>
-            )}
-            {rule.outInterface && (
-              <MonoText size="xs">
-                <Text component="span" size="xs" c="dimmed">out: </Text>
-                {rule.outInterface}
-              </MonoText>
-            )}
-          </div>
-        ) : (
-          <Text size="xs" c="dimmed">—</Text>
-        )}
+        </div>
       </Table.Td>
 
       {/* Conn. State */}
       <Table.Td>
+        <div style={{ height: 28, display: 'flex', alignItems: 'center' }}>
         {editingConnState ? (
           <MultiSelect
             autoFocus
+            defaultDropdownOpened
             size="xs"
+            radius="sm"
             data={CONNECTION_STATE_OPTIONS}
             value={connStateValue}
             onChange={(val) => {
@@ -376,16 +518,22 @@ function SortableRow({
             )}
           </EditableCell>
         )}
+        </div>
       </Table.Td>
 
       {/* Action */}
       <Table.Td>
+        <div style={{ height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         {editingAction ? (
           <Select
             autoFocus
+            defaultDropdownOpened
             size="xs"
+            radius="sm"
             data={ACTION_OPTIONS}
             value={rule.action}
+            renderOption={renderSelectOption}
+            leftSection={<ActionIcon action={rule.action} />}
             onChange={(val) => {
               setEditingAction(false);
               if (val && val !== rule.action) {
@@ -394,20 +542,16 @@ function SortableRow({
             }}
             onBlur={() => setEditingAction(false)}
             onClick={(e) => e.stopPropagation()}
+            comboboxProps={{ width: 180, position: 'bottom-start' }}
+            styles={{ input: { color: 'transparent' } }}
             style={{ width: '100%' }}
           />
         ) : (
-          <EditableCell onEdit={() => setEditingAction(true)}>
-            <Badge
-              variant="light"
-              size="sm"
-              radius="sm"
-              color={ACTION_COLORS[rule.action]}
-            >
-              {rule.action}
-            </Badge>
+          <EditableCell onEdit={() => setEditingAction(true)} centered>
+            <ActionIcon action={rule.action} />
           </EditableCell>
         )}
+        </div>
       </Table.Td>
 
       {/* Actions */}
@@ -470,6 +614,8 @@ function SortableRow({
 
 export default function FirewallTable({
   rules,
+  interfaceOptions,
+  addressListNames,
   onInfo,
   onUpdate,
   onReorder,
@@ -494,6 +640,7 @@ export default function FirewallTable({
 
   return (
     <div style={tableWrapperStyle}>
+      <style>{`tr:hover .editable-cell { border-color: var(--mantine-color-gray-3) !important; }`}</style>
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <SortableContext items={rules.map((r) => r.id)} strategy={verticalListSortingStrategy}>
           <Table withRowBorders={false} style={tableStyle}>
@@ -503,22 +650,19 @@ export default function FirewallTable({
                 <Table.Th style={{ width: 44, textAlign: 'center' }}>
                   <HeaderLabel>#</HeaderLabel>
                 </Table.Th>
-                <Table.Th>
+                <Table.Th style={{ width: '25%' }}>
                   <HeaderLabel>Source</HeaderLabel>
                 </Table.Th>
-                <Table.Th>
+                <Table.Th style={{ width: '25%' }}>
                   <HeaderLabel>Destination</HeaderLabel>
                 </Table.Th>
                 <Table.Th style={{ width: 70 }}>
                   <HeaderLabel>Proto</HeaderLabel>
                 </Table.Th>
-                <Table.Th style={{ width: 110 }}>
-                  <HeaderLabel>Interface</HeaderLabel>
-                </Table.Th>
                 <Table.Th style={{ width: 150 }}>
                   <HeaderLabel>Conn. State</HeaderLabel>
                 </Table.Th>
-                <Table.Th style={{ width: 90 }}>
+                <Table.Th style={{ width: 50, textAlign: 'center' }}>
                   <HeaderLabel>Action</HeaderLabel>
                 </Table.Th>
                 <Table.Th style={{ width: 140 }}>
@@ -533,6 +677,8 @@ export default function FirewallTable({
                   rule={rule}
                   index={index}
                   isLast={index === rules.length - 1}
+                  interfaceOptions={interfaceOptions}
+                  addressListNames={addressListNames}
                   onInfo={onInfo}
                   onUpdate={onUpdate}
                   onEdit={onEdit}
@@ -541,7 +687,7 @@ export default function FirewallTable({
               ))}
               {rules.length === 0 && (
                 <Table.Tr>
-                  <Table.Td colSpan={9}>
+                  <Table.Td colSpan={8}>
                     <Text size="sm" c="dimmed" ta="center" py="lg">
                       No rules defined
                     </Text>
@@ -568,25 +714,19 @@ export function FirewallTableSkeleton() {
             <Table.Th style={{ width: 40 }}>
               <HeaderLabel>#</HeaderLabel>
             </Table.Th>
-            <Table.Th style={{ width: 90 }}>
-              <HeaderLabel>Action</HeaderLabel>
-            </Table.Th>
-            <Table.Th style={{ width: '18%' }}>
+            <Table.Th>
               <HeaderLabel>Source</HeaderLabel>
             </Table.Th>
-            <Table.Th style={{ width: '18%' }}>
+            <Table.Th>
               <HeaderLabel>Destination</HeaderLabel>
             </Table.Th>
             <Table.Th style={{ width: 70 }}>
               <HeaderLabel>Proto</HeaderLabel>
             </Table.Th>
-            <Table.Th style={{ width: 110 }}>
-              <HeaderLabel>Interface</HeaderLabel>
-            </Table.Th>
             <Table.Th style={{ width: 150 }}>
               <HeaderLabel>Conn. State</HeaderLabel>
             </Table.Th>
-            <Table.Th style={{ width: 90 }}>
+            <Table.Th style={{ width: 50 }}>
               <HeaderLabel>Action</HeaderLabel>
             </Table.Th>
             <Table.Th style={{ width: 140 }}>
@@ -608,13 +748,17 @@ export function FirewallTableSkeleton() {
                 <Skeleton height={10} width={24} radius="sm" mt={2} />
               </Table.Td>
               {/* Source */}
-              <Table.Td><Skeleton height={14} width={110} radius="sm" /></Table.Td>
+              <Table.Td>
+                <Skeleton height={10} width={50} radius="sm" mb={2} />
+                <Skeleton height={14} width={120} radius="sm" />
+              </Table.Td>
               {/* Destination */}
-              <Table.Td><Skeleton height={14} width={110} radius="sm" /></Table.Td>
+              <Table.Td>
+                <Skeleton height={10} width={50} radius="sm" mb={2} />
+                <Skeleton height={14} width={120} radius="sm" />
+              </Table.Td>
               {/* Proto */}
               <Table.Td><Skeleton height={14} width={40} radius="sm" /></Table.Td>
-              {/* Interface */}
-              <Table.Td><Skeleton height={14} width={80} radius="sm" /></Table.Td>
               {/* Conn. State */}
               <Table.Td><Skeleton height={18} width={100} radius="sm" /></Table.Td>
               {/* Action */}

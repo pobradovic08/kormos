@@ -19,6 +19,8 @@ import {
 import FirewallTable, { FirewallTableSkeleton } from './FirewallTable';
 import FirewallDetail from './FirewallDetail';
 import FirewallForm from './FirewallForm';
+import { useInterfaces } from '../interfaces/interfacesApi';
+import { useAddressLists } from '../address-lists/addressListsApi';
 import EmptyState from '../../components/common/EmptyState';
 import ErrorBanner from '../../components/common/ErrorBanner';
 import ConfirmDialog from '../../components/common/ConfirmDialog';
@@ -47,6 +49,18 @@ export default function FirewallPage() {
   const updateMutation = useUpdateFirewallRule(selectedRouterId);
   const deleteMutation = useDeleteFirewallRule(selectedRouterId);
   const moveMutation = useMoveFirewallRule(selectedRouterId);
+  const { data: interfaces } = useInterfaces(selectedRouterId);
+
+  const interfaceOptions = useMemo(() => {
+    if (!interfaces) return [];
+    return interfaces.map((i) => ({ value: i.name, label: i.name }));
+  }, [interfaces]);
+
+  const { data: addressLists } = useAddressLists(selectedRouterId);
+  const addressListNames = useMemo(() => {
+    if (!addressLists) return [];
+    return addressLists.map((l) => l.name);
+  }, [addressLists]);
 
   const [activeTab, setActiveTab] = useState<FirewallChain>('forward');
   const [search, setSearch] = useState('');
@@ -197,6 +211,8 @@ export default function FirewallPage() {
           />
           <FirewallTable
             rules={filtered}
+            interfaceOptions={interfaceOptions}
+            addressListNames={addressListNames}
             onInfo={handleRowClick}
             onUpdate={handleUpdate}
             onReorder={handleReorder}
