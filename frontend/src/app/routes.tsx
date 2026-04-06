@@ -110,6 +110,10 @@ export const router = createBrowserRouter([
             element: <DashboardPage />,
           },
           {
+            path: 'configure',
+            element: <NotFoundPage />,
+          },
+          {
             path: 'configure/:clusterId',
             element: <ConfigureLayout />,
             children: [
