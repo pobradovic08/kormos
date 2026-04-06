@@ -34,7 +34,7 @@ let data = structuredClone(seedData);
 let nextId = 1000;
 
 export function listFirewallRules(routerId: string): FirewallRule[] {
-  return data[routerId] ?? [];
+  return [...(data[routerId] ?? [])];
 }
 
 export function addFirewallRule(routerId: string, rule: Omit<FirewallRule, 'id'>): FirewallRule {
