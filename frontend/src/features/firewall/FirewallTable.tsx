@@ -262,11 +262,10 @@ function SortableRow({
         </div>
       </Table.Td>
 
-      {/* # */}
-      <Table.Td>
-        <MonoText size="xs" c="dimmed">
-          {index + 1}
-        </MonoText>
+      {/* # + ID */}
+      <Table.Td style={{ textAlign: 'center' }}>
+        <MonoText size="xs" fw={700}>{index + 1}</MonoText>
+        <MonoText size="xs" c="dimmed">{rule.id}</MonoText>
       </Table.Td>
 
       {/* Action */}
@@ -501,7 +500,7 @@ export default function FirewallTable({
             <Table.Thead>
               <Table.Tr style={headerRowStyle}>
                 <Table.Th style={{ width: 32 }} />
-                <Table.Th style={{ width: 40 }}>
+                <Table.Th style={{ width: 50, textAlign: 'center' }}>
                   <HeaderLabel>#</HeaderLabel>
                 </Table.Th>
                 <Table.Th style={{ width: 90 }}>
@@ -603,6 +602,7 @@ export function FirewallTableSkeleton() {
               </Table.Td>
               <Table.Td>
                 <Skeleton height={14} width={20} radius="sm" />
+                <Skeleton height={10} width={24} radius="sm" mt={2} />
               </Table.Td>
               <Table.Td>
                 <Skeleton height={18} width={60} radius="sm" />
