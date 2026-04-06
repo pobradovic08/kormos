@@ -11,6 +11,7 @@ import {
   Select,
   MultiSelect,
   Autocomplete,
+  Tooltip,
 } from '@mantine/core';
 import {
   DndContext,
@@ -377,10 +378,10 @@ function SortableRow({
       {...attributes}
     >
       {/* Drag handle */}
-      <Table.Td style={{ padding: '0 4px' }}>
+      <Table.Td style={{ padding: 0, textAlign: 'center' }}>
         <div
           {...listeners}
-          style={{ cursor: 'grab', color: 'var(--mantine-color-gray-5)', display: 'flex', alignItems: 'center' }}
+          style={{ cursor: 'grab', color: 'var(--mantine-color-gray-5)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
           onClick={(e) => e.stopPropagation()}
         >
           <IconGripVertical size={14} />
@@ -388,9 +389,9 @@ function SortableRow({
       </Table.Td>
 
       {/* # + ID */}
-      <Table.Td style={{ textAlign: 'center' }}>
+      <Table.Td style={{ textAlign: 'center', padding: 0 }}>
         <MonoText size="xs" fw={700}>{index + 1}</MonoText>
-        <MonoText size="xs" c="dimmed">{rule.id}</MonoText>
+        <Badge variant="outline" color="gray" size="sm" radius="sm" styles={{ label: { fontFamily: 'monospace' } }}>{rule.id}</Badge>
       </Table.Td>
 
       {/* Source (address + in-interface) */}
@@ -544,13 +545,17 @@ function SortableRow({
         ) : (
           <EditableCell onEdit={() => { setConnStateValue(rule.connectionState ?? []); setEditingConnState(true); }}>
             {rule.connectionState && rule.connectionState.length > 0 ? (
-              <Group gap={2} wrap="wrap">
-                {rule.connectionState.map((state) => (
-                  <Badge key={state} variant="light" size="sm" radius="sm" color="blue">
-                    {CONNECTION_STATE_ABBR[state]}
-                  </Badge>
-                ))}
-              </Group>
+              <Tooltip
+                label={rule.connectionState.map((s) => CONNECTION_STATE_ABBR[s]).join(', ')}
+                position="top"
+                withArrow
+              >
+                <Badge variant="light" size="sm" radius="sm" color="blue">
+                  {rule.connectionState.length === 1
+                    ? CONNECTION_STATE_ABBR[rule.connectionState[0]]
+                    : `${rule.connectionState.length} states`}
+                </Badge>
+              </Tooltip>
             ) : (
               <Text size="xs" c="dimmed">—</Text>
             )}
@@ -684,8 +689,8 @@ export default function FirewallTable({
           <Table withRowBorders={false} style={tableStyle}>
             <Table.Thead>
               <Table.Tr style={headerRowStyle}>
-                <Table.Th style={{ width: 32 }} />
-                <Table.Th style={{ width: 44, textAlign: 'center' }}>
+                <Table.Th style={{ width: 20, padding: 0 }} />
+                <Table.Th style={{ width: 28, textAlign: 'center', padding: 0 }}>
                   <HeaderLabel>#</HeaderLabel>
                 </Table.Th>
                 <Table.Th style={{ width: '25%' }}>
@@ -697,8 +702,8 @@ export default function FirewallTable({
                 <Table.Th style={{ width: 70 }}>
                   <HeaderLabel>Proto</HeaderLabel>
                 </Table.Th>
-                <Table.Th style={{ width: 150 }}>
-                  <HeaderLabel>Conn. State</HeaderLabel>
+                <Table.Th style={{ width: 90 }}>
+                  <HeaderLabel>State</HeaderLabel>
                 </Table.Th>
                 <Table.Th style={{ width: 50, textAlign: 'center' }}>
                   <HeaderLabel>Action</HeaderLabel>
@@ -748,7 +753,7 @@ export function FirewallTableSkeleton() {
       <Table withRowBorders={false} style={tableStyle}>
         <Table.Thead>
           <Table.Tr style={headerRowStyle}>
-            <Table.Th style={{ width: 32 }} />
+            <Table.Th style={{ width: 20, padding: 0 }} />
             <Table.Th style={{ width: 40 }}>
               <HeaderLabel>#</HeaderLabel>
             </Table.Th>
