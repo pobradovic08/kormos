@@ -24,7 +24,7 @@ export function configurePath(clusterId: string, slug?: string): string {
 export const modules: ModuleConfig[] = [
   { title: 'Interfaces', subtitle: 'Configure interface addresses', icon: IconNetwork, route: 'interfaces', isEnabled: true },
   { title: 'Routes', subtitle: 'Configure static routes', icon: IconRouteAltRight, route: 'routes', isEnabled: true },
-  { title: 'Firewall', subtitle: 'Configure firewall filter rules', icon: IconShieldCheck, route: 'firewall', isEnabled: false },
+  { title: 'Firewall', subtitle: 'Configure firewall filter rules', icon: IconShieldCheck, route: 'firewall', isEnabled: true },
   { title: 'Address Lists', subtitle: 'Configure firewall address lists', icon: IconListDetails, route: 'address-lists', isEnabled: true },
   { title: 'NAT', subtitle: 'Configure NAT rules', icon: IconArrowsShuffle, route: 'nat', isEnabled: false },
   { title: 'Tunnels', subtitle: 'Configure IPsec / GRE tunnels', icon: IconBuilding, route: 'tunnels', isEnabled: true },

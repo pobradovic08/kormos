@@ -14,6 +14,7 @@ import RoutesPage from '../features/routes/RoutesPage';
 import AddressListsPage from '../features/address-lists/AddressListsPage';
 import TunnelsPage from '../features/tunnels/TunnelsPage';
 import WireGuardPage from '../features/wireguard/WireGuardPage';
+import FirewallPage from '../features/firewall/FirewallPage';
 import ConfigureLandingPage from '../features/configure/ConfigureLandingPage';
 import ConfigureLayout from '../features/configure/ConfigureLayout';
 import DashboardPage from '../features/dashboard/DashboardPage';
@@ -128,6 +129,10 @@ export const router = createBrowserRouter([
               {
                 path: 'routes',
                 element: <RoutesPage />,
+              },
+              {
+                path: 'firewall',
+                element: <FirewallPage />,
               },
               {
                 path: 'address-lists',
