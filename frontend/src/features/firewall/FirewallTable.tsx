@@ -191,6 +191,7 @@ function SortableRow({
     value: string,
     setValue: (v: string) => void,
     onSave: (v: string) => void,
+    onCancel: () => void,
     onStartEdit: () => void,
   ) {
     if (isEditing) {
@@ -204,8 +205,8 @@ function SortableRow({
           onKeyDown={(e) => {
             if (e.key === 'Enter') onSave(value);
             if (e.key === 'Escape') {
-              setValue(address ?? addressList ?? '');
-              onSave(address ?? addressList ?? '');
+              e.currentTarget.blur();
+              onCancel();
             }
           }}
           onClick={(e) => e.stopPropagation()}
@@ -312,6 +313,7 @@ function SortableRow({
           srcValue,
           setSrcValue,
           saveSource,
+          () => { setSrcValue(rule.srcAddress ?? rule.srcAddressList ?? ''); setEditingSrc(false); },
           () => { setSrcValue(rule.srcAddress ?? rule.srcAddressList ?? ''); setEditingSrc(true); },
         )}
       </Table.Td>
@@ -326,6 +328,7 @@ function SortableRow({
           dstValue,
           setDstValue,
           saveDest,
+          () => { setDstValue(rule.dstAddress ?? rule.dstAddressList ?? ''); setEditingDst(false); },
           () => { setDstValue(rule.dstAddress ?? rule.dstAddressList ?? ''); setEditingDst(true); },
         )}
       </Table.Td>

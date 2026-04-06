@@ -80,6 +80,10 @@ export default function FirewallPage() {
     return byChain.filter((r) => matchesRule(r, query));
   }, [rules, activeTab, search]);
 
+  const chainHasRules = useMemo(() => {
+    return rules ? rules.some((r) => r.chain === activeTab) : false;
+  }, [rules, activeTab]);
+
   // CRUD handlers
   const handleAddRule = () => {
     setEditRule(null);
@@ -140,7 +144,7 @@ export default function FirewallPage() {
           <Stack gap={4}>
             <Title order={2}>Firewall</Title>
             <Text size="sm" c="dimmed">
-              Filter rules for this router
+              Firewall filter rules
             </Text>
           </Stack>
         </Group>
@@ -159,17 +163,13 @@ export default function FirewallPage() {
     );
   }
 
-  const chainHasRules = useMemo(() => {
-    return rules ? rules.some((r) => r.chain === activeTab) : false;
-  }, [rules, activeTab]);
-
   return (
     <>
       <Group justify="space-between" align="flex-start" mb="lg">
         <Stack gap={4}>
           <Title order={2}>Firewall</Title>
           <Text size="sm" c="dimmed">
-            Filter rules for this router
+            Firewall filter rules
           </Text>
         </Stack>
         <Button leftSection={<IconPlus size={16} />} onClick={handleAddRule}>
