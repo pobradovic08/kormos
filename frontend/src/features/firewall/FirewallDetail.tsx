@@ -38,6 +38,34 @@ export const CONNECTION_STATE_ABBR: Record<ConnectionState, string> = {
   untracked: 'unt',
 };
 
+export const ACTION_OPTIONS: { value: FirewallAction; label: string }[] = [
+  { value: 'accept', label: 'accept' },
+  { value: 'drop', label: 'drop' },
+  { value: 'reject', label: 'reject' },
+  { value: 'fasttrack-connection', label: 'fasttrack-connection' },
+  { value: 'passthrough', label: 'passthrough' },
+];
+
+export const PROTOCOL_OPTIONS = [
+  { value: '', label: 'Any' },
+  { value: 'tcp', label: 'TCP' },
+  { value: 'udp', label: 'UDP' },
+  { value: 'icmp', label: 'ICMP' },
+  { value: 'icmpv6', label: 'ICMPv6' },
+  { value: 'ospf', label: 'OSPF' },
+  { value: 'gre', label: 'GRE' },
+  { value: 'ipsec-esp', label: 'IPsec ESP' },
+  { value: 'ipsec-ah', label: 'IPsec AH' },
+];
+
+export const CONNECTION_STATE_OPTIONS: { value: ConnectionState; label: string }[] = [
+  { value: 'established', label: 'established' },
+  { value: 'related', label: 'related' },
+  { value: 'new', label: 'new' },
+  { value: 'invalid', label: 'invalid' },
+  { value: 'untracked', label: 'untracked' },
+];
+
 // ─── Local helpers ────────────────────────────────────────────────────────────
 
 function DetailField({ label, children }: { label: string; children: React.ReactNode }) {

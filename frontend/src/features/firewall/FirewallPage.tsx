@@ -71,17 +71,14 @@ export default function FirewallPage() {
     }
   }, [selectedRouterId]);
 
-  const activeChain: FirewallChain = activeTab;
-
-  // Filter rules: first by chain, then by search query
   const filtered = useMemo(() => {
     if (!rules) return [];
-    const byChain = rules.filter((r) => r.chain === activeChain);
+    const byChain = rules.filter((r) => r.chain === activeTab);
     const trimmed = search.trim();
     if (!trimmed) return byChain;
     const query = trimmed.toLowerCase();
     return byChain.filter((r) => matchesRule(r, query));
-  }, [rules, activeChain, search]);
+  }, [rules, activeTab, search]);
 
   // CRUD handlers
   const handleAddRule = () => {
@@ -162,8 +159,9 @@ export default function FirewallPage() {
     );
   }
 
-  const chainRules = rules ? rules.filter((r) => r.chain === activeChain) : [];
-  const hasRules = chainRules.length > 0;
+  const chainHasRules = useMemo(() => {
+    return rules ? rules.some((r) => r.chain === activeTab) : false;
+  }, [rules, activeTab]);
 
   return (
     <>
@@ -187,7 +185,7 @@ export default function FirewallPage() {
         </Tabs.List>
       </Tabs>
 
-      {hasRules ? (
+      {chainHasRules ? (
         <>
           <TextInput
             placeholder="Search by comment, address, protocol, interface..."
@@ -210,7 +208,7 @@ export default function FirewallPage() {
         <EmptyState
           icon={IconShield}
           title="No rules configured"
-          description={`This router has no firewall rules in the ${activeChain === 'forward' ? 'forwarding' : activeChain === 'input' ? 'router inbound' : 'router outbound'} chain.`}
+          description={`This router has no firewall rules in the ${activeTab === 'forward' ? 'forwarding' : activeTab === 'input' ? 'router inbound' : 'router outbound'} chain.`}
           action={
             <Button leftSection={<IconPlus size={16} />} onClick={handleAddRule}>
               Add Rule
@@ -231,7 +229,7 @@ export default function FirewallPage() {
         isOpen={formOpen}
         onClose={handleFormClose}
         routerId={selectedRouterId}
-        chain={activeChain}
+        chain={activeTab}
         editRule={editRule}
       />
 

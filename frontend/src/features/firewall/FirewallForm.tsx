@@ -17,34 +17,7 @@ import type { FirewallRule, FirewallChain, FirewallAction, ConnectionState } fro
 import { useAddFirewallRule, useUpdateFirewallRule } from './firewallApi';
 import { useAddressLists } from '../address-lists/addressListsApi';
 import { useInterfaces } from '../interfaces/interfacesApi';
-
-// ─── Select options ───────────────────────────────────────────────────────────
-
-const ACTION_OPTIONS: { value: FirewallAction; label: string }[] = [
-  { value: 'accept', label: 'accept' },
-  { value: 'drop', label: 'drop' },
-  { value: 'reject', label: 'reject' },
-  { value: 'fasttrack-connection', label: 'fasttrack-connection' },
-  { value: 'passthrough', label: 'passthrough' },
-];
-
-const PROTOCOL_OPTIONS = [
-  { value: '', label: 'Any' },
-  { value: 'tcp', label: 'TCP' },
-  { value: 'udp', label: 'UDP' },
-  { value: 'icmp', label: 'ICMP' },
-  { value: 'gre', label: 'GRE' },
-  { value: 'ipsec-esp', label: 'IPsec ESP' },
-  { value: 'ipsec-ah', label: 'IPsec AH' },
-];
-
-const CONNECTION_STATE_OPTIONS: { value: ConnectionState; label: string }[] = [
-  { value: 'established', label: 'established' },
-  { value: 'related', label: 'related' },
-  { value: 'new', label: 'new' },
-  { value: 'invalid', label: 'invalid' },
-  { value: 'untracked', label: 'untracked' },
-];
+import { ACTION_OPTIONS, PROTOCOL_OPTIONS, CONNECTION_STATE_OPTIONS } from './FirewallDetail';
 
 // ─── Form state ───────────────────────────────────────────────────────────────
 
@@ -330,11 +303,10 @@ export default function FirewallForm({
             value={state.protocol}
             onChange={(val) => {
               const proto = val ?? '';
-              update('protocol', proto);
-              // Clear ports if protocol no longer supports them
               if (proto !== 'tcp' && proto !== 'udp') {
                 setState((prev) => ({ ...prev, protocol: proto, srcPort: '', dstPort: '' }));
-                return;
+              } else {
+                update('protocol', proto);
               }
             }}
           />

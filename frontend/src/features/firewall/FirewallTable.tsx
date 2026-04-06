@@ -30,7 +30,13 @@ import { CSS } from '@dnd-kit/utilities';
 import { IconGripVertical, IconPencil, IconChevronDown, IconTrash } from '@tabler/icons-react';
 import MonoText from '../../components/common/MonoText';
 import type { FirewallRule, FirewallAction, ConnectionState } from '../../api/types';
-import { ACTION_COLORS, CONNECTION_STATE_ABBR } from './FirewallDetail';
+import {
+  ACTION_COLORS,
+  CONNECTION_STATE_ABBR,
+  ACTION_OPTIONS,
+  PROTOCOL_OPTIONS,
+  CONNECTION_STATE_OPTIONS,
+} from './FirewallDetail';
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
@@ -239,34 +245,6 @@ function SortableRow({
     );
   }
 
-  const actionOptions: { value: FirewallAction; label: string }[] = [
-    { value: 'accept', label: 'accept' },
-    { value: 'drop', label: 'drop' },
-    { value: 'reject', label: 'reject' },
-    { value: 'fasttrack-connection', label: 'fasttrack-connection' },
-    { value: 'passthrough', label: 'passthrough' },
-  ];
-
-  const protocolOptions = [
-    { value: '', label: 'any' },
-    { value: 'tcp', label: 'tcp' },
-    { value: 'udp', label: 'udp' },
-    { value: 'icmp', label: 'icmp' },
-    { value: 'icmpv6', label: 'icmpv6' },
-    { value: 'ospf', label: 'ospf' },
-    { value: 'gre', label: 'gre' },
-    { value: 'ipsec-esp', label: 'ipsec-esp' },
-    { value: 'ipsec-ah', label: 'ipsec-ah' },
-  ];
-
-  const connStateOptions: { value: ConnectionState; label: string }[] = [
-    { value: 'established', label: 'established' },
-    { value: 'related', label: 'related' },
-    { value: 'new', label: 'new' },
-    { value: 'invalid', label: 'invalid' },
-    { value: 'untracked', label: 'untracked' },
-  ];
-
   return (
     <Table.Tr
       ref={setNodeRef}
@@ -298,7 +276,7 @@ function SortableRow({
           <Select
             autoFocus
             size="xs"
-            data={actionOptions}
+            data={ACTION_OPTIONS}
             value={rule.action}
             onChange={(val) => {
               setEditingAction(false);
@@ -334,7 +312,7 @@ function SortableRow({
           srcValue,
           setSrcValue,
           saveSource,
-          () => setEditingSrc(true),
+          () => { setSrcValue(rule.srcAddress ?? rule.srcAddressList ?? ''); setEditingSrc(true); },
         )}
       </Table.Td>
 
@@ -348,7 +326,7 @@ function SortableRow({
           dstValue,
           setDstValue,
           saveDest,
-          () => setEditingDst(true),
+          () => { setDstValue(rule.dstAddress ?? rule.dstAddressList ?? ''); setEditingDst(true); },
         )}
       </Table.Td>
 
@@ -358,7 +336,7 @@ function SortableRow({
           <Select
             autoFocus
             size="xs"
-            data={protocolOptions}
+            data={PROTOCOL_OPTIONS}
             value={protocolValue}
             onChange={(val) => {
               const newVal = val ?? '';
@@ -370,7 +348,7 @@ function SortableRow({
             style={{ minWidth: 80 }}
           />
         ) : (
-          <EditableCell onEdit={() => setEditingProtocol(true)}>
+          <EditableCell onEdit={() => { setProtocolValue(rule.protocol ?? ''); setEditingProtocol(true); }}>
             <MonoText size="xs">{rule.protocol ?? 'any'}</MonoText>
           </EditableCell>
         )}
@@ -404,17 +382,14 @@ function SortableRow({
           <MultiSelect
             autoFocus
             size="xs"
-            data={connStateOptions}
+            data={CONNECTION_STATE_OPTIONS}
             value={connStateValue}
             onChange={(val) => {
               setConnStateValue(val);
               setEditingConnState(false);
-              onUpdate(rule.id, { connectionState: val as ConnectionState[] });
+              onUpdate(rule.id, { connectionState: val.length > 0 ? val as ConnectionState[] : undefined });
             }}
-            onBlur={() => {
-              setEditingConnState(false);
-              onUpdate(rule.id, { connectionState: connStateValue as ConnectionState[] });
-            }}
+            onBlur={() => setEditingConnState(false)}
             onClick={(e) => e.stopPropagation()}
             style={{ minWidth: 120 }}
           />
@@ -437,7 +412,6 @@ function SortableRow({
 
       {/* Actions */}
       <Table.Td style={{ width: 80 }}>
-        <Group gap={6} wrap="nowrap">
           <Button.Group>
             <Button
               variant="light"
@@ -482,7 +456,6 @@ function SortableRow({
               </Menu.Dropdown>
             </Menu>
           </Button.Group>
-        </Group>
       </Table.Td>
     </Table.Tr>
   );
