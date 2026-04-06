@@ -10,6 +10,7 @@ import {
   Menu,
   Select,
   MultiSelect,
+  TextInput,
   Autocomplete,
   Tooltip,
 } from '@mantine/core';
@@ -31,7 +32,7 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import {
   IconGripVertical, IconPencil, IconChevronDown, IconTrash, IconInfoCircle,
-  IconCloudNetwork, IconAddressBook,
+  IconCloudNetwork, IconAddressBook, IconLogout, IconLogin2,
   IconCircleCheck, IconCircleX, IconBan, IconBolt, IconArrowRight,
 } from '@tabler/icons-react';
 import MonoText from '../../components/common/MonoText';
@@ -42,6 +43,17 @@ import {
   PROTOCOL_OPTIONS,
   CONNECTION_STATE_OPTIONS,
 } from './FirewallDetail';
+
+const PROTOCOL_COLORS: Record<string, string> = {
+  tcp: 'blue',
+  udp: 'teal',
+  icmp: 'orange',
+  icmpv6: 'orange',
+  gre: 'violet',
+  ospf: 'cyan',
+  'ipsec-esp': 'indigo',
+  'ipsec-ah': 'indigo',
+};
 
 // ─── Action icons ─────────────────────────────────────────────────────────────
 
@@ -194,6 +206,8 @@ function SortableRow({
   const [editingDstIface, setEditingDstIface] = useState(false);
   const [editingDst, setEditingDst] = useState(false);
   const [editingProtocol, setEditingProtocol] = useState(false);
+  const [editingSrcPort, setEditingSrcPort] = useState(false);
+  const [editingDstPort, setEditingDstPort] = useState(false);
   const [editingConnState, setEditingConnState] = useState(false);
 
   const [srcValue, setSrcValue] = useState(rule.srcAddress ?? rule.srcAddressList ?? '');
@@ -201,6 +215,8 @@ function SortableRow({
   const [srcError, setSrcError] = useState('');
   const [dstError, setDstError] = useState('');
   const [protocolValue, setProtocolValue] = useState(rule.protocol ?? '');
+  const [srcPortValue, setSrcPortValue] = useState(rule.srcPort ?? '');
+  const [dstPortValue, setDstPortValue] = useState(rule.dstPort ?? '');
   const [connStateValue, setConnStateValue] = useState<string[]>(rule.connectionState ?? []);
 
   const validateAddress = useCallback(
@@ -266,6 +282,28 @@ function SortableRow({
       const trimmed = val.trim();
       if (trimmed !== (rule.protocol ?? '')) {
         onUpdate(rule.id, { protocol: trimmed || undefined });
+      }
+    },
+    [rule, onUpdate],
+  );
+
+  const saveSrcPort = useCallback(
+    (val: string) => {
+      setEditingSrcPort(false);
+      const trimmed = val.trim();
+      if (trimmed !== (rule.srcPort ?? '')) {
+        onUpdate(rule.id, { srcPort: trimmed || undefined });
+      }
+    },
+    [rule, onUpdate],
+  );
+
+  const saveDstPort = useCallback(
+    (val: string) => {
+      setEditingDstPort(false);
+      const trimmed = val.trim();
+      if (trimmed !== (rule.dstPort ?? '')) {
+        onUpdate(rule.id, { dstPort: trimmed || undefined });
       }
     },
     [rule, onUpdate],
@@ -353,17 +391,9 @@ function SortableRow({
             <Badge variant="light" size="sm" radius="sm" color="violet">
               {addressList}
             </Badge>
-            {port && (
-              <MonoText size="xs" c="dimmed">:{port}</MonoText>
-            )}
           </Group>
         ) : address ? (
-          <div>
-            <MonoText size="xs">{address}</MonoText>
-            {port && (
-              <MonoText size="xs" c="dimmed">:{port}</MonoText>
-            )}
-          </div>
+          <MonoText size="xs">{address}</MonoText>
         ) : (
           <Text size="xs" c="dimmed">any</Text>
         )}
@@ -496,7 +526,7 @@ function SortableRow({
 
       {/* Protocol */}
       <Table.Td>
-        <div style={{ height: 28, display: 'flex', alignItems: 'center' }}>
+        <div style={{ height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         {editingProtocol ? (
           <Select
             autoFocus
@@ -515,16 +545,74 @@ function SortableRow({
             style={{ width: '100%' }}
           />
         ) : (
-          <EditableCell onEdit={() => { setProtocolValue(rule.protocol ?? ''); setEditingProtocol(true); }}>
-            <MonoText size="xs">{rule.protocol ?? 'any'}</MonoText>
+          <EditableCell onEdit={() => { setProtocolValue(rule.protocol ?? ''); setEditingProtocol(true); }} centered>
+            {rule.protocol ? (
+              <Badge variant="light" size="sm" radius="sm" color={PROTOCOL_COLORS[rule.protocol] ?? 'gray'} styles={{ label: { fontFamily: 'monospace' } }}>{PROTOCOL_OPTIONS.find((o) => o.value === rule.protocol)?.label ?? rule.protocol}</Badge>
+            ) : (
+              <Text size="xs" c="dimmed">any</Text>
+            )}
           </EditableCell>
         )}
         </div>
       </Table.Td>
 
+      {/* Ports (src above, dst below) */}
+      <Table.Td style={{ verticalAlign: 'top' }}>
+        <div style={{ display: 'flex', flexDirection: 'column' }}>
+        <div style={{ height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+          <IconLogout size={14} color={rule.srcPort ? 'var(--mantine-color-blue-6)' : 'var(--mantine-color-gray-4)'} style={{ flexShrink: 0, marginLeft: 3 }} />
+          {editingSrcPort ? (
+            <TextInput
+              autoFocus
+              size="xs"
+              radius="sm"
+              placeholder="any"
+              value={srcPortValue}
+              onChange={(e) => setSrcPortValue(e.currentTarget.value)}
+              onBlur={() => saveSrcPort(srcPortValue)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') saveSrcPort(srcPortValue);
+                if (e.key === 'Escape') { setSrcPortValue(rule.srcPort ?? ''); setEditingSrcPort(false); }
+              }}
+              onClick={(e) => e.stopPropagation()}
+              style={{ width: '100%' }}
+            />
+          ) : (
+            <EditableCell onEdit={() => { setSrcPortValue(rule.srcPort ?? ''); setEditingSrcPort(true); }} centered>
+              <MonoText size="xs" fw={rule.srcPort ? 700 : undefined} c={rule.srcPort ? undefined : 'dimmed'}>{rule.srcPort ?? 'any'}</MonoText>
+            </EditableCell>
+          )}
+        </div>
+        <div style={{ height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+          <IconLogin2 size={14} color={rule.dstPort ? 'var(--mantine-color-blue-6)' : 'var(--mantine-color-gray-4)'} style={{ flexShrink: 0 }} />
+          {editingDstPort ? (
+            <TextInput
+              autoFocus
+              size="xs"
+              radius="sm"
+              placeholder="any"
+              value={dstPortValue}
+              onChange={(e) => setDstPortValue(e.currentTarget.value)}
+              onBlur={() => saveDstPort(dstPortValue)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') saveDstPort(dstPortValue);
+                if (e.key === 'Escape') { setDstPortValue(rule.dstPort ?? ''); setEditingDstPort(false); }
+              }}
+              onClick={(e) => e.stopPropagation()}
+              style={{ width: '100%' }}
+            />
+          ) : (
+            <EditableCell onEdit={() => { setDstPortValue(rule.dstPort ?? ''); setEditingDstPort(true); }} centered>
+              <MonoText size="xs" fw={rule.dstPort ? 700 : undefined} c={rule.dstPort ? undefined : 'dimmed'}>{rule.dstPort ?? 'any'}</MonoText>
+            </EditableCell>
+          )}
+        </div>
+        </div>
+      </Table.Td>
+
       {/* Conn. State */}
       <Table.Td>
-        <div style={{ height: 28, display: 'flex', alignItems: 'center' }}>
+        <div style={{ height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         {editingConnState ? (
           <MultiSelect
             autoFocus
@@ -543,7 +631,7 @@ function SortableRow({
             style={{ width: '100%' }}
           />
         ) : (
-          <EditableCell onEdit={() => { setConnStateValue(rule.connectionState ?? []); setEditingConnState(true); }}>
+          <EditableCell onEdit={() => { setConnStateValue(rule.connectionState ?? []); setEditingConnState(true); }} centered>
             {rule.connectionState && rule.connectionState.length > 0 ? (
               <Tooltip
                 label={rule.connectionState.map((s) => CONNECTION_STATE_ABBR[s]).join(', ')}
@@ -615,10 +703,11 @@ function SortableRow({
               variant="light"
               color="gray"
               size="xs"
-              leftSection={<IconPencil size={14} />}
+              style={{ paddingLeft: 6, paddingRight: 6 }}
               onClick={() => onEdit(rule)}
+              title="Edit"
             >
-              Edit
+              <IconPencil size={14} />
             </Button>
             <Menu position="bottom-end">
               <Menu.Target>
@@ -683,7 +772,8 @@ export default function FirewallTable({
 
   return (
     <div style={tableWrapperStyle}>
-      <style>{`.editable-cell:hover { border-color: var(--mantine-color-gray-3) !important; }`}</style>
+      <style>{`.editable-cell:hover { border-color: var(--mantine-color-gray-3) !important; }
+.editable-cell * { cursor: pointer !important; }`}</style>
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <SortableContext items={rules.map((r) => r.id)} strategy={verticalListSortingStrategy}>
           <Table withRowBorders={false} style={tableStyle}>
@@ -699,16 +789,19 @@ export default function FirewallTable({
                 <Table.Th style={{ width: '25%' }}>
                   <HeaderLabel>Destination</HeaderLabel>
                 </Table.Th>
-                <Table.Th style={{ width: 70 }}>
+                <Table.Th style={{ width: 70, textAlign: 'center' }}>
                   <HeaderLabel>Proto</HeaderLabel>
                 </Table.Th>
-                <Table.Th style={{ width: 90 }}>
+                <Table.Th style={{ width: 120, textAlign: 'center' }}>
+                  <HeaderLabel>Ports</HeaderLabel>
+                </Table.Th>
+                <Table.Th style={{ width: 90, textAlign: 'center' }}>
                   <HeaderLabel>State</HeaderLabel>
                 </Table.Th>
                 <Table.Th style={{ width: 50, textAlign: 'center' }}>
                   <HeaderLabel>Action</HeaderLabel>
                 </Table.Th>
-                <Table.Th style={{ width: 140 }}>
+                <Table.Th style={{ width: 90 }}>
                   <HeaderLabel>Actions</HeaderLabel>
                 </Table.Th>
               </Table.Tr>
@@ -730,7 +823,7 @@ export default function FirewallTable({
               ))}
               {rules.length === 0 && (
                 <Table.Tr>
-                  <Table.Td colSpan={8}>
+                  <Table.Td colSpan={9}>
                     <Text size="sm" c="dimmed" ta="center" py="lg">
                       No rules defined
                     </Text>
@@ -802,6 +895,11 @@ export function FirewallTableSkeleton() {
               </Table.Td>
               {/* Proto */}
               <Table.Td><Skeleton height={14} width={40} radius="sm" /></Table.Td>
+              {/* Ports */}
+              <Table.Td>
+                <Skeleton height={14} width={40} radius="sm" />
+                <Skeleton height={14} width={40} radius="sm" mt={4} />
+              </Table.Td>
               {/* Conn. State */}
               <Table.Td><Skeleton height={18} width={100} radius="sm" /></Table.Td>
               {/* Action */}

@@ -54,8 +54,8 @@ export const PROTOCOL_OPTIONS = [
   { value: 'icmpv6', label: 'ICMPv6' },
   { value: 'ospf', label: 'OSPF' },
   { value: 'gre', label: 'GRE' },
-  { value: 'ipsec-esp', label: 'IPsec ESP' },
-  { value: 'ipsec-ah', label: 'IPsec AH' },
+  { value: 'ipsec-esp', label: 'ESP' },
+  { value: 'ipsec-ah', label: 'AH' },
 ];
 
 export const CONNECTION_STATE_OPTIONS: { value: ConnectionState; label: string }[] = [
