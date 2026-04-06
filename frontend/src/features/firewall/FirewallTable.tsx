@@ -46,7 +46,7 @@ const tableWrapperStyle = {
   overflow: 'hidden' as const,
 };
 
-const tableStyle = { borderCollapse: 'collapse' as const };
+const tableStyle = { borderCollapse: 'collapse' as const, tableLayout: 'fixed' as const };
 
 const headerRowStyle = {
   backgroundColor: 'var(--mantine-color-gray-0)',
@@ -209,7 +209,7 @@ function SortableRow({
             }
           }}
           onClick={(e) => e.stopPropagation()}
-          style={{ minWidth: 120 }}
+          style={{ width: '100%' }}
         />
       );
     }
@@ -252,7 +252,7 @@ function SortableRow({
       {...attributes}
     >
       {/* Drag handle */}
-      <Table.Td style={{ width: 32, padding: '0 4px' }}>
+      <Table.Td style={{ padding: '0 4px' }}>
         <div
           {...listeners}
           style={{ cursor: 'grab', color: 'var(--mantine-color-gray-5)', display: 'flex', alignItems: 'center' }}
@@ -263,14 +263,14 @@ function SortableRow({
       </Table.Td>
 
       {/* # */}
-      <Table.Td style={{ width: 40 }}>
+      <Table.Td>
         <MonoText size="xs" c="dimmed">
           {index + 1}
         </MonoText>
       </Table.Td>
 
       {/* Action */}
-      <Table.Td style={{ width: 90 }}>
+      <Table.Td>
         {editingAction ? (
           <Select
             autoFocus
@@ -285,7 +285,7 @@ function SortableRow({
             }}
             onBlur={() => setEditingAction(false)}
             onClick={(e) => e.stopPropagation()}
-            style={{ minWidth: 80 }}
+            style={{ width: '100%' }}
           />
         ) : (
           <EditableCell onEdit={() => setEditingAction(true)}>
@@ -332,7 +332,7 @@ function SortableRow({
       </Table.Td>
 
       {/* Protocol */}
-      <Table.Td style={{ width: 80 }}>
+      <Table.Td>
         {editingProtocol ? (
           <Select
             autoFocus
@@ -346,7 +346,7 @@ function SortableRow({
             }}
             onBlur={() => saveProtocol(protocolValue)}
             onClick={(e) => e.stopPropagation()}
-            style={{ minWidth: 80 }}
+            style={{ width: '100%' }}
           />
         ) : (
           <EditableCell onEdit={() => { setProtocolValue(rule.protocol ?? ''); setEditingProtocol(true); }}>
@@ -356,7 +356,7 @@ function SortableRow({
       </Table.Td>
 
       {/* Interface */}
-      <Table.Td style={{ width: 120 }}>
+      <Table.Td>
         {(rule.inInterface || rule.outInterface) ? (
           <div>
             {rule.inInterface && (
@@ -378,7 +378,7 @@ function SortableRow({
       </Table.Td>
 
       {/* Conn. State */}
-      <Table.Td style={{ width: 140 }}>
+      <Table.Td>
         {editingConnState ? (
           <MultiSelect
             autoFocus
@@ -392,7 +392,7 @@ function SortableRow({
             }}
             onBlur={() => setEditingConnState(false)}
             onClick={(e) => e.stopPropagation()}
-            style={{ minWidth: 120 }}
+            style={{ width: '100%' }}
           />
         ) : (
           <EditableCell onEdit={() => { setConnStateValue(rule.connectionState ?? []); setEditingConnState(true); }}>
@@ -412,7 +412,7 @@ function SortableRow({
       </Table.Td>
 
       {/* Actions */}
-      <Table.Td style={{ width: 120 }}>
+      <Table.Td>
         <Group gap={4} wrap="nowrap">
           <Button
             variant="light"
@@ -507,22 +507,22 @@ export default function FirewallTable({
                 <Table.Th style={{ width: 90 }}>
                   <HeaderLabel>Action</HeaderLabel>
                 </Table.Th>
-                <Table.Th>
+                <Table.Th style={{ width: '18%' }}>
                   <HeaderLabel>Source</HeaderLabel>
                 </Table.Th>
-                <Table.Th>
+                <Table.Th style={{ width: '18%' }}>
                   <HeaderLabel>Destination</HeaderLabel>
                 </Table.Th>
-                <Table.Th style={{ width: 80 }}>
-                  <HeaderLabel>Protocol</HeaderLabel>
+                <Table.Th style={{ width: 70 }}>
+                  <HeaderLabel>Proto</HeaderLabel>
                 </Table.Th>
-                <Table.Th style={{ width: 120 }}>
+                <Table.Th style={{ width: 110 }}>
                   <HeaderLabel>Interface</HeaderLabel>
                 </Table.Th>
-                <Table.Th style={{ width: 140 }}>
+                <Table.Th style={{ width: 150 }}>
                   <HeaderLabel>Conn. State</HeaderLabel>
                 </Table.Th>
-                <Table.Th style={{ width: 120 }}>
+                <Table.Th style={{ width: 140 }}>
                   <HeaderLabel>Actions</HeaderLabel>
                 </Table.Th>
               </Table.Tr>
@@ -572,22 +572,22 @@ export function FirewallTableSkeleton() {
             <Table.Th style={{ width: 90 }}>
               <HeaderLabel>Action</HeaderLabel>
             </Table.Th>
-            <Table.Th>
+            <Table.Th style={{ width: '18%' }}>
               <HeaderLabel>Source</HeaderLabel>
             </Table.Th>
-            <Table.Th>
+            <Table.Th style={{ width: '18%' }}>
               <HeaderLabel>Destination</HeaderLabel>
             </Table.Th>
-            <Table.Th style={{ width: 80 }}>
-              <HeaderLabel>Protocol</HeaderLabel>
+            <Table.Th style={{ width: 70 }}>
+              <HeaderLabel>Proto</HeaderLabel>
             </Table.Th>
-            <Table.Th style={{ width: 120 }}>
+            <Table.Th style={{ width: 110 }}>
               <HeaderLabel>Interface</HeaderLabel>
             </Table.Th>
-            <Table.Th style={{ width: 140 }}>
+            <Table.Th style={{ width: 150 }}>
               <HeaderLabel>Conn. State</HeaderLabel>
             </Table.Th>
-            <Table.Th style={{ width: 80 }}>
+            <Table.Th style={{ width: 140 }}>
               <HeaderLabel>Actions</HeaderLabel>
             </Table.Th>
           </Table.Tr>
@@ -598,13 +598,13 @@ export function FirewallTableSkeleton() {
               key={i}
               style={{ borderBottom: '1px solid var(--mantine-color-gray-1)' }}
             >
-              <Table.Td style={{ width: 32 }}>
+              <Table.Td>
                 <Skeleton height={14} width={14} radius="sm" />
               </Table.Td>
-              <Table.Td style={{ width: 40 }}>
+              <Table.Td>
                 <Skeleton height={14} width={20} radius="sm" />
               </Table.Td>
-              <Table.Td style={{ width: 90 }}>
+              <Table.Td>
                 <Skeleton height={18} width={60} radius="sm" />
               </Table.Td>
               <Table.Td>
@@ -613,16 +613,16 @@ export function FirewallTableSkeleton() {
               <Table.Td>
                 <Skeleton height={14} width={110} radius="sm" />
               </Table.Td>
-              <Table.Td style={{ width: 80 }}>
+              <Table.Td>
                 <Skeleton height={14} width={40} radius="sm" />
               </Table.Td>
-              <Table.Td style={{ width: 120 }}>
+              <Table.Td>
                 <Skeleton height={14} width={80} radius="sm" />
               </Table.Td>
-              <Table.Td style={{ width: 140 }}>
+              <Table.Td>
                 <Skeleton height={18} width={100} radius="sm" />
               </Table.Td>
-              <Table.Td style={{ width: 120 }}>
+              <Table.Td>
                 <Skeleton height={22} width={100} radius="sm" />
               </Table.Td>
             </Table.Tr>
