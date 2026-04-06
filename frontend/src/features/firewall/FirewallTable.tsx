@@ -27,7 +27,7 @@ import {
   sortableKeyboardCoordinates,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { IconGripVertical, IconPencil, IconChevronDown, IconTrash } from '@tabler/icons-react';
+import { IconGripVertical, IconPencil, IconChevronDown, IconTrash, IconInfoCircle } from '@tabler/icons-react';
 import MonoText from '../../components/common/MonoText';
 import type { FirewallRule, FirewallAction, ConnectionState } from '../../api/types';
 import {
@@ -94,7 +94,7 @@ function EditableCell({ children, onEdit }: EditableCellProps) {
 
 export interface FirewallTableProps {
   rules: FirewallRule[];
-  onRowClick: (rule: FirewallRule) => void;
+  onInfo: (rule: FirewallRule) => void;
   onUpdate: (id: string, updates: Partial<FirewallRule>) => void;
   onReorder: (activeId: string, overId: string) => void;
   onEdit: (rule: FirewallRule) => void;
@@ -107,7 +107,7 @@ interface SortableRowProps {
   rule: FirewallRule;
   index: number;
   isLast: boolean;
-  onRowClick: (rule: FirewallRule) => void;
+  onInfo: (rule: FirewallRule) => void;
   onUpdate: (id: string, updates: Partial<FirewallRule>) => void;
   onEdit: (rule: FirewallRule) => void;
   onDelete: (rule: FirewallRule) => void;
@@ -117,7 +117,7 @@ function SortableRow({
   rule,
   index,
   isLast,
-  onRowClick,
+  onInfo,
   onUpdate,
   onEdit,
   onDelete,
@@ -130,7 +130,6 @@ function SortableRow({
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0.5 : rule.disabled ? 0.5 : undefined,
-    cursor: 'pointer',
     borderBottom: isLast ? undefined : '1px solid var(--mantine-color-gray-1)',
     backgroundColor: isDragging ? 'var(--mantine-color-gray-0)' : undefined,
   };
@@ -251,7 +250,6 @@ function SortableRow({
       ref={setNodeRef}
       style={style}
       {...attributes}
-      onClick={() => onRowClick(rule)}
     >
       {/* Drag handle */}
       <Table.Td style={{ width: 32, padding: '0 4px' }}>
@@ -414,17 +412,25 @@ function SortableRow({
       </Table.Td>
 
       {/* Actions */}
-      <Table.Td style={{ width: 80 }}>
+      <Table.Td style={{ width: 120 }}>
+        <Group gap={4} wrap="nowrap">
+          <Button
+            variant="light"
+            color="gray"
+            size="xs"
+            style={{ paddingLeft: 6, paddingRight: 6 }}
+            onClick={() => onInfo(rule)}
+            title="Details"
+          >
+            <IconInfoCircle size={14} />
+          </Button>
           <Button.Group>
             <Button
               variant="light"
               color="gray"
               size="xs"
               leftSection={<IconPencil size={14} />}
-              onClick={(e) => {
-                e.stopPropagation();
-                onEdit(rule);
-              }}
+              onClick={() => onEdit(rule)}
             >
               Edit
             </Button>
@@ -439,7 +445,6 @@ function SortableRow({
                     paddingRight: 6,
                     borderLeft: '1px solid var(--mantine-color-gray-2)',
                   }}
-                  onClick={(e) => e.stopPropagation()}
                 >
                   <IconChevronDown size={14} />
                 </Button>
@@ -449,16 +454,14 @@ function SortableRow({
                   fz="xs"
                   color="red"
                   leftSection={<IconTrash size={14} />}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onDelete(rule);
-                  }}
+                  onClick={() => onDelete(rule)}
                 >
                   Delete
                 </Menu.Item>
               </Menu.Dropdown>
             </Menu>
           </Button.Group>
+        </Group>
       </Table.Td>
     </Table.Tr>
   );
@@ -468,7 +471,7 @@ function SortableRow({
 
 export default function FirewallTable({
   rules,
-  onRowClick,
+  onInfo,
   onUpdate,
   onReorder,
   onEdit,
@@ -519,7 +522,7 @@ export default function FirewallTable({
                 <Table.Th style={{ width: 140 }}>
                   <HeaderLabel>Conn. State</HeaderLabel>
                 </Table.Th>
-                <Table.Th style={{ width: 80 }}>
+                <Table.Th style={{ width: 120 }}>
                   <HeaderLabel>Actions</HeaderLabel>
                 </Table.Th>
               </Table.Tr>
@@ -531,7 +534,7 @@ export default function FirewallTable({
                   rule={rule}
                   index={index}
                   isLast={index === rules.length - 1}
-                  onRowClick={onRowClick}
+                  onInfo={onInfo}
                   onUpdate={onUpdate}
                   onEdit={onEdit}
                   onDelete={onDelete}
@@ -619,8 +622,8 @@ export function FirewallTableSkeleton() {
               <Table.Td style={{ width: 140 }}>
                 <Skeleton height={18} width={100} radius="sm" />
               </Table.Td>
-              <Table.Td style={{ width: 80 }}>
-                <Skeleton height={22} width={70} radius="sm" />
+              <Table.Td style={{ width: 120 }}>
+                <Skeleton height={22} width={100} radius="sm" />
               </Table.Td>
             </Table.Tr>
           ))}

@@ -197,7 +197,7 @@ export default function FirewallPage() {
           />
           <FirewallTable
             rules={filtered}
-            onRowClick={handleRowClick}
+            onInfo={handleRowClick}
             onUpdate={handleUpdate}
             onReorder={handleReorder}
             onEdit={handleEdit}
