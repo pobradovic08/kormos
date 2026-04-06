@@ -51,10 +51,7 @@ export default function FirewallPage() {
   const moveMutation = useMoveFirewallRule(selectedRouterId);
   const { data: interfaces } = useInterfaces(selectedRouterId);
 
-  const interfaceOptions = useMemo(() => {
-    if (!interfaces) return [];
-    return interfaces.map((i) => ({ value: i.name, label: i.name }));
-  }, [interfaces]);
+  const routerInterfaces = interfaces ?? [];
 
   const { data: addressLists } = useAddressLists(selectedRouterId);
   const addressListNames = useMemo(() => {
@@ -211,7 +208,7 @@ export default function FirewallPage() {
           />
           <FirewallTable
             rules={filtered}
-            interfaceOptions={interfaceOptions}
+            routerInterfaces={routerInterfaces}
             addressListNames={addressListNames}
             onInfo={handleRowClick}
             onUpdate={handleUpdate}

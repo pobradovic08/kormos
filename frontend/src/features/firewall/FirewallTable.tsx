@@ -1,8 +1,9 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import {
   Table,
   Text,
   Badge,
+  Box,
   Group,
   Skeleton,
   Button,
@@ -33,7 +34,7 @@ import {
   IconCircleCheck, IconCircleX, IconBan, IconBolt, IconArrowRight,
 } from '@tabler/icons-react';
 import MonoText from '../../components/common/MonoText';
-import type { FirewallRule, FirewallAction, ConnectionState } from '../../api/types';
+import type { FirewallRule, FirewallAction, ConnectionState, RouterInterface } from '../../api/types';
 import {
   CONNECTION_STATE_ABBR,
   ACTION_OPTIONS,
@@ -138,7 +139,7 @@ function EditableCell({ children, onEdit, centered }: EditableCellProps) {
 
 export interface FirewallTableProps {
   rules: FirewallRule[];
-  interfaceOptions: { value: string; label: string }[];
+  routerInterfaces: RouterInterface[];
   addressListNames: string[];
   onInfo: (rule: FirewallRule) => void;
   onUpdate: (id: string, updates: Partial<FirewallRule>) => void;
@@ -153,7 +154,7 @@ interface SortableRowProps {
   rule: FirewallRule;
   index: number;
   isLast: boolean;
-  interfaceOptions: { value: string; label: string }[];
+  routerInterfaces: RouterInterface[];
   addressListNames: string[];
   onInfo: (rule: FirewallRule) => void;
   onUpdate: (id: string, updates: Partial<FirewallRule>) => void;
@@ -165,7 +166,7 @@ function SortableRow({
   rule,
   index,
   isLast,
-  interfaceOptions,
+  routerInterfaces,
   addressListNames,
   onInfo,
   onUpdate,
@@ -269,6 +270,39 @@ function SortableRow({
     [rule, onUpdate],
   );
 
+  const interfaceSelectData = useMemo(() =>
+    routerInterfaces.map((i) => ({ value: i.name, label: i.name })),
+    [routerInterfaces],
+  );
+
+  const interfaceLookup = useMemo(() => {
+    const map = new Map<string, RouterInterface>();
+    for (const i of routerInterfaces) map.set(i.name, i);
+    return map;
+  }, [routerInterfaces]);
+
+  function getInterfaceIconColor(ifaceName: string | undefined): string {
+    if (!ifaceName) return 'var(--mantine-color-gray-5)';
+    const iface = interfaceLookup.get(ifaceName);
+    if (!iface) return 'var(--mantine-color-gray-5)';
+    return iface.running && !iface.disabled ? 'var(--mantine-color-green-6)' : 'var(--mantine-color-red-6)';
+  }
+
+  function renderInterfaceOption({ option }: { option: { value: string; label: string } }) {
+    const iface = interfaceLookup.get(option.value);
+    const isUp = iface ? iface.running && !iface.disabled : false;
+    const addrs = iface?.addresses.map((a) => a.address).join(', ') ?? '';
+    return (
+      <Group gap={8} wrap="nowrap" align="center">
+        <Box w={7} h={7} style={{ borderRadius: '50%', flexShrink: 0 }} bg={isUp ? 'green.6' : 'red.6'} />
+        <div>
+          <Text size="xs" fw={600}>{option.label}</Text>
+          {addrs && <Text size="xs" c="dimmed" ff="monospace">{addrs}</Text>}
+        </div>
+      </Group>
+    );
+  }
+
   // ─── Render helpers ──────────────────────────────────────────────────────
 
   function renderAddressCell(
@@ -361,9 +395,9 @@ function SortableRow({
 
       {/* Source (address + in-interface) */}
       <Table.Td style={{ verticalAlign: 'top' }}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+        <div style={{ display: 'flex', flexDirection: 'column' }}>
         <div style={{ height: 28, display: 'flex', alignItems: 'center', gap: 6 }}>
-          <IconAddressBook size={16} color="var(--mantine-color-gray-5)" style={{ flexShrink: 0 }} />
+          <IconAddressBook size={16} color={rule.srcAddressList ? 'var(--mantine-color-violet-6)' : rule.srcAddress ? 'var(--mantine-color-blue-6)' : 'var(--mantine-color-gray-5)'} style={{ flexShrink: 0 }} />
           {renderAddressCell(
             rule.srcAddress,
             rule.srcAddressList,
@@ -379,7 +413,7 @@ function SortableRow({
           )}
         </div>
         <div style={{ height: 28, display: 'flex', alignItems: 'center', gap: 6 }}>
-          <IconCloudNetwork size={16} color="var(--mantine-color-gray-5)" style={{ flexShrink: 0 }} />
+          <IconCloudNetwork size={16} color={getInterfaceIconColor(rule.inInterface)} style={{ flexShrink: 0 }} />
           {editingSrcIface ? (
             <Select
               autoFocus
@@ -387,8 +421,9 @@ function SortableRow({
               size="xs"
               radius="sm"
               placeholder="Any"
-              data={interfaceOptions}
+              data={interfaceSelectData}
               value={rule.inInterface ?? ''}
+              renderOption={renderInterfaceOption}
               onChange={(val) => {
                 setEditingSrcIface(false);
                 onUpdate(rule.id, { inInterface: val || undefined });
@@ -396,11 +431,12 @@ function SortableRow({
               onBlur={() => setEditingSrcIface(false)}
               onClick={(e) => e.stopPropagation()}
               clearable
+              comboboxProps={{ width: 250, position: 'bottom-start' }}
               style={{ flex: 1 }}
             />
           ) : (
             <EditableCell onEdit={() => setEditingSrcIface(true)}>
-              <Text size="xs" c="dimmed">{rule.inInterface ?? 'any'}</Text>
+              <Text size="xs" c={rule.inInterface ? undefined : 'dimmed'} fw={rule.inInterface ? 600 : undefined}>{rule.inInterface ?? 'any'}</Text>
             </EditableCell>
           )}
         </div>
@@ -409,9 +445,9 @@ function SortableRow({
 
       {/* Destination (address + out-interface) */}
       <Table.Td style={{ verticalAlign: 'top' }}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+        <div style={{ display: 'flex', flexDirection: 'column' }}>
         <div style={{ height: 28, display: 'flex', alignItems: 'center', gap: 6 }}>
-          <IconAddressBook size={16} color="var(--mantine-color-gray-5)" style={{ flexShrink: 0 }} />
+          <IconAddressBook size={16} color={rule.dstAddressList ? 'var(--mantine-color-violet-6)' : rule.dstAddress ? 'var(--mantine-color-blue-6)' : 'var(--mantine-color-gray-5)'} style={{ flexShrink: 0 }} />
           {renderAddressCell(
             rule.dstAddress,
             rule.dstAddressList,
@@ -427,7 +463,7 @@ function SortableRow({
           )}
         </div>
         <div style={{ height: 28, display: 'flex', alignItems: 'center', gap: 6 }}>
-          <IconCloudNetwork size={16} color="var(--mantine-color-gray-5)" style={{ flexShrink: 0 }} />
+          <IconCloudNetwork size={16} color={getInterfaceIconColor(rule.outInterface)} style={{ flexShrink: 0 }} />
           {editingDstIface ? (
             <Select
               autoFocus
@@ -435,8 +471,9 @@ function SortableRow({
               size="xs"
               radius="sm"
               placeholder="Any"
-              data={interfaceOptions}
+              data={interfaceSelectData}
               value={rule.outInterface ?? ''}
+              renderOption={renderInterfaceOption}
               onChange={(val) => {
                 setEditingDstIface(false);
                 onUpdate(rule.id, { outInterface: val || undefined });
@@ -444,11 +481,12 @@ function SortableRow({
               onBlur={() => setEditingDstIface(false)}
               onClick={(e) => e.stopPropagation()}
               clearable
+              comboboxProps={{ width: 250, position: 'bottom-start' }}
               style={{ flex: 1 }}
             />
           ) : (
             <EditableCell onEdit={() => setEditingDstIface(true)}>
-              <Text size="xs" c="dimmed">{rule.outInterface ?? 'any'}</Text>
+              <Text size="xs" c={rule.outInterface ? undefined : 'dimmed'} fw={rule.outInterface ? 600 : undefined}>{rule.outInterface ?? 'any'}</Text>
             </EditableCell>
           )}
         </div>
@@ -614,7 +652,7 @@ function SortableRow({
 
 export default function FirewallTable({
   rules,
-  interfaceOptions,
+  routerInterfaces,
   addressListNames,
   onInfo,
   onUpdate,
@@ -640,7 +678,7 @@ export default function FirewallTable({
 
   return (
     <div style={tableWrapperStyle}>
-      <style>{`tr:hover .editable-cell { border-color: var(--mantine-color-gray-3) !important; }`}</style>
+      <style>{`.editable-cell:hover { border-color: var(--mantine-color-gray-3) !important; }`}</style>
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <SortableContext items={rules.map((r) => r.id)} strategy={verticalListSortingStrategy}>
           <Table withRowBorders={false} style={tableStyle}>
@@ -677,7 +715,7 @@ export default function FirewallTable({
                   rule={rule}
                   index={index}
                   isLast={index === rules.length - 1}
-                  interfaceOptions={interfaceOptions}
+                  routerInterfaces={routerInterfaces}
                   addressListNames={addressListNames}
                   onInfo={onInfo}
                   onUpdate={onUpdate}
