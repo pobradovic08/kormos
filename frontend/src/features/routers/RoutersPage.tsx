@@ -31,21 +31,22 @@ import {
   IconDeviceFloppy,
   IconDownload,
 } from '@tabler/icons-react';
-import { useRouters, useDeleteRouter } from './routersApi';
+import { useRouters } from './routersApi';
+import { useClusters, useDeleteCluster } from './clustersApi';
 import {
   groupRouters,
   filterGroups,
   LATEST_ROUTEROS_VERSION,
 } from './routerGrouping';
 import type { RouterGroup } from './routerGrouping';
-import RouterForm from './RouterForm';
+import ClusterDrawer from './ClusterDrawer';
 import RouterDetail from './RouterDetail';
 import ConfirmDialog from '../../components/common/ConfirmDialog';
 import EmptyState from '../../components/common/EmptyState';
 import ErrorBanner from '../../components/common/ErrorBanner';
 import MonoText from '../../components/common/MonoText';
 import { relativeTime } from '../../utils/relativeTime';
-import type { Router } from '../../api/types';
+import type { Router, ClusterResponse } from '../../api/types';
 import { useRouterStore } from '../../stores/useRouterStore';
 import classes from './RoutersPage.module.css';
 
@@ -371,13 +372,18 @@ function GroupRows({
 
 export default function RoutersPage() {
   const { data: routers, isLoading, error, refetch } = useRouters();
-  const deleteMutation = useDeleteRouter();
+  const { data: clusters } = useClusters();
+  const deleteMutation = useDeleteCluster();
   const selectRouter = useRouterStore((s) => s.selectRouter);
 
   const [detailRouterId, setDetailRouterId] = useState<string | null>(null);
   const [formOpen, setFormOpen] = useState(false);
-  const [editRouter, setEditRouter] = useState<Router | null>(null);
+  const [editCluster, setEditCluster] = useState<ClusterResponse | null>(null);
   const [deleteRouter, setDeleteRouter] = useState<Router | null>(null);
+
+  const clusterForRouter = (routerId: string) => {
+    return clusters?.find(c => c.routers.some(r => r.id === routerId)) ?? null;
+  };
   const [search, setSearch] = useState('');
   const [collapsedClusters, setCollapsedClusters] = useState<Set<string>>(
     new Set(),
@@ -401,18 +407,19 @@ export default function RoutersPage() {
   }, [allGroups, search]);
 
   const handleAdd = () => {
-    setEditRouter(null);
+    setEditCluster(null);
     setFormOpen(true);
   };
 
   const handleEdit = (router: Router) => {
-    setEditRouter(router);
+    const cluster = clusterForRouter(router.id);
+    setEditCluster(cluster);
     setFormOpen(true);
   };
 
   const handleFormClose = () => {
     setFormOpen(false);
-    setEditRouter(null);
+    setEditCluster(null);
   };
 
   const handleRowClick = (router: Router) => {
@@ -443,11 +450,13 @@ export default function RoutersPage() {
 
   const handleDeleteConfirm = () => {
     if (!deleteRouter) return;
-    deleteMutation.mutate(deleteRouter.id, {
+    const cluster = clusterForRouter(deleteRouter.id);
+    if (!cluster) return;
+    deleteMutation.mutate(cluster.id, {
       onSuccess: () => {
         notifications.show({
-          title: 'Router deleted',
-          message: `Router "${deleteRouter.name}" has been deleted.`,
+          title: 'Cluster deleted',
+          message: `Cluster "${cluster.name}" has been deleted.`,
           color: 'green',
         });
         setDeleteRouter(null);
@@ -459,7 +468,7 @@ export default function RoutersPage() {
         notifications.show({
           title: 'Error',
           message:
-            err instanceof Error ? err.message : 'Failed to delete router',
+            err instanceof Error ? err.message : 'Failed to delete cluster',
           color: 'red',
         });
       },
@@ -571,7 +580,7 @@ export default function RoutersPage() {
         </Stack>
         {hasRouters && (
           <Button leftSection={<IconPlus size={16} />} onClick={handleAdd}>
-            Add Router
+            Add Cluster
           </Button>
         )}
       </Group>
@@ -674,20 +683,20 @@ export default function RoutersPage() {
         onDelete={handleDetailDelete}
       />
 
-      <RouterForm
+      <ClusterDrawer
         isOpen={formOpen}
         onClose={handleFormClose}
-        router={editRouter}
+        cluster={editCluster}
       />
 
       <ConfirmDialog
         isOpen={!!deleteRouter}
         onClose={() => setDeleteRouter(null)}
         onConfirm={handleDeleteConfirm}
-        title="Delete Router"
+        title="Delete Cluster"
         message={
           deleteRouter
-            ? `Are you sure you want to delete router '${deleteRouter.name}'? This action cannot be undone.`
+            ? `Are you sure you want to delete cluster '${clusterForRouter(deleteRouter.id)?.name ?? deleteRouter.name}'? This will remove all routers in the cluster. This action cannot be undone.`
             : ''
         }
         confirmLabel="Delete"
