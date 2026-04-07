@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import apiClient from '../../api/client';
 import type { FirewallRule } from '../../api/types';
+import { useExecuteOperation } from '../../api/operationsApi';
 import { useMockMode } from '../../mocks/useMockMode';
 import {
   listFirewallRules,
@@ -26,11 +27,22 @@ export function useFirewallRules(routerId: string | null) {
 export function useAddFirewallRule(routerId: string | null) {
   const isMock = useMockMode();
   const queryClient = useQueryClient();
+  const executeOp = useExecuteOperation();
+
   return useMutation({
     mutationFn: async (rule: Omit<FirewallRule, 'id'>) => {
       if (isMock) return addFirewallRule(routerId!, rule);
-      const response = await apiClient.put(`/routers/${routerId}/firewall/filter`, rule);
-      return response.data;
+      const result = await executeOp.mutateAsync({
+        description: `Add firewall rule to ${rule.chain} chain`,
+        operations: [{
+          router_id: routerId!,
+          module: 'firewall',
+          operation_type: 'add',
+          resource_path: '/ip/firewall/filter',
+          body: rule as unknown as Record<string, unknown>,
+        }],
+      });
+      return result;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['firewall-rules', routerId] });
@@ -41,11 +53,23 @@ export function useAddFirewallRule(routerId: string | null) {
 export function useUpdateFirewallRule(routerId: string | null) {
   const isMock = useMockMode();
   const queryClient = useQueryClient();
+  const executeOp = useExecuteOperation();
+
   return useMutation({
     mutationFn: async ({ id, updates }: { id: string; updates: Partial<FirewallRule> }) => {
       if (isMock) return updateFirewallRule(routerId!, id, updates);
-      const response = await apiClient.patch(`/routers/${routerId}/firewall/filter/${id}`, updates);
-      return response.data;
+      const result = await executeOp.mutateAsync({
+        description: `Update firewall rule ${id}`,
+        operations: [{
+          router_id: routerId!,
+          module: 'firewall',
+          operation_type: 'modify',
+          resource_path: '/ip/firewall/filter',
+          resource_id: id,
+          body: updates as unknown as Record<string, unknown>,
+        }],
+      });
+      return result;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['firewall-rules', routerId] });
@@ -56,10 +80,22 @@ export function useUpdateFirewallRule(routerId: string | null) {
 export function useDeleteFirewallRule(routerId: string | null) {
   const isMock = useMockMode();
   const queryClient = useQueryClient();
+  const executeOp = useExecuteOperation();
+
   return useMutation({
     mutationFn: async ({ id }: { id: string }) => {
       if (isMock) return deleteFirewallRule(routerId!, id);
-      await apiClient.delete(`/routers/${routerId}/firewall/filter/${id}`);
+      await executeOp.mutateAsync({
+        description: `Delete firewall rule ${id}`,
+        operations: [{
+          router_id: routerId!,
+          module: 'firewall',
+          operation_type: 'delete',
+          resource_path: '/ip/firewall/filter',
+          resource_id: id,
+          body: {},
+        }],
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['firewall-rules', routerId] });
