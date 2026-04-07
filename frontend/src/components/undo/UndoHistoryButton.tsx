@@ -12,7 +12,7 @@ export default function UndoHistoryButton({ onClick }: UndoHistoryButtonProps) {
   const { data } = useOperationHistory(selectedRouterId, 1, 50);
 
   const undoableCount =
-    data?.groups.filter((g) => g.can_undo).length ?? 0;
+    data?.groups?.filter((g) => g.can_undo).length ?? 0;
 
   return (
     <UnstyledButton
