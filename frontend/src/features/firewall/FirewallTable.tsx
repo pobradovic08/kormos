@@ -32,7 +32,7 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import {
   IconGripVertical, IconPencil, IconChevronDown, IconTrash, IconInfoCircle,
-  IconCloudNetwork, IconAddressBook, IconLogout, IconLogin2,
+  IconCloudNetwork, IconAddressBook, IconLogout, IconLogin2, IconArrowDownRight,
   IconCircleCheck, IconCircleX, IconBan, IconBolt, IconArrowRight,
 } from '@tabler/icons-react';
 import MonoText from '../../components/common/MonoText';
@@ -194,7 +194,6 @@ function SortableRow({
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0.5 : rule.disabled ? 0.5 : undefined,
-    borderBottom: isLast ? undefined : '1px solid var(--mantine-color-gray-1)',
     backgroundColor: isDragging ? 'var(--mantine-color-gray-0)' : undefined,
   };
 
@@ -437,11 +436,27 @@ function SortableRow({
   }
 
   return (
-    <Table.Tr
+    <tbody
       ref={setNodeRef}
       style={style}
       {...attributes}
     >
+      {/* Comment row — only shown if rule has a comment */}
+      {rule.comment ? (
+        <Table.Tr style={{ borderBottom: 'none', backgroundColor: 'var(--mantine-color-gray-0)' }}>
+          <Table.Td colSpan={9} style={{ paddingTop: 4, paddingBottom: 4, borderTop: '2px solid var(--mantine-color-gray-3)' }}>
+            <Group gap={4} wrap="nowrap">
+              <IconArrowDownRight size={14} color="var(--mantine-color-gray-5)" style={{ flexShrink: 0 }} />
+              <Text size="xs" fw={700} truncate>
+                {rule.comment}
+              </Text>
+            </Group>
+          </Table.Td>
+        </Table.Tr>
+      ) : null}
+
+      {/* Data row */}
+      <Table.Tr style={{ borderBottom: isLast ? undefined : '1px solid var(--mantine-color-gray-1)' }}>
       {/* Drag handle */}
       <Table.Td style={{ padding: 0, textAlign: 'center' }}>
         <div
@@ -454,8 +469,8 @@ function SortableRow({
       </Table.Td>
 
       {/* # + ID */}
-      <Table.Td style={{ textAlign: 'center', padding: 0 }}>
-        <MonoText size="xs" fw={700}>{index + 1}</MonoText>
+      <Table.Td style={{ textAlign: 'center' }}>
+        <MonoText size="xs" fw={700}>#{index + 1}</MonoText>
         <Badge variant="outline" color="gray" size="sm" radius="sm" styles={{ label: { fontFamily: 'monospace' } }}>{rule.id}</Badge>
       </Table.Td>
 
@@ -776,6 +791,7 @@ function SortableRow({
         </Group>
       </Table.Td>
     </Table.Tr>
+    </tbody>
   );
 }
 
@@ -817,7 +833,7 @@ export default function FirewallTable({
             <Table.Thead>
               <Table.Tr style={headerRowStyle}>
                 <Table.Th style={{ width: 20, padding: 0 }} />
-                <Table.Th style={{ width: 28, textAlign: 'center', padding: 0 }}>
+                <Table.Th style={{ width: 55, textAlign: 'center' }}>
                   <HeaderLabel>#</HeaderLabel>
                 </Table.Th>
                 <Table.Th style={{ width: '25%' }}>
@@ -843,7 +859,6 @@ export default function FirewallTable({
                 </Table.Th>
               </Table.Tr>
             </Table.Thead>
-            <Table.Tbody>
               {rules.map((rule, index) => (
                 <SortableRow
                   key={rule.id}
@@ -859,15 +874,16 @@ export default function FirewallTable({
                 />
               ))}
               {rules.length === 0 && (
-                <Table.Tr>
-                  <Table.Td colSpan={9}>
-                    <Text size="sm" c="dimmed" ta="center" py="lg">
-                      No rules defined
-                    </Text>
-                  </Table.Td>
-                </Table.Tr>
+                <Table.Tbody>
+                  <Table.Tr>
+                    <Table.Td colSpan={9}>
+                      <Text size="sm" c="dimmed" ta="center" py="lg">
+                        No rules defined
+                      </Text>
+                    </Table.Td>
+                  </Table.Tr>
+                </Table.Tbody>
               )}
-            </Table.Tbody>
           </Table>
         </SortableContext>
       </DndContext>

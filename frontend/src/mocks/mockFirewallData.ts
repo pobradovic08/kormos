@@ -4,9 +4,9 @@ const seedData: Record<string, FirewallRule[]> = {
   'mock-1': [
     // chain=input (Router inbound)
     { id: '*1', chain: 'input', action: 'accept', connectionState: ['established', 'related', 'untracked'], disabled: false, comment: 'Accept established, related, untracked' },
-    { id: '*2', chain: 'input', action: 'drop', connectionState: ['invalid'], disabled: false, comment: 'Drop invalid' },
-    { id: '*3', chain: 'input', action: 'accept', protocol: 'icmp', disabled: false, comment: 'Accept ICMP' },
-    { id: '*4', chain: 'input', action: 'accept', protocol: 'icmpv6', srcAddress: 'fe80::/10', disabled: false, comment: 'Accept ICMPv6 link-local' },
+    { id: '*2', chain: 'input', action: 'drop', connectionState: ['invalid'], disabled: false, comment: '' },
+    { id: '*3', chain: 'input', action: 'accept', protocol: 'icmp', disabled: false, comment: '' },
+    { id: '*4', chain: 'input', action: 'accept', protocol: 'icmpv6', srcAddress: 'fe80::/10', disabled: false, comment: '' },
     { id: '*5', chain: 'input', action: 'accept', srcAddressList: 'LAN', inInterface: 'bridge1', disabled: false, comment: 'Accept from LAN' },
     { id: '*6', chain: 'input', action: 'accept', protocol: 'udp', dstPort: '53,5353', srcAddress: '192.168.88.0/24', disabled: false, comment: 'Accept DNS and mDNS from LAN' },
     { id: '*7', chain: 'input', action: 'accept', protocol: 'tcp', dstPort: '22,8291,8729', srcAddress: '2001:0db8:85a3:0000:0000:8a2e:0370:7334/128', disabled: false, comment: 'SSH, Winbox, API-SSL from admin IPv6' },
@@ -14,9 +14,9 @@ const seedData: Record<string, FirewallRule[]> = {
     { id: '*8', chain: 'input', action: 'drop', disabled: false, comment: 'Drop all other input' },
     // chain=forward (Forwarding)
     { id: '*9', chain: 'forward', action: 'fasttrack-connection', connectionState: ['established', 'related'], disabled: false, comment: 'Fasttrack established, related' },
-    { id: '*A', chain: 'forward', action: 'accept', connectionState: ['established', 'related', 'untracked'], disabled: false, comment: 'Accept established, related, untracked' },
-    { id: '*B', chain: 'forward', action: 'drop', connectionState: ['invalid'], disabled: false, comment: 'Drop invalid' },
-    { id: '*C', chain: 'forward', action: 'accept', srcAddressList: 'LAN', outInterface: 'ether1', disabled: false, comment: 'Accept LAN to WAN' },
+    { id: '*A', chain: 'forward', action: 'accept', connectionState: ['established', 'related', 'untracked'], disabled: false, comment: '' },
+    { id: '*B', chain: 'forward', action: 'drop', connectionState: ['invalid'], disabled: false, comment: '' },
+    { id: '*C', chain: 'forward', action: 'accept', srcAddressList: 'LAN', outInterface: 'ether1', disabled: false, comment: '' },
     { id: '*D', chain: 'forward', action: 'accept', srcAddress: '2001:0db8:1234:5678::/64', dstAddress: '2001:0db8:abcd:ef01::/64', outInterface: 'sit1', disabled: false, comment: 'Allow IPv6 site-to-site' },
     { id: '*E', chain: 'forward', action: 'accept', protocol: 'tcp', dstPort: '80,443', dstAddress: '10.0.1.50', connectionState: ['new'], inInterface: 'ether1', disabled: false, comment: 'HTTP/HTTPS to web server' },
     { id: '*F', chain: 'forward', action: 'accept', protocol: 'tcp', dstPort: '8080-8089', dstAddress: '10.0.1.50', connectionState: ['new'], inInterface: 'ether1', disabled: false, comment: 'Dev ports to web server' },
@@ -25,12 +25,12 @@ const seedData: Record<string, FirewallRule[]> = {
     { id: '*10B', chain: 'forward', action: 'accept', protocol: 'udp', dstPort: '10000-20000', dstAddress: '10.0.1.60', connectionState: ['new'], disabled: false, comment: 'RTP media range to PBX' },
     { id: '*10C', chain: 'forward', action: 'accept', protocol: 'udp', srcPort: '5060,5061', dstPort: '5060,5061', srcAddress: '203.0.113.50', dstAddress: '10.0.1.60', disabled: false, comment: 'SIP signaling to/from provider' },
     { id: '*11', chain: 'forward', action: 'drop', srcAddress: 'fc00::/7', dstAddressList: 'bogons', disabled: false, comment: 'Drop ULA to bogons' },
-    { id: '*12', chain: 'forward', action: 'drop', disabled: false, comment: 'Drop all other forward' },
+    { id: '*12', chain: 'forward', action: 'drop', disabled: false, comment: '' },
     // chain=output (Router outbound)
     { id: '*13', chain: 'output', action: 'accept', protocol: 'udp', dstPort: '53,853', dstAddress: '1.1.1.1', disabled: false, comment: 'DNS and DoT to Cloudflare' },
     { id: '*14', chain: 'output', action: 'accept', protocol: 'udp', dstPort: '123', dstAddress: '2620:fe::fe', disabled: false, comment: 'NTP to Quad9 IPv6' },
-    { id: '*14A', chain: 'output', action: 'accept', protocol: 'tcp', srcPort: '32768-65535', dstPort: '443,8443', disabled: false, comment: 'HTTPS outbound from ephemeral ports' },
-    { id: '*15', chain: 'output', action: 'accept', disabled: false, comment: 'Accept all other outbound' },
+    { id: '*14A', chain: 'output', action: 'accept', protocol: 'tcp', srcPort: '32768-65535', dstPort: '443,8443', disabled: false, comment: '' },
+    { id: '*15', chain: 'output', action: 'accept', disabled: false, comment: '' },
   ],
   'mock-2': [
     { id: '*1', chain: 'input', action: 'accept', connectionState: ['established', 'related'], disabled: false, comment: 'Accept established, related' },
