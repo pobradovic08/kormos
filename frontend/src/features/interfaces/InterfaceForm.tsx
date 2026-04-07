@@ -15,9 +15,10 @@ import {
 import { useForm } from '@mantine/form';
 import { notifications } from '@mantine/notifications';
 import { IconInfoCircle } from '@tabler/icons-react';
+import { useQueryClient } from '@tanstack/react-query';
 import IpAddressInput from '../../components/common/IpAddressInput';
 import { useClusterId } from '../../hooks/useClusterId';
-import { useCommitStore } from '../../stores/useCommitStore';
+import { useExecuteOperation } from '../../api/operationsApi';
 import { useInterfaces } from './interfacesApi';
 import type { RouterInterface } from '../../api/types';
 import type { InterfaceFormValues } from './interfaceTypes';
@@ -70,31 +71,6 @@ function getDefaultFormValues(interfaceType: string): InterfaceFormValues {
   }
 }
 
-function buildDiff(
-  original: InterfaceFormValues,
-  edited: InterfaceFormValues,
-): Record<string, unknown> | null {
-  const diff: Record<string, unknown> = {};
-  let hasDiff = false;
-
-  for (const key of Object.keys(edited) as Array<keyof InterfaceFormValues>) {
-    const origVal = original[key];
-    const editVal = edited[key];
-
-    if (Array.isArray(origVal) && Array.isArray(editVal)) {
-      if (JSON.stringify(origVal) !== JSON.stringify(editVal)) {
-        diff[key] = editVal;
-        hasDiff = true;
-      }
-    } else if (origVal !== editVal) {
-      diff[key] = editVal;
-      hasDiff = true;
-    }
-  }
-
-  return hasDiff ? diff : null;
-}
-
 export default function InterfaceForm({
   iface,
   interfaceType: propType,
@@ -103,7 +79,8 @@ export default function InterfaceForm({
   onClose,
 }: InterfaceFormProps) {
   const selectedRouterId = useClusterId();
-  const stageChange = useCommitStore((s) => s.stageChange);
+  const executeOp = useExecuteOperation();
+  const queryClient = useQueryClient();
   const { data: existingInterfaces } = useInterfaces(selectedRouterId);
 
   const interfaceType = propType ?? iface?.type ?? '';
@@ -166,63 +143,63 @@ export default function InterfaceForm({
     label: `${i.name} (${i.type})`,
   }));
 
-  const handleSubmit = (values: InterfaceFormValues) => {
-
+  const handleSubmit = async (values: InterfaceFormValues) => {
     const cleanedValues = {
       ...values,
       addresses: values.addresses.filter((a) => a.trim() !== ''),
     };
 
-    if (isNew) {
-      const path =
-        resourcePath ?? `/interfaces/${interfaceType}`;
+    try {
+      if (isNew) {
+        const path = resourcePath ?? `/interface/${interfaceType}`;
 
-      stageChange(selectedRouterId, {
-        routerId: selectedRouterId,
-        module: 'interfaces',
-        operation: 'add',
-        resourcePath: path,
-        resourceId: null,
-        before: null,
-        after: cleanedValues as unknown as Record<string, unknown>,
-      });
-
-      notifications.show({
-        title: 'Interface staged',
-        message: `New ${interfaceType} interface has been staged for commit.`,
-        color: 'green',
-      });
-    } else {
-      if (!iface) return;
-
-      const diff = buildDiff(originalValues, cleanedValues);
-      if (!diff) {
-        notifications.show({
-          title: 'No changes',
-          message: 'No modifications were made to the interface.',
-          color: 'yellow',
+        await executeOp.mutateAsync({
+          description: `Add ${interfaceType} interface`,
+          operations: [{
+            router_id: selectedRouterId,
+            module: 'interfaces',
+            operation_type: 'add',
+            resource_path: path,
+            body: cleanedValues as unknown as Record<string, unknown>,
+          }],
         });
-        return;
+
+        notifications.show({
+          title: 'Interface created',
+          message: `New ${interfaceType} interface has been created.`,
+          color: 'green',
+        });
+      } else {
+        if (!iface) return;
+
+        await executeOp.mutateAsync({
+          description: `Update interface ${iface.name}`,
+          operations: [{
+            router_id: selectedRouterId,
+            module: 'interfaces',
+            operation_type: 'modify',
+            resource_path: `/interface/${iface.name}`,
+            resource_id: iface.id,
+            body: cleanedValues as unknown as Record<string, unknown>,
+          }],
+        });
+
+        notifications.show({
+          title: 'Interface updated',
+          message: `Changes to "${iface.name}" have been applied.`,
+          color: 'green',
+        });
       }
 
-      stageChange(selectedRouterId, {
-        routerId: selectedRouterId,
-        module: 'interfaces',
-        operation: 'modify',
-        resourcePath: `/interfaces/${iface.name}`,
-        resourceId: iface.id,
-        before: originalValues as unknown as Record<string, unknown>,
-        after: cleanedValues as unknown as Record<string, unknown>,
-      });
-
+      await queryClient.invalidateQueries({ queryKey: ['interfaces', selectedRouterId] });
+      onClose();
+    } catch {
       notifications.show({
-        title: 'Changes staged',
-        message: `Changes to "${iface.name}" have been staged for commit.`,
-        color: 'green',
+        title: 'Operation failed',
+        message: 'Failed to apply interface changes. Please try again.',
+        color: 'red',
       });
     }
-
-    onClose();
   };
 
   const showTypeFields = isNew || !!propType;
@@ -457,7 +434,7 @@ export default function InterfaceForm({
             Cancel
           </Button>
           <Button type="submit" disabled={isNew && isEthernet}>
-            {isNew ? 'Stage Interface' : 'Save Changes'}
+            {isNew ? 'Create Interface' : 'Save Changes'}
           </Button>
         </Group>
       </Stack>
