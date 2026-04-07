@@ -12,7 +12,6 @@ import {
 import {
   IconRouter,
   IconWifi,
-  IconAlertTriangle,
   IconHistory,
   IconPlus,
   IconNetwork,
@@ -20,8 +19,8 @@ import {
   IconArrowRight,
 } from '@tabler/icons-react';
 import { useAuthStore } from '../../stores/useAuthStore';
-import { useCommitStore } from '../../stores/useCommitStore';
 import { useRouterStore } from '../../stores/useRouterStore';
+import { useOperationHistory } from '../../api/operationsApi';
 import { configurePath } from '../configure/moduleConfig';
 import { useRouters } from '../routers/routersApi';
 import { useAuditLog } from '../audit/auditApi';
@@ -36,8 +35,8 @@ function getGreeting() {
 export default function DashboardPage() {
   const user = useAuthStore((s) => s.user);
   const navigate = useNavigate();
-  const pendingChanges = useCommitStore((s) => s.pendingChanges);
   const selectedRouterId = useRouterStore((s) => s.selectedRouterId);
+  const { data: opHistory } = useOperationHistory(selectedRouterId, 1, 50);
 
   const { data: routers, isLoading: routersLoading } = useRouters();
 
@@ -55,12 +54,9 @@ export default function DashboardPage() {
   const routerCount = routers?.length ?? null;
   const onlineCount = routers?.filter((r) => r.is_reachable).length ?? null;
 
-  const totalPending = useMemo(() => {
-    return Object.values(pendingChanges).reduce(
-      (sum, changes) => sum + changes.length,
-      0,
-    );
-  }, [pendingChanges]);
+  const undoableCount = useMemo(() => {
+    return opHistory?.groups.filter((g) => g.can_undo).length ?? 0;
+  }, [opHistory]);
 
   const recentCommitCount = recentAudit?.total ?? null;
 
@@ -129,7 +125,7 @@ export default function DashboardPage() {
           style={{
             borderLeftWidth: 3,
             borderLeftColor:
-              totalPending > 0
+              undoableCount > 0
                 ? 'var(--mantine-color-orange-6)'
                 : 'var(--mantine-color-gray-4)',
           }}
@@ -139,16 +135,16 @@ export default function DashboardPage() {
               size={40}
               radius="md"
               variant="light"
-              color={totalPending > 0 ? 'orange' : 'gray'}
+              color={undoableCount > 0 ? 'orange' : 'gray'}
             >
-              <IconAlertTriangle size={22} />
+              <IconHistory size={22} />
             </ThemeIcon>
             <div>
               <Text fw={700} size="xl" lh={1}>
-                {totalPending}
+                {undoableCount}
               </Text>
               <Text c="dimmed" size="xs" mt={4}>
-                Pending Changes
+                Undoable
               </Text>
             </div>
           </Group>
