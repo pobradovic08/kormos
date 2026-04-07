@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"sort"
 	"sync"
 	"time"
 
@@ -42,18 +43,15 @@ func (s *Service) routerMutex(routerID string) *sync.Mutex {
 	return mu
 }
 
-// lockRouters acquires mutexes for all unique router IDs in the operations.
-// Returns a function to unlock them all.
-func (s *Service) lockRouters(ops []ExecuteOperation) func() {
-	seen := make(map[string]bool)
+// lockRouterIDs acquires mutexes for the given router IDs in sorted order
+// to prevent deadlocks. Returns a function to unlock them all.
+func (s *Service) lockRouterIDs(ids []string) func() {
+	sort.Strings(ids)
 	var mutexes []*sync.Mutex
-	for _, op := range ops {
-		if !seen[op.RouterID] {
-			seen[op.RouterID] = true
-			mu := s.routerMutex(op.RouterID)
-			mu.Lock()
-			mutexes = append(mutexes, mu)
-		}
+	for _, id := range ids {
+		mu := s.routerMutex(id)
+		mu.Lock()
+		mutexes = append(mutexes, mu)
 	}
 	return func() {
 		for _, mu := range mutexes {
@@ -62,14 +60,40 @@ func (s *Service) lockRouters(ops []ExecuteOperation) func() {
 	}
 }
 
+// collectRouterIDs returns unique router IDs from execute operations.
+func collectRouterIDsFromExecOps(ops []ExecuteOperation) []string {
+	seen := make(map[string]bool)
+	var ids []string
+	for _, op := range ops {
+		if !seen[op.RouterID] {
+			seen[op.RouterID] = true
+			ids = append(ids, op.RouterID)
+		}
+	}
+	return ids
+}
+
+// collectRouterIDsFromOps returns unique router IDs from operations.
+func collectRouterIDsFromOps(ops []Operation) []string {
+	seen := make(map[string]bool)
+	var ids []string
+	for _, op := range ops {
+		if !seen[op.RouterID] {
+			seen[op.RouterID] = true
+			ids = append(ids, op.RouterID)
+		}
+	}
+	return ids
+}
+
 // Execute applies a group of operations to routers, logging before/after state.
 func (s *Service) Execute(ctx context.Context, tenantID, userID string, req ExecuteRequest) (*ExecuteResponse, error) {
 	if len(req.Operations) == 0 {
 		return nil, fmt.Errorf("operation: at least one operation is required")
 	}
 
-	// Lock all involved routers.
-	unlock := s.lockRouters(req.Operations)
+	// Lock all involved routers in sorted order to prevent deadlocks.
+	unlock := s.lockRouterIDs(collectRouterIDsFromExecOps(req.Operations))
 	defer unlock()
 
 	// Create the group.
@@ -295,20 +319,14 @@ func (s *Service) Undo(ctx context.Context, tenantID, userID, role, groupID stri
 		}, nil
 	}
 
-	// Lock all involved routers.
-	routerIDs := make(map[string]bool)
-	for _, op := range group.Operations {
-		routerIDs[op.RouterID] = true
-	}
-	for rid := range routerIDs {
-		mu := s.routerMutex(rid)
-		mu.Lock()
-		defer mu.Unlock()
-	}
+	// Lock all involved routers in sorted order to prevent deadlocks.
+	routerIDs := collectRouterIDsFromOps(group.Operations)
+	unlock := s.lockRouterIDs(routerIDs)
+	defer unlock()
 
 	// Get RouterOS clients.
 	clients := make(map[string]*routeros.Client)
-	for rid := range routerIDs {
+	for _, rid := range routerIDs {
 		client, err := s.routerSvc.GetClientForRouter(ctx, tenantID, rid)
 		if err != nil {
 			return nil, fmt.Errorf("operation: get client for undo router %s: %w", rid, err)
@@ -414,8 +432,11 @@ func (s *Service) checkStrictMatch(ctx context.Context, client *routeros.Client,
 	return false, nil
 }
 
-// configFieldsMatch compares two states, excluding volatile fields.
+// configFieldsMatch compares two states symmetrically, excluding volatile fields.
+// Returns false if any non-volatile field differs or if either side has fields
+// the other lacks.
 func configFieldsMatch(expected, current map[string]interface{}) bool {
+	// Check all expected keys exist in current with matching values.
 	for key, expectedVal := range expected {
 		if VolatileFields[key] {
 			continue
@@ -424,10 +445,18 @@ func configFieldsMatch(expected, current map[string]interface{}) bool {
 		if !exists {
 			return false
 		}
-		// Compare as JSON strings for deep equality.
 		e, _ := json.Marshal(expectedVal)
 		c, _ := json.Marshal(currentVal)
 		if string(e) != string(c) {
+			return false
+		}
+	}
+	// Check for keys in current that are absent from expected (new fields added).
+	for key := range current {
+		if VolatileFields[key] {
+			continue
+		}
+		if _, exists := expected[key]; !exists {
 			return false
 		}
 	}

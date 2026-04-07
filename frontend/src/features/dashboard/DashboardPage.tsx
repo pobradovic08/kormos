@@ -58,7 +58,7 @@ export default function DashboardPage() {
     return opHistory?.groups.filter((g) => g.can_undo).length ?? 0;
   }, [opHistory]);
 
-  const recentCommitCount = recentAudit?.total ?? null;
+  const recentChangeCount = recentAudit?.total ?? null;
 
   const firstName = user?.name?.split(' ')[0] ?? 'there';
 
@@ -162,10 +162,10 @@ export default function DashboardPage() {
             </ThemeIcon>
             <div>
               <Text fw={700} size="xl" lh={1}>
-                {auditLoading ? '--' : recentCommitCount}
+                {auditLoading ? '--' : recentChangeCount}
               </Text>
               <Text c="dimmed" size="xs" mt={4}>
-                Recent Commits
+                Recent Changes
               </Text>
             </div>
           </Group>
