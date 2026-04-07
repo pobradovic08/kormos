@@ -20,6 +20,7 @@ import {
 import { notifications } from '@mantine/notifications';
 import { useOperationHistory, useUndoOperation } from '../../api/operationsApi';
 import { useRouterStore } from '../../stores/useRouterStore';
+import { relativeTime } from '../../utils/relativeTime';
 import type { OperationGroup } from '../../api/types';
 
 interface UndoHistoryPanelProps {
@@ -39,17 +40,6 @@ const opTypeColor: Record<string, string> = {
   modify: 'blue',
   delete: 'red',
 };
-
-function timeAgo(dateStr: string): string {
-  const diff = Date.now() - new Date(dateStr).getTime();
-  const minutes = Math.floor(diff / 60000);
-  if (minutes < 1) return 'just now';
-  if (minutes < 60) return `${minutes}m ago`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
-  const days = Math.floor(hours / 24);
-  return `${days}d ago`;
-}
 
 function GroupEntry({ group }: { group: OperationGroup }) {
   const [expanded, setExpanded] = useState(false);
@@ -103,7 +93,7 @@ function GroupEntry({ group }: { group: OperationGroup }) {
                 {group.description}
               </Text>
               <Text size="xs" c="dimmed">
-                {group.user.name} &middot; {timeAgo(group.created_at)}
+                {group.user.name} &middot; {relativeTime(group.created_at)}
                 {routerCount > 1 && ` · ${routerCount} routers`}
               </Text>
             </div>

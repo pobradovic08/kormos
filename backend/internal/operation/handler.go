@@ -79,7 +79,7 @@ func (h *Handler) Undo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if resp.Status == "undo_blocked" {
+	if resp.Status == StatusUndoBlocked {
 		writeJSON(w, http.StatusConflict, resp)
 		return
 	}
@@ -110,7 +110,7 @@ func (h *Handler) History(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	groups, total, err := h.service.repo.ListGroups(r.Context(), tenantID, filters)
+	groups, total, err := h.service.ListHistory(r.Context(), tenantID, filters)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "server_error", "Failed to list operation history")
 		return

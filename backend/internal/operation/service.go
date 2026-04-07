@@ -60,27 +60,15 @@ func (s *Service) lockRouterIDs(ids []string) func() {
 	}
 }
 
-// collectRouterIDs returns unique router IDs from execute operations.
-func collectRouterIDsFromExecOps(ops []ExecuteOperation) []string {
+// uniqueRouterIDs returns deduplicated router IDs extracted by the given function.
+func uniqueRouterIDs[T any](items []T, getID func(T) string) []string {
 	seen := make(map[string]bool)
 	var ids []string
-	for _, op := range ops {
-		if !seen[op.RouterID] {
-			seen[op.RouterID] = true
-			ids = append(ids, op.RouterID)
-		}
-	}
-	return ids
-}
-
-// collectRouterIDsFromOps returns unique router IDs from operations.
-func collectRouterIDsFromOps(ops []Operation) []string {
-	seen := make(map[string]bool)
-	var ids []string
-	for _, op := range ops {
-		if !seen[op.RouterID] {
-			seen[op.RouterID] = true
-			ids = append(ids, op.RouterID)
+	for _, item := range items {
+		id := getID(item)
+		if !seen[id] {
+			seen[id] = true
+			ids = append(ids, id)
 		}
 	}
 	return ids
@@ -93,7 +81,7 @@ func (s *Service) Execute(ctx context.Context, tenantID, userID string, req Exec
 	}
 
 	// Lock all involved routers in sorted order to prevent deadlocks.
-	unlock := s.lockRouterIDs(collectRouterIDsFromExecOps(req.Operations))
+	unlock := s.lockRouterIDs(uniqueRouterIDs(req.Operations, func(o ExecuteOperation) string { return o.RouterID }))
 	defer unlock()
 
 	// Create the group.
@@ -134,11 +122,7 @@ func (s *Service) Execute(ctx context.Context, tenantID, userID string, req Exec
 
 		// 1. Capture before state (for modify/delete).
 		if execOp.OperationType == OpModify || execOp.OperationType == OpDelete {
-			resourcePath := execOp.ResourcePath
-			if execOp.ResourceID != "" {
-				resourcePath = resourcePath + "/" + execOp.ResourceID
-			}
-			beforeState, err := fetchResourceState(ctx, client, resourcePath)
+			beforeState, err := fetchResourceState(ctx, client, buildResourcePath(execOp.ResourcePath, execOp.ResourceID))
 			if err != nil {
 				op.Status = StatusFailed
 				op.Error = fmt.Sprintf("failed to read before state: %v", err)
@@ -168,15 +152,11 @@ func (s *Service) Execute(ctx context.Context, tenantID, userID string, req Exec
 
 		// 3. Capture after state (for add/modify).
 		if execOp.OperationType == OpAdd || execOp.OperationType == OpModify {
-			afterPath := execOp.ResourcePath
 			rid := op.ResourceID
 			if rid == "" {
 				rid = execOp.ResourceID
 			}
-			if rid != "" {
-				afterPath = afterPath + "/" + rid
-			}
-			afterState, err := fetchResourceState(ctx, client, afterPath)
+			afterState, err := fetchResourceState(ctx, client, buildResourcePath(execOp.ResourcePath, rid))
 			if err != nil {
 				// Apply succeeded but we can't read state — fall back to the request body.
 				op.AfterState = execOp.Body
@@ -305,7 +285,7 @@ func (s *Service) Undo(ctx context.Context, tenantID, userID, role, groupID stri
 	if group.Status != StatusApplied {
 		return &UndoResponse{
 			GroupID: groupID,
-			Status:  "undo_blocked",
+			Status:  StatusUndoBlocked,
 			Reason:  fmt.Sprintf("group status is '%s', not 'applied'", group.Status),
 		}, nil
 	}
@@ -314,13 +294,13 @@ func (s *Service) Undo(ctx context.Context, tenantID, userID, role, groupID stri
 	if time.Now().After(group.ExpiresAt) {
 		return &UndoResponse{
 			GroupID: groupID,
-			Status:  "undo_blocked",
+			Status:  StatusUndoBlocked,
 			Reason:  "operation group has expired (older than 7 days)",
 		}, nil
 	}
 
 	// Lock all involved routers in sorted order to prevent deadlocks.
-	routerIDs := collectRouterIDsFromOps(group.Operations)
+	routerIDs := uniqueRouterIDs(group.Operations, func(o Operation) string { return o.RouterID })
 	unlock := s.lockRouterIDs(routerIDs)
 	defer unlock()
 
@@ -366,7 +346,7 @@ func (s *Service) Undo(ctx context.Context, tenantID, userID, role, groupID stri
 			_ = s.repo.UpdateGroupStatus(ctx, groupID, StatusRequiresAttention)
 			return &UndoResponse{
 				GroupID: groupID,
-				Status:  "undo_blocked",
+				Status:  StatusUndoBlocked,
 				Reason:  fmt.Sprintf("reversal failed for operation %s: %v", op.ID, err),
 			}, nil
 		}
@@ -385,11 +365,7 @@ func (s *Service) Undo(ctx context.Context, tenantID, userID, role, groupID stri
 func (s *Service) checkStrictMatch(ctx context.Context, client *routeros.Client, op Operation) (bool, *DriftedDetail) {
 	switch op.OperationType {
 	case OpAdd, OpModify:
-		// Resource should exist with after_state.
-		path := op.ResourcePath
-		if op.ResourceID != "" {
-			path = path + "/" + op.ResourceID
-		}
+		path := buildResourcePath(op.ResourcePath, op.ResourceID)
 		state, err := fetchResourceState(ctx, client, path)
 		if err != nil {
 			return true, &DriftedDetail{
@@ -412,12 +388,7 @@ func (s *Service) checkStrictMatch(ctx context.Context, client *routeros.Client,
 		}
 
 	case OpDelete:
-		// Resource should NOT exist (it was deleted).
-		path := op.ResourcePath
-		if op.ResourceID != "" {
-			path = path + "/" + op.ResourceID
-		}
-		_, err := fetchResourceState(ctx, client, path)
+		_, err := fetchResourceState(ctx, client, buildResourcePath(op.ResourcePath, op.ResourceID))
 		if err == nil {
 			return true, &DriftedDetail{
 				ID:            op.ID,
@@ -463,6 +434,11 @@ func configFieldsMatch(expected, current map[string]interface{}) bool {
 	return true
 }
 
+// ListHistory returns paginated operation groups for a tenant.
+func (s *Service) ListHistory(ctx context.Context, tenantID string, filters HistoryFilters) ([]Group, int, error) {
+	return s.repo.ListGroups(ctx, tenantID, filters)
+}
+
 // --- RouterOS interaction helpers ---
 
 // fetchResourceState reads the current state of a resource from the router.
@@ -495,19 +471,11 @@ func applyOperation(ctx context.Context, client *routeros.Client, op ExecuteOper
 		return "", nil
 
 	case OpModify:
-		path := op.ResourcePath
-		if op.ResourceID != "" {
-			path = path + "/" + op.ResourceID
-		}
-		_, err := client.Patch(ctx, path, op.Body)
+		_, err := client.Patch(ctx, buildResourcePath(op.ResourcePath, op.ResourceID), op.Body)
 		return "", err
 
 	case OpDelete:
-		path := op.ResourcePath
-		if op.ResourceID != "" {
-			path = path + "/" + op.ResourceID
-		}
-		return "", client.Delete(ctx, path)
+		return "", client.Delete(ctx, buildResourcePath(op.ResourcePath, op.ResourceID))
 
 	default:
 		return "", fmt.Errorf("unsupported operation type: %s", op.OperationType)
@@ -518,18 +486,10 @@ func applyOperation(ctx context.Context, client *routeros.Client, op ExecuteOper
 func reverseOperation(ctx context.Context, client *routeros.Client, op Operation) error {
 	switch op.OperationType {
 	case OpAdd:
-		path := op.ResourcePath
-		if op.ResourceID != "" {
-			path = path + "/" + op.ResourceID
-		}
-		return client.Delete(ctx, path)
+		return client.Delete(ctx, buildResourcePath(op.ResourcePath, op.ResourceID))
 
 	case OpModify:
-		path := op.ResourcePath
-		if op.ResourceID != "" {
-			path = path + "/" + op.ResourceID
-		}
-		_, err := client.Patch(ctx, path, op.BeforeState)
+		_, err := client.Patch(ctx, buildResourcePath(op.ResourcePath, op.ResourceID), op.BeforeState)
 		return err
 
 	case OpDelete:

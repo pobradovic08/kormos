@@ -8,6 +8,7 @@ const (
 	StatusUndone            = "undone"
 	StatusFailed            = "failed"
 	StatusRequiresAttention = "requires_attention"
+	StatusUndoBlocked       = "undo_blocked"
 )
 
 // Operation type constants.
@@ -16,6 +17,14 @@ const (
 	OpModify = "modify"
 	OpDelete = "delete"
 )
+
+// buildResourcePath appends the resource ID to the path if non-empty.
+func buildResourcePath(basePath, resourceID string) string {
+	if resourceID != "" {
+		return basePath + "/" + resourceID
+	}
+	return basePath
+}
 
 // VolatileFields lists RouterOS fields that change during normal operation
 // and must be excluded from strict matching during undo.
