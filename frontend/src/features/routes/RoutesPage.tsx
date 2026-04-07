@@ -228,6 +228,7 @@ export default function RoutesPage() {
                     onClick={() => handleRowClick(route)}
                     style={{
                       cursor: 'pointer',
+                      height: 44,
                       borderBottom: isLast
                         ? undefined
                         : '1px solid var(--mantine-color-gray-1)',
@@ -241,6 +242,7 @@ export default function RoutesPage() {
                         key={col.accessor}
                         style={{
                           textAlign: col.align ?? 'left',
+                          verticalAlign: 'middle',
                           opacity: route.disabled && col.accessor !== 'actions' ? 0.5 : undefined,
                         }}
                       >
