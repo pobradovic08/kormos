@@ -33,7 +33,7 @@ const typeBadgeColors: Record<string, string> = {
 export interface InterfaceColumn {
   accessor: string;
   header: string;
-  width?: number;
+  width?: number | string;
   align?: 'left' | 'center' | 'right';
   render: (
     iface: RouterInterface,
@@ -85,7 +85,7 @@ export const interfaceColumns: InterfaceColumn[] = [
   {
     accessor: 'default_name',
     header: 'Original Name',
-    width: 120,
+    width: '20%',
     render: (iface) => (
       <MonoText size="xs" c="dimmed">
         {iface.default_name || iface.name}
