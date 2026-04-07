@@ -85,6 +85,9 @@ function LoadingSkeleton() {
                 </Stack>
               </Group>
             </Table.Td>
+            <Table.Td style={{ width: 120 }}>
+              <Skeleton height={12} width={70} radius="sm" />
+            </Table.Td>
             <Table.Td style={{ width: 180 }}>
               <Stack gap={2}>
                 <Skeleton height={12} width={120} radius="sm" />

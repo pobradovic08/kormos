@@ -70,6 +70,7 @@ export interface InterfaceAddress {
 export interface RouterInterface {
   id: string;
   name: string;
+  default_name?: string;
   type: string;
   running: boolean;
   disabled: boolean;

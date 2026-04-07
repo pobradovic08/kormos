@@ -9,16 +9,17 @@ import (
 // Interface represents a normalised RouterOS network interface with its
 // associated IP addresses.
 type Interface struct {
-	ID         string                 `json:"id"`
-	Name       string                 `json:"name"`
-	Type       string                 `json:"type"`
-	Running    bool                   `json:"running"`
-	Disabled   bool                   `json:"disabled"`
-	Comment    string                 `json:"comment"`
-	MTU        int                    `json:"mtu"`
-	MACAddress string                 `json:"mac_address"`
-	Addresses  []Address              `json:"addresses"`
-	Properties map[string]interface{} `json:"properties"`
+	ID          string                 `json:"id"`
+	Name        string                 `json:"name"`
+	DefaultName string                 `json:"default_name,omitempty"`
+	Type        string                 `json:"type"`
+	Running     bool                   `json:"running"`
+	Disabled    bool                   `json:"disabled"`
+	Comment     string                 `json:"comment"`
+	MTU         int                    `json:"mtu"`
+	MACAddress  string                 `json:"mac_address"`
+	Addresses   []Address              `json:"addresses"`
+	Properties  map[string]interface{} `json:"properties"`
 }
 
 // Address represents an IP address assigned to a RouterOS interface.
@@ -31,15 +32,16 @@ type Address struct {
 
 // rawInterface mirrors the JSON structure returned by RouterOS GET /interface.
 type rawInterface struct {
-	ID        string `json:".id"`
-	Name      string `json:"name"`
-	Type      string `json:"type"`
-	Running   string `json:"running"`
-	Disabled  string `json:"disabled"`
-	Comment   string `json:"comment"`
-	ActualMTU string `json:"actual-mtu"`
-	MTU       string `json:"mtu"`
-	MACAddr   string `json:"mac-address"`
+	ID          string `json:".id"`
+	Name        string `json:"name"`
+	DefaultName string `json:"default-name"`
+	Type        string `json:"type"`
+	Running     string `json:"running"`
+	Disabled    string `json:"disabled"`
+	Comment     string `json:"comment"`
+	ActualMTU   string `json:"actual-mtu"`
+	MTU         string `json:"mtu"`
+	MACAddr     string `json:"mac-address"`
 }
 
 // rawAddress mirrors the JSON structure returned by RouterOS GET /ip/address.
@@ -85,7 +87,7 @@ func NormalizeInterfaces(rawInterfaces []byte, rawAddresses []byte) ([]Interface
 
 	// Known keys that are mapped to first-class fields — excluded from Properties.
 	knownKeys := map[string]struct{}{
-		".id": {}, "name": {}, "type": {}, "running": {}, "disabled": {},
+		".id": {}, "name": {}, "default-name": {}, "type": {}, "running": {}, "disabled": {},
 		"comment": {}, "actual-mtu": {}, "mtu": {}, "mac-address": {},
 	}
 
@@ -97,9 +99,10 @@ func NormalizeInterfaces(rawInterfaces []byte, rawAddresses []byte) ([]Interface
 		}
 
 		iface := Interface{
-			ID:         ri.ID,
-			Name:       ri.Name,
-			Type:       ri.Type,
+			ID:          ri.ID,
+			Name:        ri.Name,
+			DefaultName: ri.DefaultName,
+			Type:        ri.Type,
 			Running:    ri.Running == "true",
 			Disabled:   ri.Disabled == "true",
 			Comment:    ri.Comment,
