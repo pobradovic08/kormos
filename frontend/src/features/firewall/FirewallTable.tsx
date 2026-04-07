@@ -287,26 +287,61 @@ function SortableRow({
     [rule, onUpdate],
   );
 
+  const [srcPortError, setSrcPortError] = useState(false);
+  const [dstPortError, setDstPortError] = useState(false);
+
+  const validatePort = useCallback((val: string): boolean => {
+    if (!val) return true;
+    const parts = val.split(',');
+    for (const part of parts) {
+      const trimmed = part.trim();
+      if (!trimmed) return false;
+      if (trimmed.includes('-')) {
+        const [startStr, endStr, ...rest] = trimmed.split('-');
+        if (rest.length > 0) return false;
+        const start = Number(startStr);
+        const end = Number(endStr);
+        if (!Number.isInteger(start) || !Number.isInteger(end)) return false;
+        if (start < 0 || start > 65535 || end < 0 || end > 65535) return false;
+        if (start >= end) return false;
+      } else {
+        const port = Number(trimmed);
+        if (!Number.isInteger(port) || port < 0 || port > 65535) return false;
+      }
+    }
+    return true;
+  }, []);
+
   const saveSrcPort = useCallback(
     (val: string) => {
-      setEditingSrcPort(false);
       const trimmed = val.trim();
+      if (!validatePort(trimmed)) {
+        setSrcPortError(true);
+        return;
+      }
+      setSrcPortError(false);
+      setEditingSrcPort(false);
       if (trimmed !== (rule.srcPort ?? '')) {
         onUpdate(rule.id, { srcPort: trimmed || undefined });
       }
     },
-    [rule, onUpdate],
+    [rule, onUpdate, validatePort],
   );
 
   const saveDstPort = useCallback(
     (val: string) => {
-      setEditingDstPort(false);
       const trimmed = val.trim();
+      if (!validatePort(trimmed)) {
+        setDstPortError(true);
+        return;
+      }
+      setDstPortError(false);
+      setEditingDstPort(false);
       if (trimmed !== (rule.dstPort ?? '')) {
         onUpdate(rule.id, { dstPort: trimmed || undefined });
       }
     },
-    [rule, onUpdate],
+    [rule, onUpdate, validatePort],
   );
 
   const interfaceSelectData = useMemo(() =>
@@ -568,13 +603,14 @@ function SortableRow({
               radius="sm"
               placeholder="any"
               value={srcPortValue}
-              onChange={(e) => setSrcPortValue(e.currentTarget.value)}
+              onChange={(e) => { setSrcPortValue(e.currentTarget.value); if (srcPortError) setSrcPortError(false); }}
               onBlur={() => saveSrcPort(srcPortValue)}
               onKeyDown={(e) => {
                 if (e.key === 'Enter') saveSrcPort(srcPortValue);
-                if (e.key === 'Escape') { setSrcPortValue(rule.srcPort ?? ''); setEditingSrcPort(false); }
+                if (e.key === 'Escape') { setSrcPortValue(rule.srcPort ?? ''); setSrcPortError(false); setEditingSrcPort(false); }
               }}
               onClick={(e) => e.stopPropagation()}
+              styles={srcPortError ? { input: { borderColor: 'var(--mantine-color-red-6)', color: 'var(--mantine-color-red-6)' } } : undefined}
               style={{ width: '100%' }}
             />
           ) : (
@@ -592,13 +628,14 @@ function SortableRow({
               radius="sm"
               placeholder="any"
               value={dstPortValue}
-              onChange={(e) => setDstPortValue(e.currentTarget.value)}
+              onChange={(e) => { setDstPortValue(e.currentTarget.value); if (dstPortError) setDstPortError(false); }}
               onBlur={() => saveDstPort(dstPortValue)}
               onKeyDown={(e) => {
                 if (e.key === 'Enter') saveDstPort(dstPortValue);
-                if (e.key === 'Escape') { setDstPortValue(rule.dstPort ?? ''); setEditingDstPort(false); }
+                if (e.key === 'Escape') { setDstPortValue(rule.dstPort ?? ''); setDstPortError(false); setEditingDstPort(false); }
               }}
               onClick={(e) => e.stopPropagation()}
+              styles={dstPortError ? { input: { borderColor: 'var(--mantine-color-red-6)', color: 'var(--mantine-color-red-6)' } } : undefined}
               style={{ width: '100%' }}
             />
           ) : (
