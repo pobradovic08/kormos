@@ -305,3 +305,65 @@ export interface OperationHistoryResponse {
   groups: OperationGroup[];
   total: number;
 }
+
+// --- Cluster Management ---
+
+export interface ClusterResponse {
+  id: string;
+  name: string;
+  mode: 'ha' | 'standalone';
+  created_at: string;
+  routers: ClusterRouter[];
+}
+
+export interface ClusterRouter {
+  id: string;
+  name: string;
+  hostname: string;
+  host: string;
+  port: number;
+  role: 'master' | 'backup';
+  is_reachable: boolean;
+  last_seen: string | null;
+}
+
+export interface CreateClusterRequest {
+  name: string;
+  routers: {
+    name: string;
+    hostname: string;
+    host: string;
+    port: number;
+    username: string;
+    password: string;
+    role: 'master' | 'backup';
+  }[];
+}
+
+export interface UpdateClusterRequest {
+  name: string;
+  routers: {
+    id?: string;
+    name: string;
+    hostname: string;
+    host: string;
+    port: number;
+    username: string;
+    password: string;
+    role: 'master' | 'backup';
+  }[];
+}
+
+export interface TestConnectionRequest {
+  host: string;
+  port: number;
+  username: string;
+  password: string;
+}
+
+export interface TestConnectionResponse {
+  success: boolean;
+  routeros_version?: string;
+  board_name?: string;
+  error?: string;
+}
