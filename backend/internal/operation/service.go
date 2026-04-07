@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/pobradovic08/kormos/backend/internal/router"
 	"github.com/pobradovic08/kormos/backend/internal/routeros"
@@ -254,6 +255,183 @@ func (s *Service) buildFailureResponse(ctx context.Context, group *Group, result
 		Status:     updated.Status,
 		Operations: opResults,
 	}, nil
+}
+
+// Undo reverses all operations in a group using strict state matching.
+func (s *Service) Undo(ctx context.Context, tenantID, userID, role, groupID string) (*UndoResponse, error) {
+	group, err := s.repo.GetGroupByID(ctx, groupID)
+	if err != nil {
+		return nil, fmt.Errorf("operation: get group for undo: %w", err)
+	}
+	if group == nil {
+		return nil, fmt.Errorf("operation: group not found")
+	}
+
+	// Tenant check.
+	if group.TenantID != tenantID {
+		return nil, fmt.Errorf("operation: group not found")
+	}
+
+	// Permission check: owner or admin can undo anyone's; others only their own.
+	if group.UserID != userID && role != "owner" && role != "admin" {
+		return nil, fmt.Errorf("operation: permission denied: can only undo your own operations")
+	}
+
+	// Status check.
+	if group.Status != StatusApplied {
+		return &UndoResponse{
+			GroupID: groupID,
+			Status:  "undo_blocked",
+			Reason:  fmt.Sprintf("group status is '%s', not 'applied'", group.Status),
+		}, nil
+	}
+
+	// Expiry check.
+	if time.Now().After(group.ExpiresAt) {
+		return &UndoResponse{
+			GroupID: groupID,
+			Status:  "undo_blocked",
+			Reason:  "operation group has expired (older than 7 days)",
+		}, nil
+	}
+
+	// Lock all involved routers.
+	routerIDs := make(map[string]bool)
+	for _, op := range group.Operations {
+		routerIDs[op.RouterID] = true
+	}
+	for rid := range routerIDs {
+		mu := s.routerMutex(rid)
+		mu.Lock()
+		defer mu.Unlock()
+	}
+
+	// Get RouterOS clients.
+	clients := make(map[string]*routeros.Client)
+	for rid := range routerIDs {
+		client, err := s.routerSvc.GetClientForRouter(ctx, tenantID, rid)
+		if err != nil {
+			return nil, fmt.Errorf("operation: get client for undo router %s: %w", rid, err)
+		}
+		clients[rid] = client
+	}
+
+	// Phase 1: Strict match validation (all operations, reverse order).
+	for i := len(group.Operations) - 1; i >= 0; i-- {
+		op := group.Operations[i]
+		if op.Status != StatusApplied {
+			continue
+		}
+
+		client := clients[op.RouterID]
+		drifted, detail := s.checkStrictMatch(ctx, client, op)
+		if drifted {
+			return &UndoResponse{
+				GroupID:          groupID,
+				Status:           "undo_blocked",
+				Reason:           "Resource modified since original operation",
+				DriftedOperation: detail,
+			}, nil
+		}
+	}
+
+	// Phase 2: Apply reversals (all passed strict match).
+	for i := len(group.Operations) - 1; i >= 0; i-- {
+		op := group.Operations[i]
+		if op.Status != StatusApplied {
+			continue
+		}
+
+		client := clients[op.RouterID]
+		err := reverseOperation(ctx, client, op)
+		if err != nil {
+			_ = s.repo.UpdateGroupStatus(ctx, groupID, StatusRequiresAttention)
+			return &UndoResponse{
+				GroupID: groupID,
+				Status:  "undo_blocked",
+				Reason:  fmt.Sprintf("reversal failed for operation %s: %v", op.ID, err),
+			}, nil
+		}
+		_ = s.repo.UpdateOperationStatus(ctx, op.ID, StatusUndone, "")
+	}
+
+	_ = s.repo.UpdateGroupStatus(ctx, groupID, StatusUndone)
+
+	return &UndoResponse{
+		GroupID: groupID,
+		Status:  StatusUndone,
+	}, nil
+}
+
+// checkStrictMatch verifies the resource's current state matches the logged after_state.
+func (s *Service) checkStrictMatch(ctx context.Context, client *routeros.Client, op Operation) (bool, *DriftedDetail) {
+	switch op.OperationType {
+	case OpAdd, OpModify:
+		// Resource should exist with after_state.
+		path := op.ResourcePath
+		if op.ResourceID != "" {
+			path = path + "/" + op.ResourceID
+		}
+		state, err := fetchResourceState(ctx, client, path)
+		if err != nil {
+			return true, &DriftedDetail{
+				ID:            op.ID,
+				ResourcePath:  op.ResourcePath,
+				ResourceID:    op.ResourceID,
+				ExpectedState: op.AfterState,
+				CurrentState:  map[string]interface{}{"error": "resource not found or unreachable"},
+			}
+		}
+
+		if !configFieldsMatch(op.AfterState, state) {
+			return true, &DriftedDetail{
+				ID:            op.ID,
+				ResourcePath:  op.ResourcePath,
+				ResourceID:    op.ResourceID,
+				ExpectedState: op.AfterState,
+				CurrentState:  state,
+			}
+		}
+
+	case OpDelete:
+		// Resource should NOT exist (it was deleted).
+		path := op.ResourcePath
+		if op.ResourceID != "" {
+			path = path + "/" + op.ResourceID
+		}
+		_, err := fetchResourceState(ctx, client, path)
+		if err == nil {
+			return true, &DriftedDetail{
+				ID:            op.ID,
+				ResourcePath:  op.ResourcePath,
+				ResourceID:    op.ResourceID,
+				ExpectedState: nil,
+				CurrentState:  map[string]interface{}{"error": "resource exists but should have been deleted"},
+			}
+		}
+	}
+
+	return false, nil
+}
+
+// configFieldsMatch compares two states, excluding volatile fields.
+func configFieldsMatch(expected, current map[string]interface{}) bool {
+	for key, expectedVal := range expected {
+		if VolatileFields[key] {
+			continue
+		}
+		currentVal, exists := current[key]
+		if !exists {
+			return false
+		}
+		// Compare as JSON strings for deep equality.
+		e, _ := json.Marshal(expectedVal)
+		c, _ := json.Marshal(currentVal)
+		if string(e) != string(c) {
+			return false
+		}
+	}
+	return true
 }
 
 // --- RouterOS interaction helpers ---
