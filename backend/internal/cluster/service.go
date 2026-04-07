@@ -7,19 +7,33 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/pobradovic08/kormos/backend/internal/crypto"
+	"github.com/pobradovic08/kormos/backend/internal/router"
 	"github.com/pobradovic08/kormos/backend/internal/routeros"
 )
 
 // Service provides business logic for cluster management.
 type Service struct {
 	repo          *Repository
+	routerSvc     *router.Service
 	encryptionKey string
 	pool          *pgxpool.Pool
 }
 
 // NewService creates a new cluster Service.
-func NewService(repo *Repository, encryptionKey string, pool *pgxpool.Pool) *Service {
-	return &Service{repo: repo, encryptionKey: encryptionKey, pool: pool}
+func NewService(repo *Repository, routerSvc *router.Service, encryptionKey string, pool *pgxpool.Pool) *Service {
+	return &Service{repo: repo, routerSvc: routerSvc, encryptionKey: encryptionKey, pool: pool}
+}
+
+// checkRouterReachability checks reachability for all routers in a cluster (fire and forget).
+func (s *Service) checkRouterReachability(ctx context.Context, tenantID, clusterID string) {
+	routers, err := s.repo.ListRoutersByCluster(ctx, clusterID)
+	if err != nil {
+		return
+	}
+	for _, rt := range routers {
+		// Best-effort — don't fail the request if reachability check fails
+		_, _ = s.routerSvc.CheckReachability(ctx, tenantID, rt.ID)
+	}
 }
 
 // List returns all clusters with their routers for a tenant.
@@ -86,6 +100,7 @@ func (s *Service) Create(ctx context.Context, tenantID string, req CreateCluster
 		}
 	}
 
+	s.checkRouterReachability(ctx, tenantID, c.ID)
 	return s.GetByID(ctx, tenantID, c.ID)
 }
 
@@ -169,6 +184,7 @@ func (s *Service) Update(ctx context.Context, tenantID, clusterID string, req Up
 		}
 	}
 
+	s.checkRouterReachability(ctx, tenantID, clusterID)
 	return s.GetByID(ctx, tenantID, clusterID)
 }
 

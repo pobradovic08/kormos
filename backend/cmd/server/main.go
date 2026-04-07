@@ -67,7 +67,7 @@ func main() {
 	operationHandler := operation.NewHandler(operationService)
 
 	clusterRepo := cluster.NewRepository(pool)
-	clusterService := cluster.NewService(clusterRepo, cfg.EncryptionKey, pool)
+	clusterService := cluster.NewService(clusterRepo, routerService, cfg.EncryptionKey, pool)
 	clusterHandler := cluster.NewHandler(clusterService)
 
 	tenantHandler := tenant.NewHandler(pool)

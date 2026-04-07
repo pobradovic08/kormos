@@ -3,6 +3,7 @@ package router
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -228,6 +229,7 @@ func (s *Service) CheckReachability(ctx context.Context, tenantID, id string) (*
 	_ = s.repo.UpdateReachability(ctx, id, true)
 
 	// Extract fields from the RouterOS system/resource response.
+	// RouterOS 7 returns all values as strings.
 	if v, ok := info["version"].(string); ok {
 		resp.RouterOSVersion = v
 	}
@@ -237,14 +239,20 @@ func (s *Service) CheckReachability(ctx context.Context, tenantID, id string) (*
 	if v, ok := info["uptime"].(string); ok {
 		resp.Uptime = v
 	}
-	if v, ok := info["cpu-load"].(float64); ok {
-		resp.CPULoad = int(v)
+	if v, ok := info["cpu-load"].(string); ok {
+		if n, err := strconv.Atoi(v); err == nil {
+			resp.CPULoad = n
+		}
 	}
-	if v, ok := info["free-memory"].(float64); ok {
-		resp.FreeMemory = int64(v)
+	if v, ok := info["free-memory"].(string); ok {
+		if n, err := strconv.ParseInt(v, 10, 64); err == nil {
+			resp.FreeMemory = n
+		}
 	}
-	if v, ok := info["total-memory"].(float64); ok {
-		resp.TotalMemory = int64(v)
+	if v, ok := info["total-memory"].(string); ok {
+		if n, err := strconv.ParseInt(v, 10, 64); err == nil {
+			resp.TotalMemory = n
+		}
 	}
 
 	return resp, nil
