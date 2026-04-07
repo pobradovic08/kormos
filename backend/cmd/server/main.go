@@ -20,6 +20,7 @@ import (
 	"github.com/pobradovic08/kormos/backend/internal/db"
 	"github.com/pobradovic08/kormos/backend/internal/interfaces"
 	"github.com/pobradovic08/kormos/backend/internal/middleware"
+	"github.com/pobradovic08/kormos/backend/internal/operation"
 	"github.com/pobradovic08/kormos/backend/internal/router"
 	"github.com/pobradovic08/kormos/backend/internal/setup"
 	"github.com/pobradovic08/kormos/backend/internal/tenant"
@@ -59,6 +60,10 @@ func main() {
 	auditRepo := audit.NewRepository(pool)
 	configureEngine := configure.NewEngine(routerService)
 	configureHandler := configure.NewHandler(configureEngine, routerService, auditRepo, pool)
+
+	operationRepo := operation.NewRepository(pool)
+	operationService := operation.NewService(operationRepo, routerService)
+	operationHandler := operation.NewHandler(operationService)
 
 	tenantHandler := tenant.NewHandler(pool)
 
@@ -131,6 +136,12 @@ func main() {
 		})
 
 		r.With(middleware.RequireRole("owner", "admin")).Get("/audit-log", configureHandler.AuditList)
+
+		r.Route("/v1/operations", func(r chi.Router) {
+			r.With(middleware.RequireRole("owner", "admin", "operator")).Post("/execute", operationHandler.Execute)
+			r.With(middleware.RequireRole("owner", "admin", "operator")).Post("/undo/{groupID}", operationHandler.Undo)
+			r.Get("/history", operationHandler.History)
+		})
 	})
 
 	// Superadmin routes (auth required, no tenant scope, superadmin check)
