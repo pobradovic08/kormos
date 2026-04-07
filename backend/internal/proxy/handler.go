@@ -3,6 +3,7 @@ package proxy
 import (
 	"encoding/json"
 	"net/http"
+	"regexp"
 
 	"github.com/go-chi/chi/v5"
 
@@ -10,6 +11,13 @@ import (
 	"github.com/pobradovic08/kormos/backend/internal/router"
 	"github.com/pobradovic08/kormos/backend/internal/routeros"
 )
+
+// RouterOS IDs are hex strings prefixed with * (e.g., *1, *A, *80000001).
+var routerOSIDPattern = regexp.MustCompile(`^\*[0-9a-fA-F]+$`)
+
+func isValidRouterOSID(id string) bool {
+	return routerOSIDPattern.MatchString(id)
+}
 
 // Handler provides HTTP handlers for proxied RouterOS read endpoints.
 type Handler struct {
@@ -72,6 +80,10 @@ func (h *Handler) RouteByID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	routeID := chi.URLParam(r, "routeID")
+	if !isValidRouterOSID(routeID) {
+		writeError(w, http.StatusBadRequest, "invalid_id", "Invalid route ID format")
+		return
+	}
 	route, err := FetchRoute(r.Context(), client, routeID)
 	if err != nil {
 		writeError(w, http.StatusBadGateway, "routeros_error", "Failed to fetch route")

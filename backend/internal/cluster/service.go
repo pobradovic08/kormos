@@ -24,16 +24,18 @@ func NewService(repo *Repository, routerSvc *router.Service, encryptionKey strin
 	return &Service{repo: repo, routerSvc: routerSvc, encryptionKey: encryptionKey, pool: pool}
 }
 
-// checkRouterReachability checks reachability for all routers in a cluster (fire and forget).
-func (s *Service) checkRouterReachability(ctx context.Context, tenantID, clusterID string) {
-	routers, err := s.repo.ListRoutersByCluster(ctx, clusterID)
-	if err != nil {
-		return
-	}
-	for _, rt := range routers {
-		// Best-effort — don't fail the request if reachability check fails
-		_, _ = s.routerSvc.CheckReachability(ctx, tenantID, rt.ID)
-	}
+// checkRouterReachability checks reachability for all routers in a cluster asynchronously.
+func (s *Service) checkRouterReachability(tenantID, clusterID string) {
+	go func() {
+		ctx := context.Background()
+		routers, err := s.repo.ListRoutersByCluster(ctx, clusterID)
+		if err != nil {
+			return
+		}
+		for _, rt := range routers {
+			_, _ = s.routerSvc.CheckReachability(ctx, tenantID, rt.ID)
+		}
+	}()
 }
 
 // List returns all clusters with their routers for a tenant.
@@ -100,7 +102,7 @@ func (s *Service) Create(ctx context.Context, tenantID string, req CreateCluster
 		}
 	}
 
-	s.checkRouterReachability(ctx, tenantID, c.ID)
+	s.checkRouterReachability(tenantID, c.ID)
 	return s.GetByID(ctx, tenantID, c.ID)
 }
 
@@ -184,7 +186,7 @@ func (s *Service) Update(ctx context.Context, tenantID, clusterID string, req Up
 		}
 	}
 
-	s.checkRouterReachability(ctx, tenantID, clusterID)
+	s.checkRouterReachability(tenantID, clusterID)
 	return s.GetByID(ctx, tenantID, clusterID)
 }
 
@@ -341,21 +343,4 @@ func validateUpdateRequest(name string, routers []UpdateRouterInput) error {
 	}
 
 	return nil
-}
-
-// toCreateInputs converts UpdateRouterInputs to CreateRouterInputs for validation reuse.
-func toCreateInputs(inputs []UpdateRouterInput) []CreateRouterInput {
-	result := make([]CreateRouterInput, len(inputs))
-	for i, in := range inputs {
-		result[i] = CreateRouterInput{
-			Name:     in.Name,
-			Hostname: in.Hostname,
-			Host:     in.Host,
-			Port:     in.Port,
-			Username: in.Username,
-			Password: in.Password,
-			Role:     in.Role,
-		}
-	}
-	return result
 }

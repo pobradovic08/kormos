@@ -86,7 +86,7 @@ export function groupRouters(routers: Router[] | null | undefined): RouterGroup[
       clusterId,
       clusterName: first.cluster_name ?? clusterId,
       tenantName: first.tenant_name ?? '',
-      mode: 'ha',
+      mode: clusterRouters.length === 2 ? 'ha' : 'standalone',
       status: computeStatus(clusterRouters),
       versionStatus: computeVersionStatus(clusterRouters),
       licenseStatus: computeLicenseStatus(clusterRouters),

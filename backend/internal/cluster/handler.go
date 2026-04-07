@@ -48,7 +48,7 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 
 	resp, err := h.service.Create(r.Context(), tenantID, req)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "server_error", "Failed to create cluster")
+		writeError(w, http.StatusBadRequest, "validation_error", err.Error())
 		return
 	}
 
@@ -86,7 +86,7 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 
 	resp, err := h.service.Update(r.Context(), tenantID, clusterID, req)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "server_error", "Failed to update cluster")
+		writeError(w, http.StatusBadRequest, "validation_error", err.Error())
 		return
 	}
 	if resp == nil {
