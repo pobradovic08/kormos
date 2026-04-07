@@ -13,6 +13,9 @@ import (
 type Router struct {
 	ID                string
 	TenantID          string
+	ClusterID         string
+	Role              string
+	ClusterName       string
 	Name              string
 	Hostname          string
 	Host              string
@@ -60,12 +63,15 @@ func (r *Repository) Create(ctx context.Context, tenantID string, router *Router
 // List returns all routers belonging to the given tenant.
 func (r *Repository) List(ctx context.Context, tenantID string) ([]Router, error) {
 	rows, err := r.pool.Query(ctx,
-		`SELECT id, tenant_id, name, hostname, host, port,
-		        username_encrypted, password_encrypted,
-		        is_reachable, last_seen, created_at, updated_at
-		   FROM routers
-		  WHERE tenant_id = $1
-		  ORDER BY name`,
+		`SELECT r.id, r.tenant_id, COALESCE(r.cluster_id::text, ''), COALESCE(r.role::text, 'master'),
+		        COALESCE(c.name, ''),
+		        r.name, r.hostname, r.host, r.port,
+		        r.username_encrypted, r.password_encrypted,
+		        r.is_reachable, r.last_seen, r.created_at, r.updated_at
+		   FROM routers r
+		   LEFT JOIN clusters c ON c.id = r.cluster_id
+		  WHERE r.tenant_id = $1
+		  ORDER BY r.name`,
 		tenantID,
 	)
 	if err != nil {
@@ -77,7 +83,9 @@ func (r *Repository) List(ctx context.Context, tenantID string) ([]Router, error
 	for rows.Next() {
 		var rt Router
 		if err := rows.Scan(
-			&rt.ID, &rt.TenantID, &rt.Name, &rt.Hostname, &rt.Host, &rt.Port,
+			&rt.ID, &rt.TenantID, &rt.ClusterID, &rt.Role,
+			&rt.ClusterName,
+			&rt.Name, &rt.Hostname, &rt.Host, &rt.Port,
 			&rt.UsernameEncrypted, &rt.PasswordEncrypted,
 			&rt.IsReachable, &rt.LastSeen, &rt.CreatedAt, &rt.UpdatedAt,
 		); err != nil {
@@ -96,14 +104,19 @@ func (r *Repository) List(ctx context.Context, tenantID string) ([]Router, error
 func (r *Repository) GetByID(ctx context.Context, tenantID, id string) (*Router, error) {
 	var rt Router
 	err := r.pool.QueryRow(ctx,
-		`SELECT id, tenant_id, name, hostname, host, port,
-		        username_encrypted, password_encrypted,
-		        is_reachable, last_seen, created_at, updated_at
-		   FROM routers
-		  WHERE tenant_id = $1 AND id = $2`,
+		`SELECT r.id, r.tenant_id, COALESCE(r.cluster_id::text, ''), COALESCE(r.role::text, 'master'),
+		        COALESCE(c.name, ''),
+		        r.name, r.hostname, r.host, r.port,
+		        r.username_encrypted, r.password_encrypted,
+		        r.is_reachable, r.last_seen, r.created_at, r.updated_at
+		   FROM routers r
+		   LEFT JOIN clusters c ON c.id = r.cluster_id
+		  WHERE r.tenant_id = $1 AND r.id = $2`,
 		tenantID, id,
 	).Scan(
-		&rt.ID, &rt.TenantID, &rt.Name, &rt.Hostname, &rt.Host, &rt.Port,
+		&rt.ID, &rt.TenantID, &rt.ClusterID, &rt.Role,
+		&rt.ClusterName,
+		&rt.Name, &rt.Hostname, &rt.Host, &rt.Port,
 		&rt.UsernameEncrypted, &rt.PasswordEncrypted,
 		&rt.IsReachable, &rt.LastSeen, &rt.CreatedAt, &rt.UpdatedAt,
 	)

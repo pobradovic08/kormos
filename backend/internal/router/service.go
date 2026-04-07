@@ -41,6 +41,9 @@ type RouterResponse struct {
 	Hostname    string     `json:"hostname"`
 	Host        string     `json:"host"`
 	Port        int        `json:"port"`
+	ClusterID   string     `json:"cluster_id,omitempty"`
+	ClusterName string     `json:"cluster_name,omitempty"`
+	Role        string     `json:"role,omitempty"`
 	IsReachable bool       `json:"is_reachable"`
 	LastSeen    *time.Time `json:"last_seen"`
 	CreatedAt   time.Time  `json:"created_at"`
@@ -279,6 +282,9 @@ func toResponse(rt *Router) *RouterResponse {
 		Hostname:    rt.Hostname,
 		Host:        rt.Host,
 		Port:        rt.Port,
+		ClusterID:   rt.ClusterID,
+		ClusterName: rt.ClusterName,
+		Role:        rt.Role,
 		IsReachable: rt.IsReachable,
 		LastSeen:    rt.LastSeen,
 		CreatedAt:   rt.CreatedAt,
