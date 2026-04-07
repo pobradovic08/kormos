@@ -15,6 +15,7 @@ import (
 
 	"github.com/pobradovic08/kormos/backend/internal/audit"
 	"github.com/pobradovic08/kormos/backend/internal/auth"
+	"github.com/pobradovic08/kormos/backend/internal/cluster"
 	"github.com/pobradovic08/kormos/backend/internal/config"
 	"github.com/pobradovic08/kormos/backend/internal/configure"
 	"github.com/pobradovic08/kormos/backend/internal/db"
@@ -64,6 +65,10 @@ func main() {
 	operationRepo := operation.NewRepository(pool)
 	operationService := operation.NewService(operationRepo, routerService)
 	operationHandler := operation.NewHandler(operationService)
+
+	clusterRepo := cluster.NewRepository(pool)
+	clusterService := cluster.NewService(clusterRepo, cfg.EncryptionKey, pool)
+	clusterHandler := cluster.NewHandler(clusterService)
 
 	tenantHandler := tenant.NewHandler(pool)
 
@@ -117,6 +122,15 @@ func main() {
 			r.Post("/", userHandler.Create)
 			r.Put("/{userID}", userHandler.Update)
 			r.Delete("/{userID}", userHandler.Delete)
+		})
+
+		r.Route("/clusters", func(r chi.Router) {
+			r.Get("/", clusterHandler.List)
+			r.Post("/", clusterHandler.Create)
+			r.Post("/test-connection", clusterHandler.TestConnection)
+			r.Get("/{clusterID}", clusterHandler.GetByID)
+			r.Put("/{clusterID}", clusterHandler.Update)
+			r.Delete("/{clusterID}", clusterHandler.Delete)
 		})
 
 		r.Route("/routers", func(r chi.Router) {
