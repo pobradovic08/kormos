@@ -203,7 +203,7 @@ export default function UndoHistoryPanel({ isOpen, onClose }: UndoHistoryPanelPr
           </Text>
         )}
 
-        {data?.groups.map((group, i) => (
+        {data?.groups?.map((group, i) => (
           <div key={group.id}>
             {i > 0 && <Divider />}
             <GroupEntry group={group} />

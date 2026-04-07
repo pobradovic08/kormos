@@ -116,6 +116,10 @@ func (h *Handler) History(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if groups == nil {
+		groups = []Group{}
+	}
+
 	// Compute can_undo for each group.
 	for i := range groups {
 		g := &groups[i]
