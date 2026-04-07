@@ -22,6 +22,7 @@ import (
 	"github.com/pobradovic08/kormos/backend/internal/interfaces"
 	"github.com/pobradovic08/kormos/backend/internal/middleware"
 	"github.com/pobradovic08/kormos/backend/internal/operation"
+	"github.com/pobradovic08/kormos/backend/internal/proxy"
 	"github.com/pobradovic08/kormos/backend/internal/router"
 	"github.com/pobradovic08/kormos/backend/internal/setup"
 	"github.com/pobradovic08/kormos/backend/internal/tenant"
@@ -69,6 +70,8 @@ func main() {
 	clusterRepo := cluster.NewRepository(pool)
 	clusterService := cluster.NewService(clusterRepo, routerService, cfg.EncryptionKey, pool)
 	clusterHandler := cluster.NewHandler(clusterService)
+
+	proxyHandler := proxy.NewHandler(routerService)
 
 	tenantHandler := tenant.NewHandler(pool)
 
@@ -144,6 +147,16 @@ func main() {
 			r.Route("/{routerID}/interfaces", func(r chi.Router) {
 				r.Get("/", interfaceHandler.List)
 				r.Get("/{name}", interfaceHandler.GetByName)
+			})
+
+			r.Get("/{routerID}/firewall/filter", proxyHandler.FirewallRules)
+			r.Get("/{routerID}/routes", proxyHandler.Routes)
+			r.Get("/{routerID}/routes/{routeID}", proxyHandler.RouteByID)
+			r.Get("/{routerID}/tunnels", proxyHandler.Tunnels)
+			r.Get("/{routerID}/address-lists", proxyHandler.AddressLists)
+			r.Route("/{routerID}/wireguard", func(r chi.Router) {
+				r.Get("/", proxyHandler.WireGuardInterfaces)
+				r.Get("/peers", proxyHandler.WireGuardPeers)
 			})
 
 			r.With(middleware.RequireRole("owner", "admin")).Post("/{routerID}/configure", configureHandler.Configure)
