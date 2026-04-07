@@ -114,7 +114,7 @@ export default function ClusterDrawer({
   const testSecondaryConnection = useTestConnection();
 
   const form = useForm<FormValues>({
-    mode: 'uncontrolled',
+    mode: 'controlled',
     initialValues: buildInitialValues(cluster),
     validate: {
       clusterName: (value) =>
@@ -431,7 +431,7 @@ export default function ClusterDrawer({
             label="Cluster Name"
             placeholder="e.g., dc1-edge"
             withAsterisk
-            key={form.key('clusterName')}
+
             {...form.getInputProps('clusterName')}
             onChange={(e) => handleClusterNameChange(e.currentTarget.value)}
           />
@@ -454,7 +454,7 @@ export default function ClusterDrawer({
             label="Router Name"
             placeholder="e.g., dc1-edge-1"
             withAsterisk
-            key={form.key('primary.name')}
+
             {...form.getInputProps('primary.name')}
             onChange={(e) => {
               form.setFieldValue('primary.name', e.currentTarget.value);
@@ -465,7 +465,6 @@ export default function ClusterDrawer({
             label="Hostname"
             placeholder="e.g., dc1-edge-1.local"
             withAsterisk
-            key={form.key('primary.hostname')}
             {...form.getInputProps('primary.hostname')}
             onChange={(e) => {
               form.setFieldValue('primary.hostname', e.currentTarget.value);
@@ -476,7 +475,6 @@ export default function ClusterDrawer({
             label="Address"
             placeholder="IP address or FQDN, e.g., 10.0.1.1"
             withAsterisk
-            key={form.key('primary.host')}
             {...form.getInputProps('primary.host')}
             onChange={(e) => {
               form.setFieldValue('primary.host', e.currentTarget.value);
@@ -489,7 +487,6 @@ export default function ClusterDrawer({
             min={1}
             max={65535}
             withAsterisk
-            key={form.key('primary.port')}
             {...form.getInputProps('primary.port')}
             onChange={(value) => {
               form.setFieldValue('primary.port', typeof value === 'number' ? value : 443);
@@ -500,7 +497,6 @@ export default function ClusterDrawer({
             label="API Username"
             placeholder="admin"
             withAsterisk
-            key={form.key('primary.username')}
             {...form.getInputProps('primary.username')}
             onChange={(e) => {
               form.setFieldValue('primary.username', e.currentTarget.value);
@@ -511,7 +507,6 @@ export default function ClusterDrawer({
             label="API Password"
             placeholder={isEditing ? 'Leave empty to keep current' : 'Enter password'}
             withAsterisk={!isEditing}
-            key={form.key('primary.password')}
             {...form.getInputProps('primary.password')}
             onChange={(e) => {
               form.setFieldValue('primary.password', e.currentTarget.value);
@@ -556,7 +551,6 @@ export default function ClusterDrawer({
         <Stack gap="md">
           <Switch
             label="Add backup router for HA"
-            key={form.key('enableHA')}
             {...form.getInputProps('enableHA', { type: 'checkbox' })}
           />
 
@@ -566,7 +560,6 @@ export default function ClusterDrawer({
                 label="Router Name"
                 placeholder="e.g., dc1-edge-2"
                 withAsterisk
-                key={form.key('secondary.name')}
                 {...form.getInputProps('secondary.name')}
                 onChange={(e) => {
                   form.setFieldValue('secondary.name', e.currentTarget.value);
@@ -577,7 +570,6 @@ export default function ClusterDrawer({
                 label="Hostname"
                 placeholder="e.g., dc1-edge-2.local"
                 withAsterisk
-                key={form.key('secondary.hostname')}
                 {...form.getInputProps('secondary.hostname')}
                 onChange={(e) => {
                   form.setFieldValue('secondary.hostname', e.currentTarget.value);
@@ -588,7 +580,6 @@ export default function ClusterDrawer({
                 label="Address"
                 placeholder="IP address or FQDN, e.g., 10.0.1.2"
                 withAsterisk
-                key={form.key('secondary.host')}
                 {...form.getInputProps('secondary.host')}
                 onChange={(e) => {
                   form.setFieldValue('secondary.host', e.currentTarget.value);
@@ -601,7 +592,6 @@ export default function ClusterDrawer({
                 min={1}
                 max={65535}
                 withAsterisk
-                key={form.key('secondary.port')}
                 {...form.getInputProps('secondary.port')}
                 onChange={(value) => {
                   form.setFieldValue('secondary.port', typeof value === 'number' ? value : 443);
@@ -612,7 +602,6 @@ export default function ClusterDrawer({
                 label="API Username"
                 placeholder="admin"
                 withAsterisk
-                key={form.key('secondary.username')}
                 {...form.getInputProps('secondary.username')}
                 onChange={(e) => {
                   form.setFieldValue('secondary.username', e.currentTarget.value);
@@ -623,7 +612,6 @@ export default function ClusterDrawer({
                 label="API Password"
                 placeholder={isEditing ? 'Leave empty to keep current' : 'Enter password'}
                 withAsterisk={!isEditing}
-                key={form.key('secondary.password')}
                 {...form.getInputProps('secondary.password')}
                 onChange={(e) => {
                   form.setFieldValue('secondary.password', e.currentTarget.value);
