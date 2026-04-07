@@ -86,16 +86,11 @@ export const interfaceColumns: InterfaceColumn[] = [
     accessor: 'default_name',
     header: 'Original Name',
     width: 120,
-    render: (iface) =>
-      iface.default_name && iface.default_name !== iface.name ? (
-        <MonoText size="xs" c="dimmed">
-          {iface.default_name}
-        </MonoText>
-      ) : (
-        <Text size="xs" c="dimmed">
-          &mdash;
-        </Text>
-      ),
+    render: (iface) => (
+      <MonoText size="xs" c="dimmed">
+        {iface.default_name || iface.name}
+      </MonoText>
+    ),
   },
   {
     accessor: 'addresses',
