@@ -121,7 +121,7 @@ function GroupEntry({ group }: { group: OperationGroup }) {
         </Group>
       </UnstyledButton>
 
-      <Collapse in={expanded}>
+      <Collapse expanded={expanded}>
         <Stack gap="xs" pl={28} pr={12} pb={8}>
           {group.operations.map((op) => (
             <Group key={op.id} gap="xs">

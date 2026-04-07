@@ -6,7 +6,6 @@ import {
   Button,
   Code,
   CopyButton,
-  Text,
   Box,
 } from '@mantine/core';
 import { IconCopy, IconCheck, IconDownload } from '@tabler/icons-react';

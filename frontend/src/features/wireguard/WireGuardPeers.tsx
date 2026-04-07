@@ -37,13 +37,6 @@ function HeaderLabel({ children }: { children: string }) {
   );
 }
 
-const tableStyle = {
-  borderCollapse: 'collapse' as const,
-  border: '1px solid var(--mantine-color-gray-3)',
-  borderRadius: 4,
-  overflow: 'hidden',
-};
-
 const headerRowStyle = {
   backgroundColor: 'var(--mantine-color-gray-0)',
   borderBottom: '1px solid var(--mantine-color-gray-3)',

@@ -1,4 +1,4 @@
-import { UnstyledButton, Group, Text, Badge } from '@mantine/core';
+import { UnstyledButton, Text, Badge } from '@mantine/core';
 import { IconHistory } from '@tabler/icons-react';
 import { useOperationHistory } from '../../api/operationsApi';
 import { useRouterStore } from '../../stores/useRouterStore';

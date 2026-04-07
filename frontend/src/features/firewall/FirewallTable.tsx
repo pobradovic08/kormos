@@ -381,7 +381,7 @@ function SortableRow({
   function renderAddressCell(
     address: string | undefined,
     addressList: string | undefined,
-    port: string | undefined,
+    _port: string | undefined,
     isEditing: boolean,
     value: string,
     setValue: (v: string) => void,
