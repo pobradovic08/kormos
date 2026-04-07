@@ -57,7 +57,8 @@ function computeBackupStatus(routers: Router[]): BackupStatus {
   return 'old';
 }
 
-export function groupRouters(routers: Router[]): RouterGroup[] {
+export function groupRouters(routers: Router[] | null | undefined): RouterGroup[] {
+  if (!routers) return [];
   const clusterMap = new Map<string, Router[]>();
   const standalone: Router[] = [];
 

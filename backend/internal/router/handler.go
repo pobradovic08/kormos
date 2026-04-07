@@ -29,6 +29,9 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if routers == nil {
+		routers = []RouterResponse{}
+	}
 	writeJSON(w, http.StatusOK, routers)
 }
 
