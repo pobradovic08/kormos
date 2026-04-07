@@ -10,10 +10,9 @@ import {
 } from '@mantine/core';
 import {
   IconSearch,
-  IconRouter,
   IconRouteAltRight,
 } from '@tabler/icons-react';
-import { useRouterStore } from '../../stores/useRouterStore';
+import { useClusterId } from '../../hooks/useClusterId';
 import { useRoutes } from './routesApi';
 import { routeColumns } from './routeColumns';
 import RouteDetail from './RouteDetail';
@@ -36,11 +35,14 @@ function HeaderLabel({ children }: { children: string }) {
   );
 }
 
-const tableStyle = {
-  borderCollapse: 'collapse' as const,
+const tableWrapperStyle = {
   border: '1px solid var(--mantine-color-gray-3)',
   borderRadius: 4,
-  overflow: 'hidden',
+  overflow: 'hidden' as const,
+};
+
+const tableStyle = {
+  borderCollapse: 'collapse' as const,
 };
 
 const headerRowStyle = {
@@ -50,6 +52,7 @@ const headerRowStyle = {
 
 function LoadingSkeleton() {
   return (
+    <div style={tableWrapperStyle}>
     <Table withRowBorders={false} style={tableStyle}>
       <Table.Thead>
         <Table.Tr style={headerRowStyle}>
@@ -102,11 +105,12 @@ function LoadingSkeleton() {
         ))}
       </Table.Tbody>
     </Table>
+    </div>
   );
 }
 
 export default function RoutesPage() {
-  const selectedRouterId = useRouterStore((s) => s.selectedRouterId);
+  const selectedRouterId = useClusterId();
   const { data: routes, isLoading, error, refetch } = useRoutes(selectedRouterId);
 
   const [search, setSearch] = useState('');
@@ -147,17 +151,6 @@ export default function RoutesPage() {
     setSelectedRoute(route);
     setDetailOpen(true);
   };
-
-  if (!selectedRouterId) {
-    return (
-      <Stack align="center" mt="xl" gap="md">
-        <IconRouter size={48} stroke={1.5} color="var(--mantine-color-dimmed)" />
-        <Text c="dimmed" size="lg">
-          Select a router to view routes
-        </Text>
-      </Stack>
-    );
-  }
 
   const hasRoutes = routes && routes.length > 0;
 
@@ -209,6 +202,7 @@ export default function RoutesPage() {
             mb="md"
           />
 
+          <div style={tableWrapperStyle}>
           <Table withRowBorders={false} style={tableStyle}>
             <Table.Thead>
               <Table.Tr style={headerRowStyle}>
@@ -235,7 +229,7 @@ export default function RoutesPage() {
                     style={{
                       cursor: 'pointer',
                       borderBottom: isLast
-                        ? '1px solid var(--mantine-color-gray-2)'
+                        ? undefined
                         : '1px solid var(--mantine-color-gray-1)',
                       backgroundColor: !route.disabled && !route.active
                         ? 'var(--mantine-color-red-0)'
@@ -252,6 +246,7 @@ export default function RoutesPage() {
                       >
                         {col.render(route, {
                           onEdit: handleEdit,
+                          clusterId: selectedRouterId,
                         })}
                       </Table.Td>
                     ))}
@@ -269,6 +264,7 @@ export default function RoutesPage() {
               )}
             </Table.Tbody>
           </Table>
+          </div>
         </>
       ) : (
         <EmptyState

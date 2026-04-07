@@ -11,10 +11,9 @@ import {
 import {
   IconPlus,
   IconSearch,
-  IconRouter,
   IconListDetails,
 } from '@tabler/icons-react';
-import { useRouterStore } from '../../stores/useRouterStore';
+import { useClusterId } from '../../hooks/useClusterId';
 import { looksLikeCIDR, prefixOverlaps } from '../../utils/cidr';
 import { useAddressLists, useDeleteAddressList, useDeleteEntries } from './addressListsApi';
 import AddressListGroup from './AddressListGroup';
@@ -46,7 +45,7 @@ function LoadingSkeleton() {
 }
 
 export default function AddressListsPage() {
-  const selectedRouterId = useRouterStore((s) => s.selectedRouterId);
+  const selectedRouterId = useClusterId();
   const { data: lists, isLoading, error, refetch } = useAddressLists(selectedRouterId);
   const deleteMutation = useDeleteAddressList(selectedRouterId);
   const deleteEntriesMutation = useDeleteEntries(selectedRouterId);
@@ -178,17 +177,6 @@ export default function AddressListsPage() {
     const list = lists?.find((l) => l.name === listName);
     return list?.entries.map((e) => e.prefix) ?? [];
   };
-
-  if (!selectedRouterId) {
-    return (
-      <Stack align="center" mt="xl" gap="md">
-        <IconRouter size={48} stroke={1.5} color="var(--mantine-color-dimmed)" />
-        <Text c="dimmed" size="lg">
-          Select a router to view address lists
-        </Text>
-      </Stack>
-    );
-  }
 
   if (isLoading) {
     return <LoadingSkeleton />;

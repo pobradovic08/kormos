@@ -13,7 +13,10 @@ import InterfacesPage from '../features/interfaces/InterfacesPage';
 import RoutesPage from '../features/routes/RoutesPage';
 import AddressListsPage from '../features/address-lists/AddressListsPage';
 import TunnelsPage from '../features/tunnels/TunnelsPage';
+import WireGuardPage from '../features/wireguard/WireGuardPage';
+import FirewallPage from '../features/firewall/FirewallPage';
 import ConfigureLandingPage from '../features/configure/ConfigureLandingPage';
+import ConfigureLayout from '../features/configure/ConfigureLayout';
 import DashboardPage from '../features/dashboard/DashboardPage';
 import TenantSettingsPage from '../features/tenant/TenantSettingsPage';
 import UsersPage from '../features/users/UsersPage';
@@ -109,23 +112,41 @@ export const router = createBrowserRouter([
           },
           {
             path: 'configure',
-            element: <ConfigureLandingPage />,
+            element: <NotFoundPage />,
           },
           {
-            path: 'configure/interfaces',
-            element: <InterfacesPage />,
-          },
-          {
-            path: 'configure/routes',
-            element: <RoutesPage />,
-          },
-          {
-            path: 'configure/address-lists',
-            element: <AddressListsPage />,
-          },
-          {
-            path: 'configure/tunnels',
-            element: <TunnelsPage />,
+            path: 'configure/:clusterId',
+            element: <ConfigureLayout />,
+            children: [
+              {
+                index: true,
+                element: <ConfigureLandingPage />,
+              },
+              {
+                path: 'interfaces',
+                element: <InterfacesPage />,
+              },
+              {
+                path: 'routes',
+                element: <RoutesPage />,
+              },
+              {
+                path: 'firewall',
+                element: <FirewallPage />,
+              },
+              {
+                path: 'address-lists',
+                element: <AddressListsPage />,
+              },
+              {
+                path: 'tunnels',
+                element: <TunnelsPage />,
+              },
+              {
+                path: 'wireguard',
+                element: <WireGuardPage />,
+              },
+            ],
           },
           {
             path: 'routers',

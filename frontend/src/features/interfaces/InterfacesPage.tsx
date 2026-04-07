@@ -10,10 +10,9 @@ import {
 } from '@mantine/core';
 import {
   IconSearch,
-  IconRouter,
   IconNetwork,
 } from '@tabler/icons-react';
-import { useRouterStore } from '../../stores/useRouterStore';
+import { useClusterId } from '../../hooks/useClusterId';
 import { useInterfaces } from './interfacesApi';
 import { interfaceColumns } from './interfaceColumns';
 import InterfaceDetail from './InterfaceDetail';
@@ -35,11 +34,14 @@ function HeaderLabel({ children }: { children: string }) {
   );
 }
 
-const tableStyle = {
-  borderCollapse: 'collapse' as const,
+const tableWrapperStyle = {
   border: '1px solid var(--mantine-color-gray-3)',
   borderRadius: 4,
-  overflow: 'hidden',
+  overflow: 'hidden' as const,
+};
+
+const tableStyle = {
+  borderCollapse: 'collapse' as const,
 };
 
 const headerRowStyle = {
@@ -49,6 +51,7 @@ const headerRowStyle = {
 
 function LoadingSkeleton() {
   return (
+    <div style={tableWrapperStyle}>
     <Table withRowBorders={false} style={tableStyle}>
       <Table.Thead>
         <Table.Tr style={headerRowStyle}>
@@ -103,11 +106,12 @@ function LoadingSkeleton() {
         ))}
       </Table.Tbody>
     </Table>
+    </div>
   );
 }
 
 export default function InterfacesPage() {
-  const selectedRouterId = useRouterStore((s) => s.selectedRouterId);
+  const selectedRouterId = useClusterId();
   const { data: interfaces, isLoading, error, refetch } = useInterfaces(selectedRouterId);
 
   const [search, setSearch] = useState('');
@@ -142,17 +146,6 @@ export default function InterfacesPage() {
     setSelectedInterface(iface);
     setDetailOpen(true);
   };
-
-  if (!selectedRouterId) {
-    return (
-      <Stack align="center" mt="xl" gap="md">
-        <IconRouter size={48} stroke={1.5} color="var(--mantine-color-dimmed)" />
-        <Text c="dimmed" size="lg">
-          Select a router to view interfaces
-        </Text>
-      </Stack>
-    );
-  }
 
   const hasInterfaces = interfaces && interfaces.length > 0;
 
@@ -204,6 +197,7 @@ export default function InterfacesPage() {
             mb="md"
           />
 
+          <div style={tableWrapperStyle}>
           <Table withRowBorders={false} style={tableStyle}>
             <Table.Thead>
               <Table.Tr style={headerRowStyle}>
@@ -230,7 +224,7 @@ export default function InterfacesPage() {
                     style={{
                       cursor: 'pointer',
                       borderBottom: isLast
-                        ? '1px solid var(--mantine-color-gray-2)'
+                        ? undefined
                         : '1px solid var(--mantine-color-gray-1)',
                     }}
                   >
@@ -258,6 +252,7 @@ export default function InterfacesPage() {
               )}
             </Table.Tbody>
           </Table>
+          </div>
         </>
       ) : (
         <EmptyState
