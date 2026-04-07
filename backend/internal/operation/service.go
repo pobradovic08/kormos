@@ -1,0 +1,335 @@
+package operation
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"sync"
+
+	"github.com/pobradovic08/kormos/backend/internal/router"
+	"github.com/pobradovic08/kormos/backend/internal/routeros"
+)
+
+// Service orchestrates operation execution and undo against RouterOS devices.
+type Service struct {
+	repo      *Repository
+	routerSvc *router.Service
+
+	// Per-router mutexes to serialize operations against the same device.
+	muMap   map[string]*sync.Mutex
+	muMapMu sync.Mutex
+}
+
+// NewService creates a new operation Service.
+func NewService(repo *Repository, routerSvc *router.Service) *Service {
+	return &Service{
+		repo:      repo,
+		routerSvc: routerSvc,
+		muMap:     make(map[string]*sync.Mutex),
+	}
+}
+
+// routerMutex returns (or creates) a mutex for the given router ID.
+func (s *Service) routerMutex(routerID string) *sync.Mutex {
+	s.muMapMu.Lock()
+	defer s.muMapMu.Unlock()
+	mu, ok := s.muMap[routerID]
+	if !ok {
+		mu = &sync.Mutex{}
+		s.muMap[routerID] = mu
+	}
+	return mu
+}
+
+// lockRouters acquires mutexes for all unique router IDs in the operations.
+// Returns a function to unlock them all.
+func (s *Service) lockRouters(ops []ExecuteOperation) func() {
+	seen := make(map[string]bool)
+	var mutexes []*sync.Mutex
+	for _, op := range ops {
+		if !seen[op.RouterID] {
+			seen[op.RouterID] = true
+			mu := s.routerMutex(op.RouterID)
+			mu.Lock()
+			mutexes = append(mutexes, mu)
+		}
+	}
+	return func() {
+		for _, mu := range mutexes {
+			mu.Unlock()
+		}
+	}
+}
+
+// Execute applies a group of operations to routers, logging before/after state.
+func (s *Service) Execute(ctx context.Context, tenantID, userID string, req ExecuteRequest) (*ExecuteResponse, error) {
+	if len(req.Operations) == 0 {
+		return nil, fmt.Errorf("operation: at least one operation is required")
+	}
+
+	// Lock all involved routers.
+	unlock := s.lockRouters(req.Operations)
+	defer unlock()
+
+	// Create the group.
+	group, err := s.repo.CreateGroup(ctx, tenantID, userID, req.Description)
+	if err != nil {
+		return nil, err
+	}
+
+	// Get RouterOS clients for each unique router.
+	clients := make(map[string]*routeros.Client)
+	for _, op := range req.Operations {
+		if _, ok := clients[op.RouterID]; !ok {
+			client, err := s.routerSvc.GetClientForRouter(ctx, tenantID, op.RouterID)
+			if err != nil {
+				_ = s.repo.UpdateGroupStatus(ctx, group.ID, StatusFailed)
+				return nil, fmt.Errorf("operation: get client for router %s: %w", op.RouterID, err)
+			}
+			clients[op.RouterID] = client
+		}
+	}
+
+	results := make([]OperationResult, 0, len(req.Operations))
+	var appliedOps []Operation
+
+	for i, execOp := range req.Operations {
+		client := clients[execOp.RouterID]
+
+		op := Operation{
+			GroupID:       group.ID,
+			RouterID:      execOp.RouterID,
+			Module:        execOp.Module,
+			OperationType: execOp.OperationType,
+			ResourcePath:  execOp.ResourcePath,
+			ResourceID:    execOp.ResourceID,
+			Sequence:      i,
+			Status:        StatusApplied,
+		}
+
+		// 1. Capture before state (for modify/delete).
+		if execOp.OperationType == OpModify || execOp.OperationType == OpDelete {
+			resourcePath := execOp.ResourcePath
+			if execOp.ResourceID != "" {
+				resourcePath = resourcePath + "/" + execOp.ResourceID
+			}
+			beforeState, err := fetchResourceState(ctx, client, resourcePath)
+			if err != nil {
+				op.Status = StatusFailed
+				op.Error = fmt.Sprintf("failed to read before state: %v", err)
+				_ = s.repo.InsertOperation(ctx, &op)
+				s.markRemainingFailed(ctx, group.ID, req.Operations, i+1)
+				s.rollbackApplied(ctx, tenantID, group.ID, appliedOps, clients)
+				return s.buildFailureResponse(ctx, group, results, i, op.Error)
+			}
+			op.BeforeState = beforeState
+		}
+
+		// 2. Apply the mutation.
+		resourceID, err := applyOperation(ctx, client, execOp)
+		if err != nil {
+			op.Status = StatusFailed
+			op.Error = err.Error()
+			_ = s.repo.InsertOperation(ctx, &op)
+			s.markRemainingFailed(ctx, group.ID, req.Operations, i+1)
+			s.rollbackApplied(ctx, tenantID, group.ID, appliedOps, clients)
+			return s.buildFailureResponse(ctx, group, results, i, op.Error)
+		}
+
+		// For add operations, capture the new resource ID.
+		if execOp.OperationType == OpAdd && resourceID != "" {
+			op.ResourceID = resourceID
+		}
+
+		// 3. Capture after state (for add/modify).
+		if execOp.OperationType == OpAdd || execOp.OperationType == OpModify {
+			afterPath := execOp.ResourcePath
+			rid := op.ResourceID
+			if rid == "" {
+				rid = execOp.ResourceID
+			}
+			if rid != "" {
+				afterPath = afterPath + "/" + rid
+			}
+			afterState, err := fetchResourceState(ctx, client, afterPath)
+			if err != nil {
+				// Apply succeeded but we can't read state — fall back to the request body.
+				op.AfterState = execOp.Body
+			} else {
+				op.AfterState = afterState
+			}
+		}
+
+		// 4. Persist the operation.
+		if err := s.repo.InsertOperation(ctx, &op); err != nil {
+			op.Status = StatusFailed
+			op.Error = fmt.Sprintf("failed to persist operation: %v", err)
+			s.rollbackApplied(ctx, tenantID, group.ID, append(appliedOps, op), clients)
+			return s.buildFailureResponse(ctx, group, results, i, op.Error)
+		}
+
+		appliedOps = append(appliedOps, op)
+		results = append(results, OperationResult{
+			ID:         op.ID,
+			Status:     StatusApplied,
+			ResourceID: op.ResourceID,
+			AfterState: op.AfterState,
+		})
+	}
+
+	resp := &ExecuteResponse{
+		GroupID:    group.ID,
+		Status:     StatusApplied,
+		Operations: results,
+	}
+	return resp, nil
+}
+
+// markRemainingFailed inserts failed operation rows for operations that were never attempted.
+func (s *Service) markRemainingFailed(ctx context.Context, groupID string, ops []ExecuteOperation, startIdx int) {
+	for i := startIdx; i < len(ops); i++ {
+		op := Operation{
+			GroupID:       groupID,
+			RouterID:      ops[i].RouterID,
+			Module:        ops[i].Module,
+			OperationType: ops[i].OperationType,
+			ResourcePath:  ops[i].ResourcePath,
+			ResourceID:    ops[i].ResourceID,
+			Sequence:      i,
+			Status:        StatusFailed,
+			Error:         "not attempted: previous operation failed",
+		}
+		_ = s.repo.InsertOperation(ctx, &op)
+	}
+}
+
+// rollbackApplied reverses already-applied operations in reverse order.
+func (s *Service) rollbackApplied(ctx context.Context, tenantID, groupID string, applied []Operation, clients map[string]*routeros.Client) {
+	allRolledBack := true
+	for i := len(applied) - 1; i >= 0; i-- {
+		op := applied[i]
+		if op.Status != StatusApplied {
+			continue
+		}
+
+		client := clients[op.RouterID]
+		err := reverseOperation(ctx, client, op)
+		if err != nil {
+			allRolledBack = false
+			_ = s.repo.UpdateOperationStatus(ctx, op.ID, StatusFailed, fmt.Sprintf("rollback failed: %v", err))
+		} else {
+			_ = s.repo.UpdateOperationStatus(ctx, op.ID, StatusUndone, "")
+		}
+	}
+
+	if allRolledBack {
+		_ = s.repo.UpdateGroupStatus(ctx, groupID, StatusFailed)
+	} else {
+		_ = s.repo.UpdateGroupStatus(ctx, groupID, StatusRequiresAttention)
+	}
+}
+
+// buildFailureResponse constructs the response when execution fails.
+func (s *Service) buildFailureResponse(ctx context.Context, group *Group, results []OperationResult, failedIdx int, errMsg string) (*ExecuteResponse, error) {
+	updated, err := s.repo.GetGroupByID(ctx, group.ID)
+	if err != nil {
+		return &ExecuteResponse{
+			GroupID: group.ID,
+			Status:  StatusFailed,
+		}, nil
+	}
+
+	opResults := make([]OperationResult, len(updated.Operations))
+	for i, op := range updated.Operations {
+		opResults[i] = OperationResult{
+			ID:         op.ID,
+			Status:     op.Status,
+			ResourceID: op.ResourceID,
+			Error:      op.Error,
+		}
+	}
+
+	return &ExecuteResponse{
+		GroupID:    group.ID,
+		Status:     updated.Status,
+		Operations: opResults,
+	}, nil
+}
+
+// --- RouterOS interaction helpers ---
+
+// fetchResourceState reads the current state of a resource from the router.
+func fetchResourceState(ctx context.Context, client *routeros.Client, path string) (map[string]interface{}, error) {
+	body, err := client.Get(ctx, path)
+	if err != nil {
+		return nil, err
+	}
+	var state map[string]interface{}
+	if err := json.Unmarshal(body, &state); err != nil {
+		return nil, fmt.Errorf("unmarshal resource state: %w", err)
+	}
+	return state, nil
+}
+
+// applyOperation sends the mutation to the router and returns the new resource ID (for adds).
+func applyOperation(ctx context.Context, client *routeros.Client, op ExecuteOperation) (string, error) {
+	switch op.OperationType {
+	case OpAdd:
+		respBody, err := client.Put(ctx, op.ResourcePath, op.Body)
+		if err != nil {
+			return "", err
+		}
+		var parsed map[string]interface{}
+		if err := json.Unmarshal(respBody, &parsed); err == nil {
+			if id, ok := parsed[".id"].(string); ok {
+				return id, nil
+			}
+		}
+		return "", nil
+
+	case OpModify:
+		path := op.ResourcePath
+		if op.ResourceID != "" {
+			path = path + "/" + op.ResourceID
+		}
+		_, err := client.Patch(ctx, path, op.Body)
+		return "", err
+
+	case OpDelete:
+		path := op.ResourcePath
+		if op.ResourceID != "" {
+			path = path + "/" + op.ResourceID
+		}
+		return "", client.Delete(ctx, path)
+
+	default:
+		return "", fmt.Errorf("unsupported operation type: %s", op.OperationType)
+	}
+}
+
+// reverseOperation applies the inverse of a previously applied operation.
+func reverseOperation(ctx context.Context, client *routeros.Client, op Operation) error {
+	switch op.OperationType {
+	case OpAdd:
+		path := op.ResourcePath
+		if op.ResourceID != "" {
+			path = path + "/" + op.ResourceID
+		}
+		return client.Delete(ctx, path)
+
+	case OpModify:
+		path := op.ResourcePath
+		if op.ResourceID != "" {
+			path = path + "/" + op.ResourceID
+		}
+		_, err := client.Patch(ctx, path, op.BeforeState)
+		return err
+
+	case OpDelete:
+		_, err := client.Put(ctx, op.ResourcePath, op.BeforeState)
+		return err
+
+	default:
+		return fmt.Errorf("unsupported operation type for reverse: %s", op.OperationType)
+	}
+}
