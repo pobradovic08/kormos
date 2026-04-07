@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import apiClient from './client';
+import { useMockMode } from '../mocks/useMockMode';
 import type {
   ExecuteOperationRequest,
   ExecuteOperationResponse,
@@ -39,9 +40,11 @@ export function useUndoOperation() {
 }
 
 export function useOperationHistory(routerId: string | null, page = 1, perPage = 20) {
+  const isMock = useMockMode();
   return useQuery({
     queryKey: ['operation-history', routerId, page, perPage],
-    queryFn: async () => {
+    queryFn: async (): Promise<OperationHistoryResponse> => {
+      if (isMock) return { groups: [], total: 0 };
       const params = new URLSearchParams();
       if (routerId) params.set('router_id', routerId);
       params.set('page', String(page));
@@ -52,5 +55,6 @@ export function useOperationHistory(routerId: string | null, page = 1, perPage =
       return response.data;
     },
     enabled: !!routerId,
+    retry: false,
   });
 }
