@@ -151,31 +151,6 @@ export interface IPsecTunnel {
 
 export type Tunnel = GRETunnel | IPsecTunnel;
 
-export interface PendingChange {
-  id: string;
-  routerId: string;
-  module: string;
-  operation: 'add' | 'modify' | 'delete';
-  resourcePath: string;
-  resourceId: string | null;
-  before: Record<string, unknown> | null;
-  after: Record<string, unknown> | null;
-  createdAt: string;
-}
-
-export interface OperationResult {
-  index: number;
-  status: 'success' | 'failure';
-  resource_id: string | null;
-  error?: string;
-}
-
-export interface CommitResponse {
-  status: 'success' | 'partial' | 'failure';
-  results: OperationResult[];
-  audit_id: string;
-}
-
 export interface AuditOperation {
   index: number;
   module: string;
@@ -256,4 +231,77 @@ export interface FirewallRule {
   connectionState?: ConnectionState[];
   disabled: boolean;
   comment: string;
+}
+
+// --- Operation Log & Undo ---
+
+export interface OperationGroup {
+  id: string;
+  tenant_id: string;
+  user_id: string;
+  description: string;
+  status: 'applied' | 'undone' | 'failed' | 'requires_attention';
+  created_at: string;
+  expires_at: string;
+  user: { id: string; name: string; email: string };
+  operations: OperationEntry[];
+  can_undo: boolean;
+}
+
+export interface OperationEntry {
+  id: string;
+  group_id: string;
+  router_id: string;
+  module: string;
+  operation_type: 'add' | 'modify' | 'delete';
+  resource_path: string;
+  resource_id?: string;
+  before_state?: Record<string, unknown>;
+  after_state?: Record<string, unknown>;
+  sequence: number;
+  status: 'applied' | 'undone' | 'failed';
+  error?: string;
+  applied_at: string;
+}
+
+export interface ExecuteOperationRequest {
+  description: string;
+  operations: {
+    router_id: string;
+    module: string;
+    operation_type: 'add' | 'modify' | 'delete';
+    resource_path: string;
+    resource_id?: string;
+    body: Record<string, unknown>;
+  }[];
+}
+
+export interface ExecuteOperationResponse {
+  group_id: string;
+  status: string;
+  operations: {
+    id: string;
+    status: string;
+    resource_id?: string;
+    after_state?: Record<string, unknown>;
+    error?: string;
+  }[];
+}
+
+export interface UndoResponse {
+  group_id: string;
+  status: string;
+  reason?: string;
+  drifted_operation?: {
+    id: string;
+    resource_path: string;
+    resource_id: string;
+    expected_state: Record<string, unknown>;
+    current_state: Record<string, unknown>;
+  };
+}
+
+export interface OperationHistoryResponse {
+  groups: OperationGroup[];
+  total: number;
 }
