@@ -233,27 +233,28 @@ export default function FirewallForm({
       const srcIsList = isAddressList(state.src);
       const dstIsList = isAddressList(state.dst);
 
-      const ruleData: Omit<FirewallRule, 'id'> = {
+      // RouterOS expects kebab-case field names
+      const ruleData: Record<string, unknown> = {
         chain: isEdit ? editRule!.chain : chain,
         action: state.action,
-        comment: state.comment,
-        disabled: state.disabled,
-        protocol: state.protocol || undefined,
-        srcAddress: !srcIsList && state.src ? state.src : undefined,
-        srcAddressList: srcIsList ? state.src : undefined,
-        dstAddress: !dstIsList && state.dst ? state.dst : undefined,
-        dstAddressList: dstIsList ? state.dst : undefined,
-        srcPort: portsEnabled && state.srcPort ? state.srcPort : undefined,
-        dstPort: portsEnabled && state.dstPort ? state.dstPort : undefined,
-        inInterface: state.inInterface || undefined,
-        outInterface: state.outInterface || undefined,
-        connectionState: state.connectionState.length > 0 ? state.connectionState : undefined,
+        disabled: state.disabled ? 'true' : 'false',
       };
+      if (state.comment) ruleData['comment'] = state.comment;
+      if (state.protocol) ruleData['protocol'] = state.protocol;
+      if (!srcIsList && state.src) ruleData['src-address'] = state.src;
+      if (srcIsList) ruleData['src-address-list'] = state.src;
+      if (!dstIsList && state.dst) ruleData['dst-address'] = state.dst;
+      if (dstIsList) ruleData['dst-address-list'] = state.dst;
+      if (portsEnabled && state.srcPort) ruleData['src-port'] = state.srcPort;
+      if (portsEnabled && state.dstPort) ruleData['dst-port'] = state.dstPort;
+      if (state.inInterface) ruleData['in-interface'] = state.inInterface;
+      if (state.outInterface) ruleData['out-interface'] = state.outInterface;
+      if (state.connectionState.length > 0) ruleData['connection-state'] = state.connectionState.join(',');
 
       if (isEdit) {
-        await updateMutation.mutateAsync({ id: editRule!.id, updates: ruleData });
+        await updateMutation.mutateAsync({ id: editRule!.id, updates: ruleData as any });
       } else {
-        await addMutation.mutateAsync(ruleData);
+        await addMutation.mutateAsync(ruleData as any);
       }
 
       onClose();
