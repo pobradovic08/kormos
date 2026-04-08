@@ -4,9 +4,95 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strconv"
 
 	"github.com/pobradovic08/kormos/backend/internal/routeros"
 )
+
+// CreateRouteRequest is the frontend's payload for creating a static route.
+type CreateRouteRequest struct {
+	Destination string `json:"destination"`
+	Gateway     string `json:"gateway"`
+	Distance    int    `json:"distance"`
+	Comment     string `json:"comment,omitempty"`
+}
+
+// toRouterOS converts the create request to RouterOS REST API format.
+func (r CreateRouteRequest) toRouterOS() map[string]string {
+	m := map[string]string{
+		"dst-address": r.Destination,
+		"gateway":     r.Gateway,
+		"distance":    strconv.Itoa(r.Distance),
+	}
+	if r.Comment != "" {
+		m["comment"] = r.Comment
+	}
+	return m
+}
+
+// UpdateRouteRequest is the frontend's payload for updating a static route.
+type UpdateRouteRequest struct {
+	Gateway  *string `json:"gateway,omitempty"`
+	Distance *int    `json:"distance,omitempty"`
+	Disabled *bool   `json:"disabled,omitempty"`
+	Comment  *string `json:"comment,omitempty"`
+}
+
+// toRouterOS converts the update request to RouterOS REST API format.
+func (r UpdateRouteRequest) toRouterOS() map[string]string {
+	m := map[string]string{}
+	if r.Gateway != nil {
+		m["gateway"] = *r.Gateway
+	}
+	if r.Distance != nil {
+		m["distance"] = strconv.Itoa(*r.Distance)
+	}
+	if r.Disabled != nil {
+		if *r.Disabled {
+			m["disabled"] = "true"
+		} else {
+			m["disabled"] = "false"
+		}
+	}
+	if r.Comment != nil {
+		m["comment"] = *r.Comment
+	}
+	return m
+}
+
+// CreateRoute creates a static route on a RouterOS device and returns it normalized.
+func CreateRoute(ctx context.Context, client *routeros.Client, req CreateRouteRequest) (*Route, error) {
+	body, err := client.Put(ctx, "/ip/route", req.toRouterOS())
+	if err != nil {
+		return nil, fmt.Errorf("proxy: create route: %w", err)
+	}
+
+	var r rawRoute
+	if err := json.Unmarshal(body, &r); err != nil {
+		return nil, fmt.Errorf("proxy: parse created route: %w", err)
+	}
+
+	route := normalizeRoute(r)
+	return &route, nil
+}
+
+// UpdateRoute updates a static route on a RouterOS device.
+func UpdateRoute(ctx context.Context, client *routeros.Client, id string, req UpdateRouteRequest) error {
+	_, err := client.Patch(ctx, "/ip/route/"+id, req.toRouterOS())
+	if err != nil {
+		return fmt.Errorf("proxy: update route %s: %w", id, err)
+	}
+	return nil
+}
+
+// DeleteRoute deletes a static route from a RouterOS device.
+func DeleteRoute(ctx context.Context, client *routeros.Client, id string) error {
+	err := client.Delete(ctx, "/ip/route/"+id)
+	if err != nil {
+		return fmt.Errorf("proxy: delete route %s: %w", id, err)
+	}
+	return nil
+}
 
 // Route is the normalized representation of a RouterOS IP route.
 type Route struct {
@@ -48,6 +134,21 @@ func deriveRouteType(r rawRoute) string {
 	return "static"
 }
 
+func normalizeRoute(r rawRoute) Route {
+	return Route{
+		ID:          r.ID,
+		Destination: r.DstAddress,
+		Gateway:     r.Gateway,
+		Interface:   r.Interface,
+		Distance:    parseInt(r.Distance),
+		RouteType:   deriveRouteType(r),
+		RoutingMark: r.RoutingMark,
+		Disabled:    parseBool(r.Disabled),
+		Active:      parseBool(r.Active),
+		Comment:     r.Comment,
+	}
+}
+
 // FetchRoutes fetches and normalizes all routes from a RouterOS device.
 func FetchRoutes(ctx context.Context, client *routeros.Client) ([]Route, error) {
 	body, err := client.Get(ctx, "/ip/route")
@@ -62,18 +163,7 @@ func FetchRoutes(ctx context.Context, client *routeros.Client) ([]Route, error) 
 
 	routes := make([]Route, len(raw))
 	for i, r := range raw {
-		routes[i] = Route{
-			ID:          r.ID,
-			Destination: r.DstAddress,
-			Gateway:     r.Gateway,
-			Interface:   r.Interface,
-			Distance:    parseInt(r.Distance),
-			RouteType:   deriveRouteType(r),
-			RoutingMark: r.RoutingMark,
-			Disabled:    parseBool(r.Disabled),
-			Active:      parseBool(r.Active),
-			Comment:     r.Comment,
-		}
+		routes[i] = normalizeRoute(r)
 	}
 	return routes, nil
 }
@@ -90,17 +180,6 @@ func FetchRoute(ctx context.Context, client *routeros.Client, id string) (*Route
 		return nil, fmt.Errorf("proxy: parse route: %w", err)
 	}
 
-	route := Route{
-		ID:          r.ID,
-		Destination: r.DstAddress,
-		Gateway:     r.Gateway,
-		Interface:   r.Interface,
-		Distance:    parseInt(r.Distance),
-		RouteType:   deriveRouteType(r),
-		RoutingMark: r.RoutingMark,
-		Disabled:    parseBool(r.Disabled),
-		Active:      parseBool(r.Active),
-		Comment:     r.Comment,
-	}
+	route := normalizeRoute(r)
 	return &route, nil
 }

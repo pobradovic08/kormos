@@ -151,7 +151,10 @@ func main() {
 
 			r.Get("/{routerID}/firewall/filter", proxyHandler.FirewallRules)
 			r.Get("/{routerID}/routes", proxyHandler.Routes)
+			r.Post("/{routerID}/routes", proxyHandler.CreateRoute)
 			r.Get("/{routerID}/routes/{routeID}", proxyHandler.RouteByID)
+			r.Patch("/{routerID}/routes/{routeID}", proxyHandler.UpdateRoute)
+			r.Delete("/{routerID}/routes/{routeID}", proxyHandler.DeleteRoute)
 			r.Get("/{routerID}/tunnels", proxyHandler.Tunnels)
 			r.Get("/{routerID}/address-lists", proxyHandler.AddressLists)
 			r.Route("/{routerID}/wireguard", func(r chi.Router) {

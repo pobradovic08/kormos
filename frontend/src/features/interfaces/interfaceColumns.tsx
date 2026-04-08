@@ -34,6 +34,7 @@ export interface InterfaceColumn {
   header: string;
   width?: number | string;
   align?: 'left' | 'center' | 'right';
+  adminOnly?: boolean;
   render: (
     iface: RouterInterface,
     actions?: {
@@ -76,6 +77,7 @@ export const interfaceColumns: InterfaceColumn[] = [
     accessor: 'default_name',
     header: 'Original Name',
     width: '20%',
+    adminOnly: true,
     render: (iface) => (
       <MonoText size="xs" c="dimmed">
         {iface.default_name || iface.name}

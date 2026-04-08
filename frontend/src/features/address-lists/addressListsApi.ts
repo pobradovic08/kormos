@@ -31,22 +31,13 @@ export function useAddressLists(routerId: string | null) {
 export function useCreateAddressList(routerId: string | null) {
   const isMock = useMockMode();
   const queryClient = useQueryClient();
-  const executeOp = useExecuteOperation();
 
   return useMutation({
     mutationFn: async ({ name }: { name: string }) => {
       if (isMock) return createAddressList(routerId!, name);
-      const result = await executeOp.mutateAsync({
-        description: `Create address list "${name}"`,
-        operations: [{
-          router_id: routerId!,
-          module: 'address-lists',
-          operation_type: 'add',
-          resource_path: '/ip/firewall/address-list',
-          body: { list: name } as Record<string, unknown>,
-        }],
-      });
-      return result;
+      // MikroTik creates a list implicitly when the first entry is added.
+      // No separate API call needed.
+      return { name };
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['address-lists', routerId] });

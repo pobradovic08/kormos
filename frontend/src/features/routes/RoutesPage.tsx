@@ -7,15 +7,18 @@ import {
   Text,
   Stack,
   Skeleton,
+  Button,
 } from '@mantine/core';
 import {
   IconSearch,
   IconRouteAltRight,
+  IconPlus,
 } from '@tabler/icons-react';
 import { useClusterId } from '../../hooks/useClusterId';
 import { useRoutes } from './routesApi';
 import { routeColumns } from './routeColumns';
 import RouteDetail from './RouteDetail';
+import RouteForm from './RouteForm';
 import EmptyState from '../../components/common/EmptyState';
 import ErrorBanner from '../../components/common/ErrorBanner';
 import type { Route } from '../../api/types';
@@ -116,6 +119,7 @@ export default function RoutesPage() {
   const [search, setSearch] = useState('');
   const [selectedRoute, setSelectedRoute] = useState<Route | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
+  const [formOpen, setFormOpen] = useState(false);
 
   const filteredRoutes = useMemo(() => {
     if (!routes) return [];
@@ -189,6 +193,9 @@ export default function RoutesPage() {
             Static routes and routing table
           </Text>
         </Stack>
+        <Button leftSection={<IconPlus size={16} />} size="sm" onClick={() => setFormOpen(true)}>
+          Static Route
+        </Button>
       </Group>
 
       {hasRoutes ? (
@@ -280,6 +287,12 @@ export default function RoutesPage() {
         route={selectedRoute}
         isOpen={detailOpen}
         onClose={handleDetailClose}
+      />
+
+      <RouteForm
+        isOpen={formOpen}
+        onClose={() => setFormOpen(false)}
+        routerId={selectedRouterId}
       />
     </>
   );

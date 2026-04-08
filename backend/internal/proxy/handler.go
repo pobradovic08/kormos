@@ -92,6 +92,76 @@ func (h *Handler) RouteByID(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, route)
 }
 
+// CreateRoute handles POST /routers/{routerID}/routes.
+func (h *Handler) CreateRoute(w http.ResponseWriter, r *http.Request) {
+	client, err := h.getClient(r)
+	if err != nil {
+		writeError(w, http.StatusBadGateway, "routeros_error", "Failed to connect to router")
+		return
+	}
+	var req CreateRouteRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid_request", "Invalid request body")
+		return
+	}
+	if req.Destination == "" || req.Gateway == "" {
+		writeError(w, http.StatusBadRequest, "invalid_request", "Destination and gateway are required")
+		return
+	}
+	if req.Distance == 0 {
+		req.Distance = 1
+	}
+	route, err := CreateRoute(r.Context(), client, req)
+	if err != nil {
+		writeError(w, http.StatusBadGateway, "routeros_error", "Failed to create route")
+		return
+	}
+	writeJSON(w, http.StatusCreated, route)
+}
+
+// UpdateRoute handles PATCH /routers/{routerID}/routes/{routeID}.
+func (h *Handler) UpdateRoute(w http.ResponseWriter, r *http.Request) {
+	client, err := h.getClient(r)
+	if err != nil {
+		writeError(w, http.StatusBadGateway, "routeros_error", "Failed to connect to router")
+		return
+	}
+	routeID := chi.URLParam(r, "routeID")
+	if !isValidRouterOSID(routeID) {
+		writeError(w, http.StatusBadRequest, "invalid_id", "Invalid route ID format")
+		return
+	}
+	var req UpdateRouteRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid_request", "Invalid request body")
+		return
+	}
+	if err := UpdateRoute(r.Context(), client, routeID, req); err != nil {
+		writeError(w, http.StatusBadGateway, "routeros_error", "Failed to update route")
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// DeleteRoute handles DELETE /routers/{routerID}/routes/{routeID}.
+func (h *Handler) DeleteRoute(w http.ResponseWriter, r *http.Request) {
+	client, err := h.getClient(r)
+	if err != nil {
+		writeError(w, http.StatusBadGateway, "routeros_error", "Failed to connect to router")
+		return
+	}
+	routeID := chi.URLParam(r, "routeID")
+	if !isValidRouterOSID(routeID) {
+		writeError(w, http.StatusBadRequest, "invalid_id", "Invalid route ID format")
+		return
+	}
+	if err := DeleteRoute(r.Context(), client, routeID); err != nil {
+		writeError(w, http.StatusBadGateway, "routeros_error", "Failed to delete route")
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
 // Tunnels handles GET /routers/{routerID}/tunnels.
 func (h *Handler) Tunnels(w http.ResponseWriter, r *http.Request) {
 	client, err := h.getClient(r)
