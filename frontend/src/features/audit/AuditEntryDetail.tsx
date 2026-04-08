@@ -8,7 +8,6 @@ import {
   Paper,
   Title,
 } from '@mantine/core';
-import ChangeDiff from '../../components/commit/ChangeDiff';
 import type { AuditEntry, AuditOperation } from '../../api/types';
 
 interface AuditEntryDetailProps {
@@ -161,13 +160,11 @@ export default function AuditEntryDetail({ entry, opened, onClose }: AuditEntryD
                   </Text>
 
                   {op.body && Object.keys(op.body).length > 0 && (
-                    <ChangeDiff
-                      before={op.operation === 'delete' ? op.body : null}
-                      after={op.operation !== 'delete' ? op.body : null}
-                      operation={
-                        (op.operation as 'add' | 'modify' | 'delete') || 'modify'
-                      }
-                    />
+                    <Paper p="xs" bg="dark.7" style={{ borderRadius: 'var(--mantine-radius-sm)' }}>
+                      <Text size="xs" ff="monospace" style={{ whiteSpace: 'pre-wrap' }}>
+                        {JSON.stringify(op.body, null, 2)}
+                      </Text>
+                    </Paper>
                   )}
                 </Stack>
               </Paper>

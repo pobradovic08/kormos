@@ -11,6 +11,7 @@ import {
 import {
   IconSearch,
   IconNetwork,
+  IconCrownFilled,
 } from '@tabler/icons-react';
 import { useClusterId } from '../../hooks/useClusterId';
 import { useInterfaces } from './interfacesApi';
@@ -20,17 +21,20 @@ import EmptyState from '../../components/common/EmptyState';
 import ErrorBanner from '../../components/common/ErrorBanner';
 import type { RouterInterface } from '../../api/types';
 
-function HeaderLabel({ children }: { children: string }) {
+function HeaderLabel({ children, adminOnly }: { children: string; adminOnly?: boolean }) {
   return (
-    <Text
-      size="xs"
-      fw={600}
-      c="dimmed"
-      tt="uppercase"
-      style={{ letterSpacing: 0.5 }}
-    >
-      {children}
-    </Text>
+    <Group gap={4} wrap="nowrap">
+      {adminOnly && <IconCrownFilled size={16} color="var(--mantine-color-yellow-6)" style={{ flexShrink: 0 }} />}
+      <Text
+        size="xs"
+        fw={600}
+        c="dimmed"
+        tt="uppercase"
+        style={{ letterSpacing: 0.5 }}
+      >
+        {children}
+      </Text>
+    </Group>
   );
 }
 
@@ -84,6 +88,9 @@ function LoadingSkeleton() {
                   <Skeleton height={10} width={70} radius="sm" />
                 </Stack>
               </Group>
+            </Table.Td>
+            <Table.Td style={{ width: 120 }}>
+              <Skeleton height={12} width={70} radius="sm" />
             </Table.Td>
             <Table.Td style={{ width: 180 }}>
               <Stack gap={2}>
@@ -209,7 +216,7 @@ export default function InterfacesPage() {
                       textAlign: col.align ?? 'left',
                     }}
                   >
-                    <HeaderLabel>{col.header}</HeaderLabel>
+                    <HeaderLabel adminOnly={col.adminOnly}>{col.header}</HeaderLabel>
                   </Table.Th>
                 ))}
               </Table.Tr>

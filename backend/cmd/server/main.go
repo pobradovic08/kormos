@@ -15,11 +15,14 @@ import (
 
 	"github.com/pobradovic08/kormos/backend/internal/audit"
 	"github.com/pobradovic08/kormos/backend/internal/auth"
+	"github.com/pobradovic08/kormos/backend/internal/cluster"
 	"github.com/pobradovic08/kormos/backend/internal/config"
 	"github.com/pobradovic08/kormos/backend/internal/configure"
 	"github.com/pobradovic08/kormos/backend/internal/db"
 	"github.com/pobradovic08/kormos/backend/internal/interfaces"
 	"github.com/pobradovic08/kormos/backend/internal/middleware"
+	"github.com/pobradovic08/kormos/backend/internal/operation"
+	"github.com/pobradovic08/kormos/backend/internal/proxy"
 	"github.com/pobradovic08/kormos/backend/internal/router"
 	"github.com/pobradovic08/kormos/backend/internal/setup"
 	"github.com/pobradovic08/kormos/backend/internal/tenant"
@@ -59,6 +62,16 @@ func main() {
 	auditRepo := audit.NewRepository(pool)
 	configureEngine := configure.NewEngine(routerService)
 	configureHandler := configure.NewHandler(configureEngine, routerService, auditRepo, pool)
+
+	operationRepo := operation.NewRepository(pool)
+	operationService := operation.NewService(operationRepo, routerService)
+	operationHandler := operation.NewHandler(operationService)
+
+	clusterRepo := cluster.NewRepository(pool)
+	clusterService := cluster.NewService(clusterRepo, routerService, cfg.EncryptionKey, pool)
+	clusterHandler := cluster.NewHandler(clusterService)
+
+	proxyHandler := proxy.NewHandler(routerService)
 
 	tenantHandler := tenant.NewHandler(pool)
 
@@ -114,6 +127,15 @@ func main() {
 			r.Delete("/{userID}", userHandler.Delete)
 		})
 
+		r.Route("/clusters", func(r chi.Router) {
+			r.Get("/", clusterHandler.List)
+			r.Post("/", clusterHandler.Create)
+			r.Post("/test-connection", clusterHandler.TestConnection)
+			r.Get("/{clusterID}", clusterHandler.GetByID)
+			r.Put("/{clusterID}", clusterHandler.Update)
+			r.Delete("/{clusterID}", clusterHandler.Delete)
+		})
+
 		r.Route("/routers", func(r chi.Router) {
 			r.Get("/", routerHandler.List)
 			r.Post("/", routerHandler.Create)
@@ -127,10 +149,29 @@ func main() {
 				r.Get("/{name}", interfaceHandler.GetByName)
 			})
 
+			r.Get("/{routerID}/firewall/filter", proxyHandler.FirewallRules)
+			r.Get("/{routerID}/routes", proxyHandler.Routes)
+			r.Post("/{routerID}/routes", proxyHandler.CreateRoute)
+			r.Get("/{routerID}/routes/{routeID}", proxyHandler.RouteByID)
+			r.Patch("/{routerID}/routes/{routeID}", proxyHandler.UpdateRoute)
+			r.Delete("/{routerID}/routes/{routeID}", proxyHandler.DeleteRoute)
+			r.Get("/{routerID}/tunnels", proxyHandler.Tunnels)
+			r.Get("/{routerID}/address-lists", proxyHandler.AddressLists)
+			r.Route("/{routerID}/wireguard", func(r chi.Router) {
+				r.Get("/", proxyHandler.WireGuardInterfaces)
+				r.Get("/peers", proxyHandler.WireGuardPeers)
+			})
+
 			r.With(middleware.RequireRole("owner", "admin")).Post("/{routerID}/configure", configureHandler.Configure)
 		})
 
 		r.With(middleware.RequireRole("owner", "admin")).Get("/audit-log", configureHandler.AuditList)
+
+		r.Route("/v1/operations", func(r chi.Router) {
+			r.With(middleware.RequireRole("owner", "admin", "operator")).Post("/execute", operationHandler.Execute)
+			r.With(middleware.RequireRole("owner", "admin", "operator")).Post("/undo/{groupID}", operationHandler.Undo)
+			r.Get("/history", operationHandler.History)
+		})
 	})
 
 	// Superadmin routes (auth required, no tenant scope, superadmin check)

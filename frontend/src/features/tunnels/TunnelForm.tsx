@@ -16,7 +16,7 @@ import {
   SimpleGrid,
   Alert,
 } from '@mantine/core';
-import { IconBuildingTunnel, IconInfoCircle, IconPlus, IconTrash } from '@tabler/icons-react';
+import { IconBuildingTunnel, IconPlus, IconTrash } from '@tabler/icons-react';
 import type { Tunnel, GRETunnel, IPsecTunnel } from '../../api/types';
 import { useAddTunnel, useUpdateTunnel } from './tunnelsApi';
 import { useInterfaces } from '../interfaces/interfacesApi';

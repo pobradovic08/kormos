@@ -57,7 +57,8 @@ function computeBackupStatus(routers: Router[]): BackupStatus {
   return 'old';
 }
 
-export function groupRouters(routers: Router[]): RouterGroup[] {
+export function groupRouters(routers: Router[] | null | undefined): RouterGroup[] {
+  if (!routers) return [];
   const clusterMap = new Map<string, Router[]>();
   const standalone: Router[] = [];
 
@@ -85,7 +86,7 @@ export function groupRouters(routers: Router[]): RouterGroup[] {
       clusterId,
       clusterName: first.cluster_name ?? clusterId,
       tenantName: first.tenant_name ?? '',
-      mode: 'ha',
+      mode: clusterRouters.length === 2 ? 'ha' : 'standalone',
       status: computeStatus(clusterRouters),
       versionStatus: computeVersionStatus(clusterRouters),
       licenseStatus: computeLicenseStatus(clusterRouters),

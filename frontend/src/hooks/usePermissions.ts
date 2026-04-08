@@ -1,7 +1,7 @@
 import { useAuthStore } from '../stores/useAuthStore';
 
 export interface Permissions {
-  canCommit: boolean;
+  canUndo: boolean;
   canEditConfig: boolean;
   canManageUsers: boolean;
   canManageRouters: boolean;
@@ -22,10 +22,10 @@ export function usePermissions(): Permissions {
 
   return {
     // viewer = read only
-    // operator = stage only (can edit config but cannot commit)
-    // admin = stage + commit + manage routers
+    // operator = can edit config (changes apply immediately)
+    // admin = edit + undo anyone's changes + manage routers
     // owner = everything
-    canCommit: isAdmin || isOwner,
+    canUndo: isAdmin || isOwner,
     canEditConfig: isOperator || isAdmin || isOwner,
     canManageUsers: isAdmin || isOwner,
     canManageRouters: isAdmin || isOwner,

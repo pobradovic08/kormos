@@ -4,6 +4,7 @@ import {
   Text,
   Button,
   Menu,
+  Tooltip,
 } from '@mantine/core';
 import {
   IconPencil,
@@ -11,6 +12,7 @@ import {
   IconTrash,
   IconPlayerPause,
   IconPlayerPlay,
+  IconInfoCircle,
 } from '@tabler/icons-react';
 import { Link } from 'react-router-dom';
 import MonoText from '../../components/common/MonoText';
@@ -71,16 +73,16 @@ export const routeColumns: RouteColumn[] = [
     accessor: 'destination',
     header: 'Destination',
     render: (route) => (
-      <div>
+      <Group gap={6} wrap="nowrap">
         <MonoText fw={500} size="xs">
           {route.destination}
         </MonoText>
         {route.comment && (
-          <Text size="xs" c="dimmed" lineClamp={1}>
-            {route.comment}
-          </Text>
+          <Tooltip label={route.comment} fz="xs" radius="sm" multiline maw={300}>
+            <IconInfoCircle size={14} color="var(--mantine-color-dimmed)" style={{ flexShrink: 0 }} />
+          </Tooltip>
         )}
-      </div>
+      </Group>
     ),
   },
   {
@@ -88,7 +90,7 @@ export const routeColumns: RouteColumn[] = [
     header: 'Next Hop',
     width: 280,
     render: (route, ctx) => (
-      <div>
+      <Group gap={4} wrap="nowrap">
         <MonoText fw={500} size="xs">
           {route.gateway || '\u2014'}
         </MonoText>
@@ -108,7 +110,7 @@ export const routeColumns: RouteColumn[] = [
             </Text>
           </Text>
         )}
-      </div>
+      </Group>
     ),
   },
   {
