@@ -103,7 +103,7 @@ func (s *Service) CreateRoute(ctx context.Context, tenantID, userID, clusterID s
 		Description: fmt.Sprintf("Create route %s via %s", req.Destination, req.Gateway),
 		Operations:  ops,
 	}
-	if _, err := s.operationSvc.Execute(ctx, tenantID, userID, execReq); err != nil {
+	if err := s.executeOps(ctx, tenantID, userID, execReq); err != nil {
 		return nil, fmt.Errorf("routes: create route: %w", err)
 	}
 
@@ -194,7 +194,7 @@ func (s *Service) UpdateRoute(ctx context.Context, tenantID, userID, clusterID, 
 		Description: fmt.Sprintf("Update route %s", routeID),
 		Operations:  ops,
 	}
-	if _, err := s.operationSvc.Execute(ctx, tenantID, userID, execReq); err != nil {
+	if err := s.executeOps(ctx, tenantID, userID, execReq); err != nil {
 		return nil, fmt.Errorf("routes: update route: %w", err)
 	}
 
@@ -257,7 +257,7 @@ func (s *Service) DeleteRoute(ctx context.Context, tenantID, userID, clusterID, 
 		Description: fmt.Sprintf("Delete route %s", routeID),
 		Operations:  ops,
 	}
-	if _, err := s.operationSvc.Execute(ctx, tenantID, userID, execReq); err != nil {
+	if err := s.executeOps(ctx, tenantID, userID, execReq); err != nil {
 		return fmt.Errorf("routes: delete route: %w", err)
 	}
 

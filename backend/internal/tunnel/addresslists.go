@@ -91,7 +91,7 @@ func (s *Service) CreateAddressEntry(ctx context.Context, tenantID, userID, clus
 		Description: fmt.Sprintf("Create address list entry: %s %s", req.List, req.Address),
 		Operations:  ops,
 	}
-	if _, err := s.operationSvc.Execute(ctx, tenantID, userID, execReq); err != nil {
+	if err := s.executeOps(ctx, tenantID, userID, execReq); err != nil {
 		return nil, fmt.Errorf("address-lists: create entry: %w", err)
 	}
 
@@ -199,7 +199,7 @@ func (s *Service) UpdateAddressEntry(ctx context.Context, tenantID, userID, clus
 		Description: fmt.Sprintf("Update address list entry %s", entryID),
 		Operations:  ops,
 	}
-	if _, err := s.operationSvc.Execute(ctx, tenantID, userID, execReq); err != nil {
+	if err := s.executeOps(ctx, tenantID, userID, execReq); err != nil {
 		return nil, fmt.Errorf("address-lists: update entry: %w", err)
 	}
 
@@ -263,7 +263,7 @@ func (s *Service) DeleteAddressEntry(ctx context.Context, tenantID, userID, clus
 		Description: fmt.Sprintf("Delete address list entry %s", entryID),
 		Operations:  ops,
 	}
-	if _, err := s.operationSvc.Execute(ctx, tenantID, userID, execReq); err != nil {
+	if err := s.executeOps(ctx, tenantID, userID, execReq); err != nil {
 		return fmt.Errorf("address-lists: delete entry: %w", err)
 	}
 

@@ -173,7 +173,7 @@ func (s *Service) CreateFirewallRule(ctx context.Context, tenantID, userID, clus
 		Description: fmt.Sprintf("Create firewall rule: %s %s", req.Chain, req.Action),
 		Operations:  ops,
 	}
-	if _, err := s.operationSvc.Execute(ctx, tenantID, userID, execReq); err != nil {
+	if err := s.executeOps(ctx, tenantID, userID, execReq); err != nil {
 		return nil, fmt.Errorf("firewall: create rule: %w", err)
 	}
 
@@ -287,7 +287,7 @@ func (s *Service) UpdateFirewallRule(ctx context.Context, tenantID, userID, clus
 		Description: fmt.Sprintf("Update firewall rule %s", ruleID),
 		Operations:  ops,
 	}
-	if _, err := s.operationSvc.Execute(ctx, tenantID, userID, execReq); err != nil {
+	if err := s.executeOps(ctx, tenantID, userID, execReq); err != nil {
 		return nil, fmt.Errorf("firewall: update rule: %w", err)
 	}
 
@@ -350,7 +350,7 @@ func (s *Service) DeleteFirewallRule(ctx context.Context, tenantID, userID, clus
 		Description: fmt.Sprintf("Delete firewall rule %s", ruleID),
 		Operations:  ops,
 	}
-	if _, err := s.operationSvc.Execute(ctx, tenantID, userID, execReq); err != nil {
+	if err := s.executeOps(ctx, tenantID, userID, execReq); err != nil {
 		return fmt.Errorf("firewall: delete rule: %w", err)
 	}
 

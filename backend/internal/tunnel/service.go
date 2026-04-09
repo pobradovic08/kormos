@@ -69,6 +69,25 @@ func (s *Service) getMasterClient(ctx context.Context, tenantID, clusterID strin
 	return nil, fmt.Errorf("cluster: no master router found in cluster")
 }
 
+// executeOps runs operations through the operation service and returns an error
+// if any operation failed (the operation service returns nil error even on failure).
+func (s *Service) executeOps(ctx context.Context, tenantID, userID string, req operation.ExecuteRequest) error {
+	resp, err := s.operationSvc.Execute(ctx, tenantID, userID, req)
+	if err != nil {
+		return err
+	}
+	if resp.Status != operation.StatusApplied {
+		// Collect first error from operations for a useful message.
+		for _, op := range resp.Operations {
+			if op.Error != "" {
+				return fmt.Errorf("operation failed: %s", op.Error)
+			}
+		}
+		return fmt.Errorf("operation group status: %s", resp.Status)
+	}
+	return nil
+}
+
 // validateRouterIDs verifies that all endpoint router IDs belong to the cluster.
 func validateRouterIDs(endpoints []string, routers []RouterInfo) error {
 	valid := map[string]bool{}
@@ -144,7 +163,7 @@ func (s *Service) CreateGRE(ctx context.Context, tenantID, userID, clusterID str
 		Description: fmt.Sprintf("Create GRE tunnel %q", req.Name),
 		Operations:  ops,
 	}
-	if _, err := s.operationSvc.Execute(ctx, tenantID, userID, execReq); err != nil {
+	if err := s.executeOps(ctx, tenantID, userID, execReq); err != nil {
 		return nil, fmt.Errorf("tunnel: create gre: %w", err)
 	}
 
@@ -196,7 +215,7 @@ func (s *Service) UpdateGRE(ctx context.Context, tenantID, userID, clusterID, na
 		Description: fmt.Sprintf("Update GRE tunnel %q", name),
 		Operations:  ops,
 	}
-	if _, err := s.operationSvc.Execute(ctx, tenantID, userID, execReq); err != nil {
+	if err := s.executeOps(ctx, tenantID, userID, execReq); err != nil {
 		return nil, fmt.Errorf("tunnel: update gre: %w", err)
 	}
 
@@ -238,7 +257,7 @@ func (s *Service) DeleteGRE(ctx context.Context, tenantID, userID, clusterID, na
 		Description: fmt.Sprintf("Delete GRE tunnel %q", name),
 		Operations:  ops,
 	}
-	if _, err := s.operationSvc.Execute(ctx, tenantID, userID, execReq); err != nil {
+	if err := s.executeOps(ctx, tenantID, userID, execReq); err != nil {
 		return fmt.Errorf("tunnel: delete gre: %w", err)
 	}
 
@@ -308,7 +327,7 @@ func (s *Service) CreateIPsec(ctx context.Context, tenantID, userID, clusterID s
 		Description: fmt.Sprintf("Create IPsec tunnel %s", req.Name),
 		Operations:  ops,
 	}
-	if _, err := s.operationSvc.Execute(ctx, tenantID, userID, execReq); err != nil {
+	if err := s.executeOps(ctx, tenantID, userID, execReq); err != nil {
 		return nil, fmt.Errorf("tunnel: create ipsec: %w", err)
 	}
 
@@ -410,7 +429,7 @@ func (s *Service) UpdateIPsec(ctx context.Context, tenantID, userID, clusterID, 
 		Description: fmt.Sprintf("Update IPsec tunnel %s", name),
 		Operations:  ops,
 	}
-	if _, err := s.operationSvc.Execute(ctx, tenantID, userID, execReq); err != nil {
+	if err := s.executeOps(ctx, tenantID, userID, execReq); err != nil {
 		return nil, fmt.Errorf("tunnel: update ipsec: %w", err)
 	}
 
@@ -463,7 +482,7 @@ func (s *Service) DeleteIPsec(ctx context.Context, tenantID, userID, clusterID, 
 		Description: fmt.Sprintf("Delete IPsec tunnel %s", name),
 		Operations:  ops,
 	}
-	if _, err := s.operationSvc.Execute(ctx, tenantID, userID, execReq); err != nil {
+	if err := s.executeOps(ctx, tenantID, userID, execReq); err != nil {
 		return fmt.Errorf("tunnel: delete ipsec: %w", err)
 	}
 
@@ -567,7 +586,7 @@ func (s *Service) CreateWGInterface(ctx context.Context, tenantID, userID, clust
 			},
 		},
 	}
-	if _, err := s.operationSvc.Execute(ctx, tenantID, userID, execReq); err != nil {
+	if err := s.executeOps(ctx, tenantID, userID, execReq); err != nil {
 		return nil, fmt.Errorf("tunnel: create wireguard interface: %w", err)
 	}
 
@@ -611,7 +630,7 @@ func (s *Service) UpdateWGInterface(ctx context.Context, tenantID, userID, clust
 			},
 		},
 	}
-	if _, err := s.operationSvc.Execute(ctx, tenantID, userID, execReq); err != nil {
+	if err := s.executeOps(ctx, tenantID, userID, execReq); err != nil {
 		return nil, fmt.Errorf("tunnel: update wireguard interface: %w", err)
 	}
 
@@ -649,7 +668,7 @@ func (s *Service) DeleteWGInterface(ctx context.Context, tenantID, userID, clust
 			},
 		},
 	}
-	if _, err := s.operationSvc.Execute(ctx, tenantID, userID, execReq); err != nil {
+	if err := s.executeOps(ctx, tenantID, userID, execReq); err != nil {
 		return fmt.Errorf("tunnel: delete wireguard interface: %w", err)
 	}
 
@@ -679,7 +698,7 @@ func (s *Service) CreateWGPeer(ctx context.Context, tenantID, userID, clusterID,
 			},
 		},
 	}
-	if _, err := s.operationSvc.Execute(ctx, tenantID, userID, execReq); err != nil {
+	if err := s.executeOps(ctx, tenantID, userID, execReq); err != nil {
 		return nil, fmt.Errorf("tunnel: create wireguard peer: %w", err)
 	}
 
@@ -714,7 +733,7 @@ func (s *Service) UpdateWGPeer(ctx context.Context, tenantID, userID, clusterID,
 			},
 		},
 	}
-	if _, err := s.operationSvc.Execute(ctx, tenantID, userID, execReq); err != nil {
+	if err := s.executeOps(ctx, tenantID, userID, execReq); err != nil {
 		return nil, fmt.Errorf("tunnel: update wireguard peer: %w", err)
 	}
 
@@ -743,7 +762,7 @@ func (s *Service) DeleteWGPeer(ctx context.Context, tenantID, userID, clusterID,
 			},
 		},
 	}
-	if _, err := s.operationSvc.Execute(ctx, tenantID, userID, execReq); err != nil {
+	if err := s.executeOps(ctx, tenantID, userID, execReq); err != nil {
 		return fmt.Errorf("tunnel: delete wireguard peer: %w", err)
 	}
 
