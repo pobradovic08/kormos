@@ -62,7 +62,9 @@ interface EndpointState {
 // ─── IPv4 validation ─────────────────────────────────────────────────────────
 
 function isValidIPv4(ip: string): boolean {
-  const parts = ip.split('.');
+  // Strip optional CIDR prefix length (e.g. /32)
+  const addr = ip.includes('/') ? ip.split('/')[0] : ip;
+  const parts = addr.split('.');
   if (parts.length !== 4) return false;
   return parts.every((p) => {
     if (!/^\d{1,3}$/.test(p)) return false;
