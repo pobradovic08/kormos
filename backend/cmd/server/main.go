@@ -15,14 +15,18 @@ import (
 
 	"github.com/pobradovic08/kormos/backend/internal/audit"
 	"github.com/pobradovic08/kormos/backend/internal/auth"
+	"github.com/pobradovic08/kormos/backend/internal/cluster"
 	"github.com/pobradovic08/kormos/backend/internal/config"
 	"github.com/pobradovic08/kormos/backend/internal/configure"
 	"github.com/pobradovic08/kormos/backend/internal/db"
 	"github.com/pobradovic08/kormos/backend/internal/interfaces"
 	"github.com/pobradovic08/kormos/backend/internal/middleware"
+	"github.com/pobradovic08/kormos/backend/internal/operation"
+	"github.com/pobradovic08/kormos/backend/internal/proxy"
 	"github.com/pobradovic08/kormos/backend/internal/router"
 	"github.com/pobradovic08/kormos/backend/internal/setup"
 	"github.com/pobradovic08/kormos/backend/internal/tenant"
+	"github.com/pobradovic08/kormos/backend/internal/tunnel"
 	"github.com/pobradovic08/kormos/backend/internal/user"
 )
 
@@ -60,6 +64,19 @@ func main() {
 	configureEngine := configure.NewEngine(routerService)
 	configureHandler := configure.NewHandler(configureEngine, routerService, auditRepo, pool)
 
+	operationRepo := operation.NewRepository(pool)
+	operationService := operation.NewService(operationRepo, routerService)
+	operationHandler := operation.NewHandler(operationService)
+
+	clusterRepo := cluster.NewRepository(pool)
+	clusterService := cluster.NewService(clusterRepo, routerService, cfg.EncryptionKey, pool)
+	clusterHandler := cluster.NewHandler(clusterService)
+
+	proxyHandler := proxy.NewHandler(routerService)
+
+	tunnelService := tunnel.NewService(routerService, clusterService, operationService, interfaceFetcher)
+	tunnelHandler := tunnel.NewHandler(tunnelService)
+
 	tenantHandler := tenant.NewHandler(pool)
 
 	r := chi.NewRouter()
@@ -70,7 +87,7 @@ func main() {
 	r.Use(chimw.RequestID)
 	r.Use(cors.Handler(cors.Options{
 		AllowedOrigins:   cfg.CORSOrigins,
-		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowedMethods:   []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
 		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type"},
 		AllowCredentials: true,
 		MaxAge:           300,
@@ -114,6 +131,66 @@ func main() {
 			r.Delete("/{userID}", userHandler.Delete)
 		})
 
+		r.Route("/clusters", func(r chi.Router) {
+			r.Get("/", clusterHandler.List)
+			r.Post("/", clusterHandler.Create)
+			r.Post("/test-connection", clusterHandler.TestConnection)
+			r.Get("/{clusterID}", clusterHandler.GetByID)
+			r.Put("/{clusterID}", clusterHandler.Update)
+			r.Delete("/{clusterID}", clusterHandler.Delete)
+
+			r.Route("/{clusterID}/tunnels", func(r chi.Router) {
+				r.Route("/gre", func(r chi.Router) {
+					r.Get("/", tunnelHandler.ListGRE)
+					r.Post("/", tunnelHandler.CreateGRE)
+					r.Get("/{name}", tunnelHandler.GetGRE)
+					r.Patch("/{name}", tunnelHandler.UpdateGRE)
+					r.Delete("/{name}", tunnelHandler.DeleteGRE)
+				})
+				r.Route("/ipsec", func(r chi.Router) {
+					r.Get("/", tunnelHandler.ListIPsec)
+					r.Post("/", tunnelHandler.CreateIPsec)
+					r.Get("/{name}", tunnelHandler.GetIPsec)
+					r.Patch("/{name}", tunnelHandler.UpdateIPsec)
+					r.Delete("/{name}", tunnelHandler.DeleteIPsec)
+				})
+			})
+			r.Route("/{clusterID}/wireguard", func(r chi.Router) {
+				r.Get("/", tunnelHandler.ListWireGuard)
+				r.Post("/", tunnelHandler.CreateWGInterface)
+				r.Get("/{routerID}/{name}", tunnelHandler.GetWireGuard)
+				r.Patch("/{routerID}/{name}", tunnelHandler.UpdateWGInterface)
+				r.Delete("/{routerID}/{name}", tunnelHandler.DeleteWGInterface)
+				r.Post("/{routerID}/{name}/peers", tunnelHandler.CreateWGPeer)
+				r.Patch("/{routerID}/{name}/peers/{peerID}", tunnelHandler.UpdateWGPeer)
+				r.Delete("/{routerID}/{name}/peers/{peerID}", tunnelHandler.DeleteWGPeer)
+			})
+			r.Route("/{clusterID}/interfaces", func(r chi.Router) {
+				r.Get("/", tunnelHandler.ListInterfaces)
+				r.Get("/{name}", tunnelHandler.GetInterface)
+			})
+			r.Route("/{clusterID}/firewall/filter", func(r chi.Router) {
+				r.Get("/", tunnelHandler.ListFirewallRules)
+				r.Post("/", tunnelHandler.CreateFirewallRule)
+				r.Post("/move", tunnelHandler.MoveFirewallRule)
+				r.Patch("/{ruleID}", tunnelHandler.UpdateFirewallRule)
+				r.Delete("/{ruleID}", tunnelHandler.DeleteFirewallRule)
+			})
+			r.Route("/{clusterID}/routes", func(r chi.Router) {
+				r.Get("/", tunnelHandler.ListRoutes)
+				r.Post("/", tunnelHandler.CreateRoute)
+				r.Get("/{routeID}", tunnelHandler.GetRoute)
+				r.Patch("/{routeID}", tunnelHandler.UpdateRoute)
+				r.Delete("/{routeID}", tunnelHandler.DeleteRoute)
+			})
+			r.Route("/{clusterID}/address-lists", func(r chi.Router) {
+				r.Get("/", tunnelHandler.ListAddressLists)
+				r.Post("/", tunnelHandler.CreateAddressEntry)
+				r.Patch("/{entryID}", tunnelHandler.UpdateAddressEntry)
+				r.Delete("/{entryID}", tunnelHandler.DeleteAddressEntry)
+			})
+		})
+
 		r.Route("/routers", func(r chi.Router) {
 			r.Get("/", routerHandler.List)
 			r.Post("/", routerHandler.Create)
@@ -127,10 +204,25 @@ func main() {
 				r.Get("/{name}", interfaceHandler.GetByName)
 			})
 
+			r.Get("/{routerID}/firewall/filter", proxyHandler.FirewallRules)
+			r.Get("/{routerID}/routes", proxyHandler.Routes)
+			r.Post("/{routerID}/routes", proxyHandler.CreateRoute)
+			r.Get("/{routerID}/routes/{routeID}", proxyHandler.RouteByID)
+			r.Patch("/{routerID}/routes/{routeID}", proxyHandler.UpdateRoute)
+			r.Delete("/{routerID}/routes/{routeID}", proxyHandler.DeleteRoute)
+			r.Get("/{routerID}/address-lists", proxyHandler.AddressLists)
+			r.Get("/{routerID}/tunnels", proxyHandler.Tunnels)
+
 			r.With(middleware.RequireRole("owner", "admin")).Post("/{routerID}/configure", configureHandler.Configure)
 		})
 
 		r.With(middleware.RequireRole("owner", "admin")).Get("/audit-log", configureHandler.AuditList)
+
+		r.Route("/v1/operations", func(r chi.Router) {
+			r.With(middleware.RequireRole("owner", "admin", "operator")).Post("/execute", operationHandler.Execute)
+			r.With(middleware.RequireRole("owner", "admin", "operator")).Post("/undo/{groupID}", operationHandler.Undo)
+			r.Get("/history", operationHandler.History)
+		})
 	})
 
 	// Superadmin routes (auth required, no tenant scope, superadmin check)
