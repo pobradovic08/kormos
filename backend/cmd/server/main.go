@@ -26,6 +26,7 @@ import (
 	"github.com/pobradovic08/kormos/backend/internal/router"
 	"github.com/pobradovic08/kormos/backend/internal/setup"
 	"github.com/pobradovic08/kormos/backend/internal/tenant"
+	"github.com/pobradovic08/kormos/backend/internal/tunnel"
 	"github.com/pobradovic08/kormos/backend/internal/user"
 )
 
@@ -73,6 +74,9 @@ func main() {
 
 	proxyHandler := proxy.NewHandler(routerService)
 
+	tunnelService := tunnel.NewService(routerService, clusterService, operationService, interfaceFetcher)
+	tunnelHandler := tunnel.NewHandler(tunnelService)
+
 	tenantHandler := tenant.NewHandler(pool)
 
 	r := chi.NewRouter()
@@ -83,7 +87,7 @@ func main() {
 	r.Use(chimw.RequestID)
 	r.Use(cors.Handler(cors.Options{
 		AllowedOrigins:   cfg.CORSOrigins,
-		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowedMethods:   []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
 		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type"},
 		AllowCredentials: true,
 		MaxAge:           300,
@@ -134,6 +138,57 @@ func main() {
 			r.Get("/{clusterID}", clusterHandler.GetByID)
 			r.Put("/{clusterID}", clusterHandler.Update)
 			r.Delete("/{clusterID}", clusterHandler.Delete)
+
+			r.Route("/{clusterID}/tunnels", func(r chi.Router) {
+				r.Route("/gre", func(r chi.Router) {
+					r.Get("/", tunnelHandler.ListGRE)
+					r.Post("/", tunnelHandler.CreateGRE)
+					r.Get("/{name}", tunnelHandler.GetGRE)
+					r.Patch("/{name}", tunnelHandler.UpdateGRE)
+					r.Delete("/{name}", tunnelHandler.DeleteGRE)
+				})
+				r.Route("/ipsec", func(r chi.Router) {
+					r.Get("/", tunnelHandler.ListIPsec)
+					r.Post("/", tunnelHandler.CreateIPsec)
+					r.Get("/{name}", tunnelHandler.GetIPsec)
+					r.Patch("/{name}", tunnelHandler.UpdateIPsec)
+					r.Delete("/{name}", tunnelHandler.DeleteIPsec)
+				})
+			})
+			r.Route("/{clusterID}/wireguard", func(r chi.Router) {
+				r.Get("/", tunnelHandler.ListWireGuard)
+				r.Post("/", tunnelHandler.CreateWGInterface)
+				r.Get("/{routerID}/{name}", tunnelHandler.GetWireGuard)
+				r.Patch("/{routerID}/{name}", tunnelHandler.UpdateWGInterface)
+				r.Delete("/{routerID}/{name}", tunnelHandler.DeleteWGInterface)
+				r.Post("/{routerID}/{name}/peers", tunnelHandler.CreateWGPeer)
+				r.Patch("/{routerID}/{name}/peers/{peerID}", tunnelHandler.UpdateWGPeer)
+				r.Delete("/{routerID}/{name}/peers/{peerID}", tunnelHandler.DeleteWGPeer)
+			})
+			r.Route("/{clusterID}/interfaces", func(r chi.Router) {
+				r.Get("/", tunnelHandler.ListInterfaces)
+				r.Get("/{name}", tunnelHandler.GetInterface)
+			})
+			r.Route("/{clusterID}/firewall/filter", func(r chi.Router) {
+				r.Get("/", tunnelHandler.ListFirewallRules)
+				r.Post("/", tunnelHandler.CreateFirewallRule)
+				r.Post("/move", tunnelHandler.MoveFirewallRule)
+				r.Patch("/{ruleID}", tunnelHandler.UpdateFirewallRule)
+				r.Delete("/{ruleID}", tunnelHandler.DeleteFirewallRule)
+			})
+			r.Route("/{clusterID}/routes", func(r chi.Router) {
+				r.Get("/", tunnelHandler.ListRoutes)
+				r.Post("/", tunnelHandler.CreateRoute)
+				r.Get("/{routeID}", tunnelHandler.GetRoute)
+				r.Patch("/{routeID}", tunnelHandler.UpdateRoute)
+				r.Delete("/{routeID}", tunnelHandler.DeleteRoute)
+			})
+			r.Route("/{clusterID}/address-lists", func(r chi.Router) {
+				r.Get("/", tunnelHandler.ListAddressLists)
+				r.Post("/", tunnelHandler.CreateAddressEntry)
+				r.Patch("/{entryID}", tunnelHandler.UpdateAddressEntry)
+				r.Delete("/{entryID}", tunnelHandler.DeleteAddressEntry)
+			})
 		})
 
 		r.Route("/routers", func(r chi.Router) {
@@ -155,12 +210,8 @@ func main() {
 			r.Get("/{routerID}/routes/{routeID}", proxyHandler.RouteByID)
 			r.Patch("/{routerID}/routes/{routeID}", proxyHandler.UpdateRoute)
 			r.Delete("/{routerID}/routes/{routeID}", proxyHandler.DeleteRoute)
-			r.Get("/{routerID}/tunnels", proxyHandler.Tunnels)
 			r.Get("/{routerID}/address-lists", proxyHandler.AddressLists)
-			r.Route("/{routerID}/wireguard", func(r chi.Router) {
-				r.Get("/", proxyHandler.WireGuardInterfaces)
-				r.Get("/peers", proxyHandler.WireGuardPeers)
-			})
+			r.Get("/{routerID}/tunnels", proxyHandler.Tunnels)
 
 			r.With(middleware.RequireRole("owner", "admin")).Post("/{routerID}/configure", configureHandler.Configure)
 		})

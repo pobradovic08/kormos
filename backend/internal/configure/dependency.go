@@ -18,7 +18,13 @@ var createOrder = []string{
 	"interface/wireguard/peers",
 	"interface/gre",
 	"interface/eoip",
+	"ip/ipsec/profile",
+	"ip/ipsec/proposal",
+	"ip/ipsec/peer",
+	"ip/ipsec/identity",
+	"ip/ipsec/policy",
 	"ip/address",
+	"ip/route",
 }
 
 // createOrderIndex maps a resource type to its position in createOrder for O(1)

@@ -1,0 +1,362 @@
+package tunnel
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"github.com/pobradovic08/kormos/backend/internal/normalize"
+	"github.com/pobradovic08/kormos/backend/internal/routeros"
+)
+
+type PerRouterIPsec struct {
+	Peers       []RawIPsecPeer
+	Profiles    []RawIPsecProfile
+	Proposals   []RawIPsecProposal
+	Identities  []RawIPsecIdentity
+	Policies    []RawIPsecPolicy
+	ActivePeers []RawIPsecActivePeer
+}
+
+func FetchIPsecAll(ctx context.Context, client *routeros.Client) (*PerRouterIPsec, error) {
+	result := &PerRouterIPsec{}
+
+	body, err := client.Get(ctx, "/ip/ipsec/peer")
+	if err != nil {
+		return nil, fmt.Errorf("tunnel: fetch ipsec peers: %w", err)
+	}
+	if err := json.Unmarshal(body, &result.Peers); err != nil {
+		return nil, fmt.Errorf("tunnel: parse ipsec peers: %w", err)
+	}
+
+	body, err = client.Get(ctx, "/ip/ipsec/profile")
+	if err != nil {
+		return nil, fmt.Errorf("tunnel: fetch ipsec profiles: %w", err)
+	}
+	if err := json.Unmarshal(body, &result.Profiles); err != nil {
+		return nil, fmt.Errorf("tunnel: parse ipsec profiles: %w", err)
+	}
+
+	body, err = client.Get(ctx, "/ip/ipsec/proposal")
+	if err != nil {
+		return nil, fmt.Errorf("tunnel: fetch ipsec proposals: %w", err)
+	}
+	if err := json.Unmarshal(body, &result.Proposals); err != nil {
+		return nil, fmt.Errorf("tunnel: parse ipsec proposals: %w", err)
+	}
+
+	body, err = client.Get(ctx, "/ip/ipsec/identity")
+	if err != nil {
+		return nil, fmt.Errorf("tunnel: fetch ipsec identities: %w", err)
+	}
+	if err := json.Unmarshal(body, &result.Identities); err != nil {
+		return nil, fmt.Errorf("tunnel: parse ipsec identities: %w", err)
+	}
+
+	body, err = client.Get(ctx, "/ip/ipsec/policy")
+	if err != nil {
+		return nil, fmt.Errorf("tunnel: fetch ipsec policies: %w", err)
+	}
+	if err := json.Unmarshal(body, &result.Policies); err != nil {
+		return nil, fmt.Errorf("tunnel: parse ipsec policies: %w", err)
+	}
+
+	body, err = client.Get(ctx, "/ip/ipsec/active-peers")
+	if err != nil {
+		result.ActivePeers = []RawIPsecActivePeer{}
+	} else if err := json.Unmarshal(body, &result.ActivePeers); err != nil {
+		result.ActivePeers = []RawIPsecActivePeer{}
+	}
+
+	return result, nil
+}
+
+type assembledIPsec struct {
+	PeerName      string
+	PeerID        string
+	LocalAddress  string
+	RemoteAddress string
+	Disabled      bool
+	Comment       string
+	ProfileID     string
+	ProposalID    string
+	IdentityID    string
+	PolicyIDs     []string
+	Phase1        Phase1Config
+	Phase2        Phase2Config
+	AuthMethod    string
+	Secret        string
+	LocalSubnets  []string
+	RemoteSubnets []string
+	Mode          string
+	Established   bool
+}
+
+func AssembleIPsec(data *PerRouterIPsec) []assembledIPsec {
+	profileByName := map[string]RawIPsecProfile{}
+	for _, p := range data.Profiles {
+		profileByName[p.Name] = p
+	}
+	proposalByName := map[string]RawIPsecProposal{}
+	for _, p := range data.Proposals {
+		proposalByName[p.Name] = p
+	}
+	identityByPeer := map[string]RawIPsecIdentity{}
+	for _, id := range data.Identities {
+		identityByPeer[id.Peer] = id
+	}
+	policiesByPeer := map[string][]RawIPsecPolicy{}
+	for _, pol := range data.Policies {
+		policiesByPeer[pol.Peer] = append(policiesByPeer[pol.Peer], pol)
+	}
+	activePeerByAddr := map[string]bool{}
+	for _, ap := range data.ActivePeers {
+		if ap.State == "established" {
+			activePeerByAddr[ap.RemoteAddress] = true
+		}
+	}
+
+	var result []assembledIPsec
+	for _, peer := range data.Peers {
+		a := assembledIPsec{
+			PeerName:      peer.Name,
+			PeerID:        peer.ID,
+			LocalAddress:  peer.LocalAddress,
+			RemoteAddress: peer.Address,
+			Disabled:      normalize.ParseBool(peer.Disabled),
+			Comment:       peer.Comment,
+		}
+
+		if prof, ok := profileByName[peer.Profile]; ok {
+			a.ProfileID = prof.ID
+			a.Phase1 = Phase1Config{
+				Encryption: prof.EncAlgorithm,
+				Hash:       prof.HashAlgorithm,
+				DHGroup:    prof.DHGroup,
+				Lifetime:   prof.Lifetime,
+			}
+		}
+
+		if prop, ok := proposalByName[peer.Name]; ok {
+			a.ProposalID = prop.ID
+			a.Phase2 = Phase2Config{
+				Encryption:    prop.EncAlgorithms,
+				AuthAlgorithm: prop.AuthAlgorithms,
+				PFSGroup:      prop.PFSGroup,
+				Lifetime:      prop.Lifetime,
+			}
+		}
+
+		if ident, ok := identityByPeer[peer.Name]; ok {
+			a.IdentityID = ident.ID
+			a.AuthMethod = ident.AuthMethod
+			a.Secret = ident.Secret
+		}
+
+		policies := policiesByPeer[peer.Name]
+		if len(policies) > 0 {
+			a.Mode = "policy-based"
+			for _, pol := range policies {
+				a.PolicyIDs = append(a.PolicyIDs, pol.ID)
+				if pol.SrcAddress != "" && pol.SrcAddress != "0.0.0.0/0" {
+					a.LocalSubnets = append(a.LocalSubnets, pol.SrcAddress)
+				}
+				if pol.DstAddress != "" && pol.DstAddress != "0.0.0.0/0" {
+					a.RemoteSubnets = append(a.RemoteSubnets, pol.DstAddress)
+				}
+			}
+		} else {
+			a.Mode = "route-based"
+		}
+
+		a.Established = activePeerByAddr[peer.Address]
+		result = append(result, a)
+	}
+	return result
+}
+
+type ipsecOp struct {
+	RouterID     string
+	ResourcePath string
+	ResourceID   string
+	Body         map[string]interface{}
+}
+
+func BuildIPsecCreateOps(req CreateIPsecRequest, routerID string, ep CreateIPsecEndpointInput) []ipsecOp {
+	var ops []ipsecOp
+
+	ops = append(ops, ipsecOp{
+		RouterID:     routerID,
+		ResourcePath: "/ip/ipsec/profile",
+		Body: map[string]interface{}{
+			"name":           req.Name,
+			"enc-algorithm":  req.Phase1.Encryption,
+			"hash-algorithm": req.Phase1.Hash,
+			"dh-group":       req.Phase1.DHGroup,
+			"lifetime":       req.Phase1.Lifetime,
+		},
+	})
+
+	ops = append(ops, ipsecOp{
+		RouterID:     routerID,
+		ResourcePath: "/ip/ipsec/proposal",
+		Body: map[string]interface{}{
+			"name":            req.Name,
+			"enc-algorithms":  req.Phase2.Encryption,
+			"auth-algorithms": req.Phase2.AuthAlgorithm,
+			"pfs-group":       req.Phase2.PFSGroup,
+			"lifetime":        req.Phase2.Lifetime,
+		},
+	})
+
+	peerBody := map[string]interface{}{
+		"name":          req.Name,
+		"address":       ep.RemoteAddress,
+		"local-address": ep.LocalAddress,
+		"profile":       req.Name,
+	}
+	if req.Disabled {
+		peerBody["disabled"] = "true"
+	}
+	if req.Comment != "" {
+		peerBody["comment"] = req.Comment
+	}
+	ops = append(ops, ipsecOp{
+		RouterID:     routerID,
+		ResourcePath: "/ip/ipsec/peer",
+		Body:         peerBody,
+	})
+
+	identBody := map[string]interface{}{
+		"peer":        req.Name,
+		"auth-method": req.AuthMethod,
+	}
+	if req.IpsecSecret != "" {
+		identBody["secret"] = req.IpsecSecret
+	}
+	ops = append(ops, ipsecOp{
+		RouterID:     routerID,
+		ResourcePath: "/ip/ipsec/identity",
+		Body:         identBody,
+	})
+
+	if req.Mode == "policy-based" {
+		for i := range req.LocalSubnets {
+			remoteSubnet := ""
+			if i < len(req.RemoteSubnets) {
+				remoteSubnet = req.RemoteSubnets[i]
+			}
+			ops = append(ops, ipsecOp{
+				RouterID:     routerID,
+				ResourcePath: "/ip/ipsec/policy",
+				Body: map[string]interface{}{
+					"peer":        req.Name,
+					"src-address": req.LocalSubnets[i],
+					"dst-address": remoteSubnet,
+				},
+			})
+		}
+	}
+
+	return ops
+}
+
+func BuildIPsecDeleteOps(routerID string, a assembledIPsec) []ipsecOp {
+	var ops []ipsecOp
+
+	for _, pid := range a.PolicyIDs {
+		ops = append(ops, ipsecOp{RouterID: routerID, ResourcePath: "/ip/ipsec/policy", ResourceID: pid})
+	}
+	if a.IdentityID != "" {
+		ops = append(ops, ipsecOp{RouterID: routerID, ResourcePath: "/ip/ipsec/identity", ResourceID: a.IdentityID})
+	}
+	ops = append(ops, ipsecOp{RouterID: routerID, ResourcePath: "/ip/ipsec/peer", ResourceID: a.PeerID})
+	if a.ProposalID != "" {
+		ops = append(ops, ipsecOp{RouterID: routerID, ResourcePath: "/ip/ipsec/proposal", ResourceID: a.ProposalID})
+	}
+	if a.ProfileID != "" {
+		ops = append(ops, ipsecOp{RouterID: routerID, ResourcePath: "/ip/ipsec/profile", ResourceID: a.ProfileID})
+	}
+
+	return ops
+}
+
+func buildIPsecEndpoint(ri RouterInfo, a assembledIPsec) IPsecEndpoint {
+	return IPsecEndpoint{
+		RouterID:   ri.ID,
+		RouterName: ri.Name,
+		Role:       ri.Role,
+		RosIDs: IPsecRosIDs{
+			Peer:     a.PeerID,
+			Profile:  a.ProfileID,
+			Proposal: a.ProposalID,
+			Identity: a.IdentityID,
+			Policies: a.PolicyIDs,
+		},
+		LocalAddress:  a.LocalAddress,
+		RemoteAddress: a.RemoteAddress,
+		Established:   a.Established,
+	}
+}
+
+func buildIPsecUpdateBody(ep *UpdateIPsecEndpointInput, req UpdateIPsecRequest) map[string]interface{} {
+	body := map[string]interface{}{}
+	if ep != nil {
+		if ep.LocalAddress != nil {
+			body["local-address"] = *ep.LocalAddress
+		}
+		if ep.RemoteAddress != nil {
+			body["address"] = *ep.RemoteAddress
+		}
+	}
+	if req.Disabled != nil {
+		if *req.Disabled {
+			body["disabled"] = "true"
+		} else {
+			body["disabled"] = "false"
+		}
+	}
+	if req.Comment != nil {
+		body["comment"] = *req.Comment
+	}
+	return body
+}
+
+func buildProfileUpdateBody(p1 *Phase1Config) map[string]interface{} {
+	body := map[string]interface{}{}
+	if p1 == nil {
+		return body
+	}
+	if p1.Encryption != "" {
+		body["enc-algorithm"] = p1.Encryption
+	}
+	if p1.Hash != "" {
+		body["hash-algorithm"] = p1.Hash
+	}
+	if p1.DHGroup != "" {
+		body["dh-group"] = p1.DHGroup
+	}
+	if p1.Lifetime != "" {
+		body["lifetime"] = p1.Lifetime
+	}
+	return body
+}
+
+func buildProposalUpdateBody(p2 *Phase2Config) map[string]interface{} {
+	body := map[string]interface{}{}
+	if p2 == nil {
+		return body
+	}
+	if p2.Encryption != "" {
+		body["enc-algorithms"] = p2.Encryption
+	}
+	if p2.AuthAlgorithm != "" {
+		body["auth-algorithms"] = p2.AuthAlgorithm
+	}
+	if p2.PFSGroup != "" {
+		body["pfs-group"] = p2.PFSGroup
+	}
+	if p2.Lifetime != "" {
+		body["lifetime"] = p2.Lifetime
+	}
+	return body
+}

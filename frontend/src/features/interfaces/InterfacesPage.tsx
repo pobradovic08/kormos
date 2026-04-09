@@ -118,8 +118,8 @@ function LoadingSkeleton() {
 }
 
 export default function InterfacesPage() {
-  const selectedRouterId = useClusterId();
-  const { data: interfaces, isLoading, error, refetch } = useInterfaces(selectedRouterId);
+  const clusterId = useClusterId();
+  const { data: interfaces, isLoading, error, refetch } = useInterfaces(clusterId);
 
   const [search, setSearch] = useState('');
   const [selectedInterface, setSelectedInterface] =

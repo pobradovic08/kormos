@@ -1,7 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import apiClient from '../../api/client';
 import type { AddressList } from '../../api/types';
-import { useExecuteOperation } from '../../api/operationsApi';
 import { useMockMode } from '../../mocks/useMockMode';
 import {
   listAddressLists,
@@ -12,69 +11,63 @@ import {
   updateEntry,
 } from '../../mocks/mockAddressListsData';
 
-export function useAddressLists(routerId: string | null) {
+export function useAddressLists(clusterId: string | null) {
   const isMock = useMockMode();
 
   return useQuery<AddressList[]>({
-    queryKey: ['address-lists', routerId],
+    queryKey: ['address-lists', clusterId],
     queryFn: async () => {
-      if (isMock) return listAddressLists(routerId!);
+      if (isMock) return listAddressLists(clusterId!);
       const response = await apiClient.get<AddressList[]>(
-        `/routers/${routerId}/address-lists`,
+        `/clusters/${clusterId}/address-lists`,
       );
       return response.data;
     },
-    enabled: !!routerId,
+    enabled: !!clusterId,
   });
 }
 
-export function useCreateAddressList(routerId: string | null) {
+export function useCreateAddressList(clusterId: string | null) {
   const isMock = useMockMode();
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async ({ name }: { name: string }) => {
-      if (isMock) return createAddressList(routerId!, name);
+      if (isMock) return createAddressList(clusterId!, name);
       // MikroTik creates a list implicitly when the first entry is added.
       // No separate API call needed.
       return { name };
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['address-lists', routerId] });
+      void queryClient.invalidateQueries({ queryKey: ['address-lists', clusterId] });
     },
   });
 }
 
-export function useDeleteAddressList(routerId: string | null) {
+export function useDeleteAddressList(clusterId: string | null) {
   const isMock = useMockMode();
   const queryClient = useQueryClient();
-  const executeOp = useExecuteOperation();
 
   return useMutation({
-    mutationFn: async ({ name }: { name: string }) => {
-      if (isMock) return deleteAddressList(routerId!, name);
-      await executeOp.mutateAsync({
-        description: `Delete address list "${name}"`,
-        operations: [{
-          router_id: routerId!,
-          module: 'address-lists',
-          operation_type: 'delete',
-          resource_path: '/ip/firewall/address-list',
-          resource_id: name,
-          body: {},
-        }],
-      });
+    mutationFn: async ({ name, entryIds }: { name: string; entryIds: string[] }) => {
+      if (isMock) return deleteAddressList(clusterId!, name);
+      // No backend endpoint exists to delete an entire list by name.
+      // Delete all entries belonging to this list one by one.
+      await Promise.all(
+        entryIds.map((entryId) =>
+          apiClient.delete(`/clusters/${clusterId}/address-lists/${entryId}`),
+        ),
+      );
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['address-lists', routerId] });
+      void queryClient.invalidateQueries({ queryKey: ['address-lists', clusterId] });
     },
   });
 }
 
-export function useAddEntry(routerId: string | null) {
+export function useAddEntry(clusterId: string | null) {
   const isMock = useMockMode();
   const queryClient = useQueryClient();
-  const executeOp = useExecuteOperation();
 
   return useMutation({
     mutationFn: async ({
@@ -86,29 +79,22 @@ export function useAddEntry(routerId: string | null) {
       prefix: string;
       comment: string;
     }) => {
-      if (isMock) return addEntry(routerId!, listName, prefix, comment);
-      const result = await executeOp.mutateAsync({
-        description: `Add entry ${prefix} to address list "${listName}"`,
-        operations: [{
-          router_id: routerId!,
-          module: 'address-lists',
-          operation_type: 'add',
-          resource_path: '/ip/firewall/address-list',
-          body: { list: listName, address: prefix, comment } as Record<string, unknown>,
-        }],
-      });
-      return result;
+      if (isMock) return addEntry(clusterId!, listName, prefix, comment);
+      const response = await apiClient.post(
+        `/clusters/${clusterId}/address-lists`,
+        { list: listName, address: prefix, comment },
+      );
+      return response.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['address-lists', routerId] });
+      void queryClient.invalidateQueries({ queryKey: ['address-lists', clusterId] });
     },
   });
 }
 
-export function useDeleteEntries(routerId: string | null) {
+export function useDeleteEntries(clusterId: string | null) {
   const isMock = useMockMode();
   const queryClient = useQueryClient();
-  const executeOp = useExecuteOperation();
 
   return useMutation({
     mutationFn: async ({
@@ -118,29 +104,22 @@ export function useDeleteEntries(routerId: string | null) {
       listName: string;
       entryIds: string[];
     }) => {
-      if (isMock) return deleteEntries(routerId!, listName, entryIds);
-      await executeOp.mutateAsync({
-        description: `Delete ${entryIds.length} entries from address list "${listName}"`,
-        operations: entryIds.map((entryId) => ({
-          router_id: routerId!,
-          module: 'address-lists' as const,
-          operation_type: 'delete' as const,
-          resource_path: '/ip/firewall/address-list',
-          resource_id: entryId,
-          body: {},
-        })),
-      });
+      if (isMock) return deleteEntries(clusterId!, listName, entryIds);
+      await Promise.all(
+        entryIds.map((entryId) =>
+          apiClient.delete(`/clusters/${clusterId}/address-lists/${entryId}`),
+        ),
+      );
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['address-lists', routerId] });
+      void queryClient.invalidateQueries({ queryKey: ['address-lists', clusterId] });
     },
   });
 }
 
-export function useUpdateEntry(routerId: string | null) {
+export function useUpdateEntry(clusterId: string | null) {
   const isMock = useMockMode();
   const queryClient = useQueryClient();
-  const executeOp = useExecuteOperation();
 
   return useMutation({
     mutationFn: async ({
@@ -152,22 +131,14 @@ export function useUpdateEntry(routerId: string | null) {
       entryId: string;
       comment: string;
     }) => {
-      if (isMock) return updateEntry(routerId!, listName, entryId, comment);
-      const result = await executeOp.mutateAsync({
-        description: `Update entry in address list "${listName}"`,
-        operations: [{
-          router_id: routerId!,
-          module: 'address-lists',
-          operation_type: 'modify',
-          resource_path: '/ip/firewall/address-list',
-          resource_id: entryId,
-          body: { comment } as Record<string, unknown>,
-        }],
-      });
-      return result;
+      if (isMock) return updateEntry(clusterId!, listName, entryId, comment);
+      await apiClient.patch(
+        `/clusters/${clusterId}/address-lists/${entryId}`,
+        { comment },
+      );
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['address-lists', routerId] });
+      void queryClient.invalidateQueries({ queryKey: ['address-lists', clusterId] });
     },
   });
 }

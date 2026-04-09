@@ -46,6 +46,17 @@ var VolatileFields = map[string]bool{
 	"fp-tx-packet":       true,
 	"link-downs":         true,
 	"last-link-up-time":  true,
+	"last-handshake":    true,
+	"state":             true,
+	"uptime":            true,
+	"phase2-state":      true,
+	"active-peers":      true,
+	"established":       true,
+	"last-seen":         true,
+	"current-state":     true,
+	"rx":                true,
+	"tx":                true,
+	"last-handshake-ago": true,
 }
 
 // Group represents a logical action (one or more operations applied together).

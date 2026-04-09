@@ -14,6 +14,7 @@ import {
   ActionIcon,
   Tooltip,
 } from '@mantine/core';
+import { useNavigate } from 'react-router-dom';
 import { notifications } from '@mantine/notifications';
 import {
   IconPlus,
@@ -47,7 +48,7 @@ import ErrorBanner from '../../components/common/ErrorBanner';
 import MonoText from '../../components/common/MonoText';
 import { relativeTime } from '../../utils/relativeTime';
 import type { Router, ClusterResponse } from '../../api/types';
-import { useRouterStore } from '../../stores/useRouterStore';
+import { useClusterStore } from '../../stores/useClusterStore';
 import classes from './RoutersPage.module.css';
 
 const statusBadgeConfig = {
@@ -374,7 +375,8 @@ export default function RoutersPage() {
   const { data: routers, isLoading, error, refetch } = useRouters();
   const { data: clusters } = useClusters();
   const deleteMutation = useDeleteCluster();
-  const selectRouter = useRouterStore((s) => s.selectRouter);
+  const selectCluster = useClusterStore((s) => s.selectCluster);
+  const navigate = useNavigate();
 
   const [detailRouterId, setDetailRouterId] = useState<string | null>(null);
   const [formOpen, setFormOpen] = useState(false);
@@ -647,7 +649,13 @@ export default function RoutersPage() {
                   onTenantClick={handleTenantClick}
                   onEdit={handleEdit}
                   onDelete={(router) => setDeleteRouter(router)}
-                  onConnect={(router) => selectRouter(router.id)}
+                  onConnect={(router) => {
+                    const cluster = clusterForRouter(router.id);
+                    if (cluster) {
+                      selectCluster(cluster.id);
+                      navigate(`/configure/${cluster.id}`);
+                    }
+                  }}
                 />
               ))}
               {groups.length === 0 && search && (

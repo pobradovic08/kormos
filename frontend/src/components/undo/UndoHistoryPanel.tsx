@@ -19,7 +19,7 @@ import {
 } from '@tabler/icons-react';
 import { notifications } from '@mantine/notifications';
 import { useOperationHistory, useUndoOperation } from '../../api/operationsApi';
-import { useRouterStore } from '../../stores/useRouterStore';
+import { useClusterStore } from '../../stores/useClusterStore';
 import { relativeTime } from '../../utils/relativeTime';
 import type { OperationGroup } from '../../api/types';
 
@@ -179,8 +179,8 @@ function GroupEntry({ group }: { group: OperationGroup }) {
 }
 
 export default function UndoHistoryPanel({ isOpen, onClose }: UndoHistoryPanelProps) {
-  const selectedRouterId = useRouterStore((s) => s.selectedRouterId);
-  const { data, isLoading } = useOperationHistory(selectedRouterId, 1, 50);
+  const selectedClusterId = useClusterStore((s) => s.selectedClusterId);
+  const { data, isLoading } = useOperationHistory(selectedClusterId, 1, 50);
 
   return (
     <Drawer

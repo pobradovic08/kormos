@@ -1,9 +1,12 @@
 package proxy
 
 import (
+	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"regexp"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 
@@ -11,6 +14,33 @@ import (
 	"github.com/pobradovic08/kormos/backend/internal/router"
 	"github.com/pobradovic08/kormos/backend/internal/routeros"
 )
+
+// rawGRETunnel is a local copy of the RouterOS GRE tunnel shape used only by the Tunnels handler.
+type rawGRETunnel struct {
+	ID            string `json:".id"`
+	Name          string `json:"name"`
+	LocalAddress  string `json:"local-address"`
+	RemoteAddress string `json:"remote-address"`
+	MTU           string `json:"mtu"`
+	ActualMTU     string `json:"actual-mtu"`
+	Keepalive     string `json:"keepalive"`
+	IpsecSecret   string `json:"ipsec-secret"`
+	Disabled      string `json:"disabled"`
+	Running       string `json:"running"`
+	Comment       string `json:"comment"`
+}
+
+func fetchGRETunnels(ctx context.Context, client *routeros.Client) ([]rawGRETunnel, error) {
+	body, err := client.Get(ctx, "/interface/gre")
+	if err != nil {
+		return nil, fmt.Errorf("proxy: fetch gre tunnels: %w", err)
+	}
+	var raw []rawGRETunnel
+	if err := json.Unmarshal(body, &raw); err != nil {
+		return nil, fmt.Errorf("proxy: parse gre tunnels: %w", err)
+	}
+	return raw, nil
+}
 
 // RouterOS IDs are hex strings prefixed with * (e.g., *1, *A, *80000001).
 var routerOSIDPattern = regexp.MustCompile(`^\*[0-9a-fA-F]+$`)
@@ -162,24 +192,6 @@ func (h *Handler) DeleteRoute(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// Tunnels handles GET /routers/{routerID}/tunnels.
-func (h *Handler) Tunnels(w http.ResponseWriter, r *http.Request) {
-	client, err := h.getClient(r)
-	if err != nil {
-		writeError(w, http.StatusBadGateway, "routeros_error", "Failed to connect to router")
-		return
-	}
-	tunnels, err := FetchTunnels(r.Context(), client)
-	if err != nil {
-		writeError(w, http.StatusBadGateway, "routeros_error", "Failed to fetch tunnels")
-		return
-	}
-	if tunnels == nil {
-		tunnels = []Tunnel{}
-	}
-	writeJSON(w, http.StatusOK, tunnels)
-}
-
 // AddressLists handles GET /routers/{routerID}/address-lists.
 func (h *Handler) AddressLists(w http.ResponseWriter, r *http.Request) {
 	client, err := h.getClient(r)
@@ -198,40 +210,65 @@ func (h *Handler) AddressLists(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, lists)
 }
 
-// WireGuardInterfaces handles GET /routers/{routerID}/wireguard.
-func (h *Handler) WireGuardInterfaces(w http.ResponseWriter, r *http.Request) {
+// Tunnels handles GET /routers/{routerID}/tunnels (legacy shim for frontend compatibility).
+func (h *Handler) Tunnels(w http.ResponseWriter, r *http.Request) {
 	client, err := h.getClient(r)
 	if err != nil {
 		writeError(w, http.StatusBadGateway, "routeros_error", "Failed to connect to router")
 		return
 	}
-	ifaces, err := FetchWireGuardInterfaces(r.Context(), client)
+	tunnels, err := fetchGRETunnels(r.Context(), client)
 	if err != nil {
-		writeError(w, http.StatusBadGateway, "routeros_error", "Failed to fetch WireGuard interfaces")
+		writeError(w, http.StatusBadGateway, "routeros_error", "Failed to fetch tunnels")
 		return
 	}
-	if ifaces == nil {
-		ifaces = []WireGuardInterface{}
+	// Normalize to the flat response shape the frontend expects.
+	type tunnelResp struct {
+		ID                string `json:"id"`
+		Name              string `json:"name"`
+		TunnelType        string `json:"tunnelType"`
+		LocalAddress      string `json:"localAddress"`
+		RemoteAddress     string `json:"remoteAddress"`
+		MTU               int    `json:"mtu"`
+		KeepaliveInterval int    `json:"keepaliveInterval"`
+		KeepaliveRetries  int    `json:"keepaliveRetries"`
+		IpsecSecret       string `json:"ipsecSecret,omitempty"`
+		Disabled          bool   `json:"disabled"`
+		Running           bool   `json:"running"`
+		Comment           string `json:"comment,omitempty"`
 	}
-	writeJSON(w, http.StatusOK, ifaces)
-}
-
-// WireGuardPeers handles GET /routers/{routerID}/wireguard/peers.
-func (h *Handler) WireGuardPeers(w http.ResponseWriter, r *http.Request) {
-	client, err := h.getClient(r)
-	if err != nil {
-		writeError(w, http.StatusBadGateway, "routeros_error", "Failed to connect to router")
-		return
+	result := make([]tunnelResp, 0, len(tunnels))
+	for _, raw := range tunnels {
+		mtu := parseInt(raw.ActualMTU)
+		if mtu == 0 {
+			mtu = parseInt(raw.MTU)
+		}
+		interval, retries := 10, 10
+		if raw.Keepalive != "" {
+			parts := strings.SplitN(raw.Keepalive, ",", 2)
+			if len(parts) >= 1 {
+				interval = parseInt(strings.TrimSuffix(strings.TrimSpace(parts[0]), "s"))
+			}
+			if len(parts) >= 2 {
+				retries = parseInt(strings.TrimSpace(parts[1]))
+			}
+		}
+		result = append(result, tunnelResp{
+			ID:                raw.ID,
+			Name:              raw.Name,
+			TunnelType:        "gre",
+			LocalAddress:      raw.LocalAddress,
+			RemoteAddress:     raw.RemoteAddress,
+			MTU:               mtu,
+			KeepaliveInterval: interval,
+			KeepaliveRetries:  retries,
+			IpsecSecret:       raw.IpsecSecret,
+			Disabled:          parseBool(raw.Disabled),
+			Running:           parseBool(raw.Running),
+			Comment:           raw.Comment,
+		})
 	}
-	peers, err := FetchWireGuardPeers(r.Context(), client)
-	if err != nil {
-		writeError(w, http.StatusBadGateway, "routeros_error", "Failed to fetch WireGuard peers")
-		return
-	}
-	if peers == nil {
-		peers = []WireGuardPeer{}
-	}
-	writeJSON(w, http.StatusOK, peers)
+	writeJSON(w, http.StatusOK, result)
 }
 
 func writeJSON(w http.ResponseWriter, status int, data interface{}) {

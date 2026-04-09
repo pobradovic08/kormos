@@ -115,7 +115,7 @@ export default function WireGuardInterfaceForm({
       if (isEdit) {
         await updateMutation.mutateAsync({ id: editInterface!.id, updates: data });
       } else {
-        await createMutation.mutateAsync(data);
+        await createMutation.mutateAsync({ routerId, ...data });
       }
       onClose();
     } finally {

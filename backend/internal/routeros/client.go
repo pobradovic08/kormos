@@ -120,6 +120,19 @@ func (c *Client) Patch(ctx context.Context, path string, body interface{}) ([]by
 	return respBody, nil
 }
 
+// Post performs a POST request against the given RouterOS REST path.
+// RouterOS uses POST for action endpoints such as /move.
+func (c *Client) Post(ctx context.Context, path string, body interface{}) ([]byte, error) {
+	respBody, status, err := c.do(ctx, http.MethodPost, path, body)
+	if err != nil {
+		return nil, err
+	}
+	if status < 200 || status >= 300 {
+		return nil, fmt.Errorf("routeros: POST %s returned status %d: %s", path, status, string(respBody))
+	}
+	return respBody, nil
+}
+
 // Delete performs a DELETE request against the given path.
 func (c *Client) Delete(ctx context.Context, path string) error {
 	body, status, err := c.do(ctx, http.MethodDelete, path, nil)

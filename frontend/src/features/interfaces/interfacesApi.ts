@@ -1,41 +1,92 @@
 import { useQuery } from '@tanstack/react-query';
 import apiClient from '../../api/client';
-import type { RouterInterface } from '../../api/types';
+import type { RouterInterface, MergedInterface } from '../../api/types';
 import { useMockMode } from '../../mocks/useMockMode';
 import { listInterfaces, getInterface } from '../../mocks/mockInterfacesData';
 
-export function useInterfaces(routerId: string | null) {
+export function useInterfaces(clusterId: string | null) {
   const isMock = useMockMode();
 
   return useQuery<RouterInterface[]>({
-    queryKey: ['interfaces', routerId],
+    queryKey: ['interfaces', clusterId],
     queryFn: async () => {
-      if (isMock) return listInterfaces(routerId!);
-      const response = await apiClient.get<RouterInterface[]>(
-        `/routers/${routerId}/interfaces`,
+      if (isMock) return listInterfaces(clusterId!);
+      // Backend returns MergedInterface[] — flatten to RouterInterface[] for page compatibility.
+      const response = await apiClient.get<MergedInterface[]>(
+        `/clusters/${clusterId}/interfaces`,
       );
-      return response.data;
+      return response.data.flatMap((merged) =>
+        merged.endpoints.map((ep) => ({
+          id: ep.rosId,
+          name: merged.name,
+          default_name: merged.defaultName,
+          type: merged.type,
+          running: ep.running,
+          disabled: merged.disabled,
+          comment: merged.comment,
+          mtu: merged.mtu,
+          mac_address: ep.macAddress,
+          addresses: ep.addresses,
+          properties: {},
+        })),
+      );
     },
-    enabled: !!routerId,
+    enabled: !!clusterId,
   });
 }
 
-export function useInterface(routerId: string | null, name: string) {
+export function useMergedInterfaces(clusterId: string | null) {
+  const isMock = useMockMode();
+
+  return useQuery<MergedInterface[]>({
+    queryKey: ['interfaces-merged', clusterId],
+    queryFn: async () => {
+      if (isMock) {
+        // In mock mode, wrap flat interfaces as merged with single endpoint
+        const flat = listInterfaces(clusterId!);
+        return flat.map((iface) => ({
+          name: iface.name,
+          defaultName: iface.default_name,
+          type: iface.type,
+          mtu: iface.mtu,
+          disabled: iface.disabled,
+          comment: iface.comment,
+          endpoints: [{
+            routerId: clusterId!,
+            routerName: 'mock',
+            role: 'master',
+            rosId: iface.id,
+            macAddress: iface.mac_address,
+            running: iface.running,
+            addresses: iface.addresses,
+          }],
+        }));
+      }
+      const response = await apiClient.get<MergedInterface[]>(
+        `/clusters/${clusterId}/interfaces`,
+      );
+      return response.data;
+    },
+    enabled: !!clusterId,
+  });
+}
+
+export function useInterface(clusterId: string | null, name: string) {
   const isMock = useMockMode();
 
   return useQuery<RouterInterface>({
-    queryKey: ['interfaces', routerId, name],
+    queryKey: ['interfaces', clusterId, name],
     queryFn: async () => {
       if (isMock) {
-        const iface = getInterface(routerId!, name);
+        const iface = getInterface(clusterId!, name);
         if (!iface) throw new Error(`Interface ${name} not found`);
         return iface;
       }
       const response = await apiClient.get<RouterInterface>(
-        `/routers/${routerId}/interfaces/${name}`,
+        `/clusters/${clusterId}/interfaces/${name}`,
       );
       return response.data;
     },
-    enabled: !!routerId && !!name,
+    enabled: !!clusterId && !!name,
   });
 }

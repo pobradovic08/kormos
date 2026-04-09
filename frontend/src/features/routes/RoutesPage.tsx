@@ -113,8 +113,8 @@ function LoadingSkeleton() {
 }
 
 export default function RoutesPage() {
-  const selectedRouterId = useClusterId();
-  const { data: routes, isLoading, error, refetch } = useRoutes(selectedRouterId);
+  const clusterId = useClusterId();
+  const { data: routes, isLoading, error, refetch } = useRoutes(clusterId);
 
   const [search, setSearch] = useState('');
   const [selectedRoute, setSelectedRoute] = useState<Route | null>(null);
@@ -255,7 +255,7 @@ export default function RoutesPage() {
                       >
                         {col.render(route, {
                           onEdit: handleEdit,
-                          clusterId: selectedRouterId,
+                          clusterId: clusterId,
                         })}
                       </Table.Td>
                     ))}
@@ -292,7 +292,7 @@ export default function RoutesPage() {
       <RouteForm
         isOpen={formOpen}
         onClose={() => setFormOpen(false)}
-        routerId={selectedRouterId}
+        routerId={clusterId}
       />
     </>
   );

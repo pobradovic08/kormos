@@ -81,6 +81,26 @@ export interface RouterInterface {
   properties: Record<string, unknown>;
 }
 
+export interface MergedInterfaceEndpoint {
+  routerId: string;
+  routerName: string;
+  role: string;
+  rosId: string;
+  macAddress: string;
+  running: boolean;
+  addresses: InterfaceAddress[];
+}
+
+export interface MergedInterface {
+  name: string;
+  defaultName?: string;
+  type: string;
+  mtu: number;
+  disabled: boolean;
+  comment: string;
+  endpoints: MergedInterfaceEndpoint[];
+}
+
 export interface Route {
   id: string;
   destination: string;
@@ -152,6 +172,72 @@ export interface IPsecTunnel {
 
 export type Tunnel = GRETunnel | IPsecTunnel;
 
+export interface GRETunnelEndpoint {
+  routerId: string;
+  routerName: string;
+  role: string;
+  rosId: string;
+  localAddress: string;
+  remoteAddress: string;
+  running: boolean;
+}
+
+export interface MergedGRETunnel {
+  name: string;
+  tunnelType: string;
+  mtu: number;
+  keepaliveInterval: number;
+  keepaliveRetries: number;
+  ipsecSecret: string;
+  disabled: boolean;
+  comment: string;
+  endpoints: GRETunnelEndpoint[];
+}
+
+export interface IPsecRosIds {
+  peer: string;
+  profile: string;
+  proposal: string;
+  identity: string;
+  policies?: string[];
+}
+
+export interface IPsecTunnelEndpoint {
+  routerId: string;
+  routerName: string;
+  role: string;
+  rosIds: IPsecRosIds;
+  localAddress: string;
+  remoteAddress: string;
+  established: boolean;
+}
+
+export interface MergedIPsecTunnel {
+  name: string;
+  tunnelType: string;
+  mode: string;
+  authMethod: string;
+  ipsecSecret: string;
+  phase1: {
+    encryption: string;
+    hash: string;
+    dhGroup: string;
+    lifetime: string;
+  };
+  phase2: {
+    encryption: string;
+    authAlgorithm: string;
+    pfsGroup: string;
+    lifetime: string;
+  };
+  localSubnets: string[];
+  remoteSubnets: string[];
+  tunnelRoutes: string[];
+  disabled: boolean;
+  comment: string;
+  endpoints: IPsecTunnelEndpoint[];
+}
+
 export interface AuditOperation {
   index: number;
   module: string;
@@ -208,6 +294,55 @@ export interface WireGuardPeer {
   disabled: boolean;
   comment: string;
   clientPrivateKey?: string;
+}
+
+export interface RouterWireGuardInterface {
+  router_id: string;
+  router_name: string;
+  interfaces: WireGuardInterface[];
+}
+
+export interface RouterWireGuardPeer {
+  router_id: string;
+  router_name: string;
+  peers: WireGuardPeer[];
+}
+
+// Backend cluster-scoped WireGuard response shape (one entry per router interface).
+export interface WGInterfaceRaw {
+  rosId: string;
+  name: string;
+  listenPort: number;
+  mtu: number;
+  privateKey: string;
+  publicKey: string;
+  disabled: boolean;
+  running: boolean;
+}
+
+export interface WGPeerRaw {
+  rosId: string;
+  interface: string;
+  name: string;
+  publicKey: string;
+  presharedKey: string;
+  allowedAddress: string;
+  endpointAddress: string;
+  endpointPort: number;
+  lastHandshake: string;
+  rx: number;
+  tx: number;
+  persistentKeepalive: number;
+  disabled: boolean;
+  comment: string;
+}
+
+export interface RouterWireGuard {
+  routerId: string;
+  routerName: string;
+  role: string;
+  interface: WGInterfaceRaw;
+  peers: WGPeerRaw[];
 }
 
 // ─── Firewall ─────────────────────────────────────────────────────────────────

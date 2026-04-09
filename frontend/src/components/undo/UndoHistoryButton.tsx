@@ -1,15 +1,15 @@
 import { UnstyledButton, Text, Badge } from '@mantine/core';
 import { IconHistory } from '@tabler/icons-react';
 import { useOperationHistory } from '../../api/operationsApi';
-import { useRouterStore } from '../../stores/useRouterStore';
+import { useClusterStore } from '../../stores/useClusterStore';
 
 interface UndoHistoryButtonProps {
   onClick: () => void;
 }
 
 export default function UndoHistoryButton({ onClick }: UndoHistoryButtonProps) {
-  const selectedRouterId = useRouterStore((s) => s.selectedRouterId);
-  const { data } = useOperationHistory(selectedRouterId, 1, 50);
+  const selectedClusterId = useClusterStore((s) => s.selectedClusterId);
+  const { data } = useOperationHistory(selectedClusterId, 1, 50);
 
   const undoableCount =
     data?.groups?.filter((g) => g.can_undo).length ?? 0;

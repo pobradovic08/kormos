@@ -10,12 +10,12 @@ import {
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { IconChevronDown } from '@tabler/icons-react';
 import UndoHistoryPanel from '../undo/UndoHistoryPanel';
-import RouterSelector from './RouterSelector';
+import ClusterSelector from './ClusterSelector';
 import UndoHistoryButton from '../undo/UndoHistoryButton';
 import UserMenu from './UserMenu';
 import { modules, configurePath } from '../../features/configure/moduleConfig';
 import { usePortalStore } from '../../stores/usePortalStore';
-import { useRouterStore } from '../../stores/useRouterStore';
+import { useClusterStore } from '../../stores/useClusterStore';
 
 const simpleNavLinks = [
   { label: 'Dashboard', to: '/dashboard' },
@@ -87,12 +87,12 @@ export default function AppShellLayout() {
 
   const isConfigureActive = location.pathname.startsWith('/configure');
 
-  const selectedRouterId = useRouterStore((s) => s.selectedRouterId);
+  const selectedClusterId = useClusterStore((s) => s.selectedClusterId);
 
   // Extract clusterId from URL if on a configure page, else fall back to store
   const configureClusterId = isConfigureActive
-    ? location.pathname.split('/')[2] ?? selectedRouterId
-    : selectedRouterId;
+    ? location.pathname.split('/')[2] ?? selectedClusterId
+    : selectedClusterId;
 
   return (
     <AppShell
@@ -207,7 +207,7 @@ export default function AppShellLayout() {
 
           {/* Right side: RouterSelector, UndoHistoryButton, UserMenu */}
           <Group gap="sm" wrap="nowrap">
-            <RouterSelector />
+            <ClusterSelector />
 
             <Divider
               orientation="vertical"

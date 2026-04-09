@@ -92,9 +92,9 @@ function matchesTunnel(
 }
 
 export default function TunnelsPage() {
-  const selectedRouterId = useClusterId();
-  const { data: tunnels, isLoading, error, refetch } = useTunnels(selectedRouterId);
-  const deleteMutation = useDeleteTunnel(selectedRouterId);
+  const clusterId = useClusterId();
+  const { data: tunnels, isLoading, error, refetch } = useTunnels(clusterId);
+  const deleteMutation = useDeleteTunnel(clusterId);
 
   const [search, setSearch] = useState('');
   const [selectedTunnel, setSelectedTunnel] = useState<Tunnel | null>(null);
@@ -104,19 +104,19 @@ export default function TunnelsPage() {
   const [editTunnel, setEditTunnel] = useState<Tunnel | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Tunnel | null>(null);
 
-  // Reset state when router changes
-  const prevRouterId = useRef(selectedRouterId);
+  // Reset state when cluster changes
+  const prevClusterId = useRef(clusterId);
   useEffect(() => {
-    if (prevRouterId.current !== selectedRouterId) {
+    if (prevClusterId.current !== clusterId) {
       setSearch('');
       setSelectedTunnel(null);
       setDetailOpen(false);
       setFormOpen(false);
       setEditTunnel(null);
       setDeleteTarget(null);
-      prevRouterId.current = selectedRouterId;
+      prevClusterId.current = clusterId;
     }
-  }, [selectedRouterId]);
+  }, [clusterId]);
 
   // Filter tunnels based on search
   const filtered = useMemo(() => {
@@ -264,7 +264,7 @@ export default function TunnelsPage() {
       <TunnelForm
         isOpen={formOpen}
         onClose={handleFormClose}
-        routerId={selectedRouterId}
+        routerId={clusterId}
         tunnelType={formType}
         editTunnel={editTunnel}
       />

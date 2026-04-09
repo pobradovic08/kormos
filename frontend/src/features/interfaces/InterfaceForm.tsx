@@ -18,7 +18,7 @@ import { IconInfoCircle } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import IpAddressInput from '../../components/common/IpAddressInput';
 import { useClusterId } from '../../hooks/useClusterId';
-import { useExecuteOperation } from '../../api/operationsApi';
+import apiClient from '../../api/client';
 import { useInterfaces } from './interfacesApi';
 import type { RouterInterface } from '../../api/types';
 import type { InterfaceFormValues } from './interfaceTypes';
@@ -74,14 +74,13 @@ function getDefaultFormValues(interfaceType: string): InterfaceFormValues {
 export default function InterfaceForm({
   iface,
   interfaceType: propType,
-  resourcePath,
+  resourcePath: _resourcePath,
   isNew = false,
   onClose,
 }: InterfaceFormProps) {
-  const selectedRouterId = useClusterId();
-  const executeOp = useExecuteOperation();
+  const clusterId = useClusterId();
   const queryClient = useQueryClient();
-  const { data: existingInterfaces } = useInterfaces(selectedRouterId);
+  const { data: existingInterfaces } = useInterfaces(clusterId);
 
   const interfaceType = propType ?? iface?.type ?? '';
   const isEthernet = interfaceType === 'ether';
@@ -151,18 +150,10 @@ export default function InterfaceForm({
 
     try {
       if (isNew) {
-        const path = resourcePath ?? `/interface/${interfaceType}`;
-
-        await executeOp.mutateAsync({
-          description: `Add ${interfaceType} interface`,
-          operations: [{
-            router_id: selectedRouterId,
-            module: 'interfaces',
-            operation_type: 'add',
-            resource_path: path,
-            body: cleanedValues as unknown as Record<string, unknown>,
-          }],
-        });
+        await apiClient.post(
+          `/clusters/${clusterId}/interfaces`,
+          cleanedValues,
+        );
 
         notifications.show({
           title: 'Interface created',
@@ -172,17 +163,10 @@ export default function InterfaceForm({
       } else {
         if (!iface) return;
 
-        await executeOp.mutateAsync({
-          description: `Update interface ${iface.name}`,
-          operations: [{
-            router_id: selectedRouterId,
-            module: 'interfaces',
-            operation_type: 'modify',
-            resource_path: `/interface/${iface.name}`,
-            resource_id: iface.id,
-            body: cleanedValues as unknown as Record<string, unknown>,
-          }],
-        });
+        await apiClient.patch(
+          `/clusters/${clusterId}/interfaces/${iface.name}`,
+          cleanedValues,
+        );
 
         notifications.show({
           title: 'Interface updated',
@@ -191,7 +175,8 @@ export default function InterfaceForm({
         });
       }
 
-      await queryClient.invalidateQueries({ queryKey: ['interfaces', selectedRouterId] });
+      await queryClient.invalidateQueries({ queryKey: ['interfaces', clusterId] });
+      await queryClient.invalidateQueries({ queryKey: ['interfaces-merged', clusterId] });
       onClose();
     } catch {
       notifications.show({

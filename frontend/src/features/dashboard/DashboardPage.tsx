@@ -19,7 +19,7 @@ import {
   IconArrowRight,
 } from '@tabler/icons-react';
 import { useAuthStore } from '../../stores/useAuthStore';
-import { useRouterStore } from '../../stores/useRouterStore';
+import { useClusterStore } from '../../stores/useClusterStore';
 import { useOperationHistory } from '../../api/operationsApi';
 import { configurePath } from '../configure/moduleConfig';
 import { useRouters } from '../routers/routersApi';
@@ -35,8 +35,8 @@ function getGreeting() {
 export default function DashboardPage() {
   const user = useAuthStore((s) => s.user);
   const navigate = useNavigate();
-  const selectedRouterId = useRouterStore((s) => s.selectedRouterId);
-  const { data: opHistory } = useOperationHistory(selectedRouterId, 1, 50);
+  const selectedClusterId = useClusterStore((s) => s.selectedClusterId);
+  const { data: opHistory } = useOperationHistory(selectedClusterId, 1, 50);
 
   const { data: routers, isLoading: routersLoading } = useRouters();
 
@@ -201,8 +201,8 @@ export default function DashboardPage() {
         </UnstyledButton>
 
         <UnstyledButton onClick={() => {
-          if (selectedRouterId) {
-            navigate(configurePath(selectedRouterId, 'interfaces'));
+          if (selectedClusterId) {
+            navigate(configurePath(selectedClusterId, 'interfaces'));
           } else {
             navigate('/routers');
           }
