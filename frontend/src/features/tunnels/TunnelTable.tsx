@@ -1,12 +1,16 @@
-import { Table, Text, Badge, Group, Skeleton } from '@mantine/core';
+import { Table, Text, Badge, Group, Stack, Skeleton, Button, Menu } from '@mantine/core';
+import { IconPencil, IconTrash, IconChevronDown } from '@tabler/icons-react';
 import MonoText from '../../components/common/MonoText';
 import StatusIndicator from '../../components/common/StatusIndicator';
-import type { Tunnel, GRETunnel, IPsecTunnel } from '../../api/types';
+import type { Tunnel, GRETunnel, IPsecTunnel, DisplayEndpoint } from '../../api/types';
+import type { DisplayTunnel } from './TunnelsPage';
 
 interface TunnelTableProps {
-  tunnels: Tunnel[];
+  tunnels: DisplayTunnel[];
   search: string;
-  onRowClick: (tunnel: Tunnel) => void;
+  onRowClick: (tunnel: DisplayTunnel) => void;
+  onEdit?: (tunnel: DisplayTunnel) => void;
+  onDelete?: (tunnel: DisplayTunnel) => void;
 }
 
 function HeaderLabel({ children }: { children: string }) {
@@ -52,16 +56,34 @@ export function getStatus(tunnel: Tunnel): { status: 'running' | 'stopped' | 'di
   return { status: 'stopped', label: 'Down' };
 }
 
+function EndpointAddresses({ endpoints, field }: { endpoints: DisplayEndpoint[]; field: 'localAddress' | 'remoteAddress' }) {
+  if (endpoints.length === 0) return <MonoText size="xs">{'\u2014'}</MonoText>;
+  if (endpoints.length === 1) {
+    return <MonoText size="xs">{endpoints[0][field] || '\u2014'}</MonoText>;
+  }
+  return (
+    <Stack gap={2}>
+      {endpoints.map((ep) => (
+        <Group key={ep.routerName} gap={6} wrap="nowrap">
+          <Text size="xs" c="dimmed" style={{ minWidth: 0, flexShrink: 0 }}>{ep.routerName}</Text>
+          <MonoText size="xs">{ep[field] || '\u2014'}</MonoText>
+        </Group>
+      ))}
+    </Stack>
+  );
+}
+
 const columns = [
   { key: 'name', header: 'Name', width: undefined },
   { key: 'type', header: 'Type', width: 80, align: 'center' as const },
   { key: 'mode', header: 'Mode', width: 130, align: 'center' as const },
-  { key: 'localAddress', header: 'Local Address', width: 250 },
-  { key: 'remoteAddress', header: 'Remote Address', width: 250 },
-  { key: 'status', header: 'Status', width: 120 },
+  { key: 'localAddress', header: 'Local Address', width: 320 },
+  { key: 'remoteAddress', header: 'Remote Address', width: 320 },
+  { key: 'status', header: 'Status', width: 120, align: 'center' as const },
+  { key: 'actions', header: 'Actions', width: 90 },
 ];
 
-export default function TunnelTable({ tunnels, search, onRowClick }: TunnelTableProps) {
+export default function TunnelTable({ tunnels, search, onRowClick, onEdit, onDelete }: TunnelTableProps) {
   return (
     <div style={tableWrapperStyle}>
     <Table withRowBorders={false} style={tableStyle}>
@@ -136,15 +158,55 @@ export default function TunnelTable({ tunnels, search, onRowClick }: TunnelTable
                 )}
               </Table.Td>
               <Table.Td>
-                <MonoText size="xs">{tunnel.localAddress}</MonoText>
+                <EndpointAddresses endpoints={tunnel.displayEndpoints} field="localAddress" />
               </Table.Td>
               <Table.Td>
-                <MonoText size="xs">
-                  {tunnel.remoteAddress || '\u2014'}
-                </MonoText>
+                <EndpointAddresses endpoints={tunnel.displayEndpoints} field="remoteAddress" />
               </Table.Td>
-              <Table.Td style={{ width: 100 }}>
-                <StatusIndicator status={tunnelStatus.status} label={tunnelStatus.label} />
+              <Table.Td style={{ width: 120, textAlign: 'center' }}>
+                <Group justify="center">
+                  <StatusIndicator status={tunnelStatus.status} label={tunnelStatus.label} />
+                </Group>
+              </Table.Td>
+              <Table.Td style={{ width: 90 }}>
+                <Button.Group>
+                  <Button
+                    variant="light"
+                    color="gray"
+                    size="xs"
+                    leftSection={<IconPencil size={14} />}
+                    onClick={(e) => { e.stopPropagation(); onEdit?.(tunnel); }}
+                  >
+                    Edit
+                  </Button>
+                  <Menu position="bottom-end">
+                    <Menu.Target>
+                      <Button
+                        variant="light"
+                        color="gray"
+                        size="xs"
+                        style={{
+                          paddingLeft: 6,
+                          paddingRight: 6,
+                          borderLeft: '1px solid var(--mantine-color-gray-2)',
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <IconChevronDown size={14} />
+                      </Button>
+                    </Menu.Target>
+                    <Menu.Dropdown>
+                      <Menu.Item
+                        fz="xs"
+                        color="red"
+                        leftSection={<IconTrash size={14} />}
+                        onClick={(e) => { e.stopPropagation(); onDelete?.(tunnel); }}
+                      >
+                        Delete
+                      </Menu.Item>
+                    </Menu.Dropdown>
+                  </Menu>
+                </Button.Group>
               </Table.Td>
             </Table.Tr>
           );
