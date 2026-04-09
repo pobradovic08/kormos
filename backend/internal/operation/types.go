@@ -57,6 +57,17 @@ var VolatileFields = map[string]bool{
 	"rx":                true,
 	"tx":                true,
 	"last-handshake-ago": true,
+	"responder":          true,
+	"send-initial-contact": true,
+	"exchange-mode":      true,
+	"default":            true,
+	"template":           true,
+	"nat-traversal":      true,
+	"dpd-interval":       true,
+	"dpd-maximum-failures": true,
+	"proposal-check":     true,
+	"generate-policy":    true,
+	".about":             true,
 }
 
 // Group represents a logical action (one or more operations applied together).
