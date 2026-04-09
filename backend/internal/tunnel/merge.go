@@ -129,6 +129,10 @@ func MergeIPsecTunnels(perRouter map[string][]assembledIPsec, routers []RouterIn
 		if remoteSubnets == nil {
 			remoteSubnets = []string{}
 		}
+		tunnelRoutes := a.TunnelRoutes
+		if tunnelRoutes == nil {
+			tunnelRoutes = []string{}
+		}
 		result = append(result, MergedIPsecTunnel{
 			Name:          a.PeerName,
 			TunnelType:    "ipsec",
@@ -139,7 +143,7 @@ func MergeIPsecTunnels(perRouter map[string][]assembledIPsec, routers []RouterIn
 			Phase2:        a.Phase2,
 			LocalSubnets:  localSubnets,
 			RemoteSubnets: remoteSubnets,
-			TunnelRoutes:  []string{},
+			TunnelRoutes:  tunnelRoutes,
 			Disabled:      a.Disabled,
 			Comment:       a.Comment,
 			Endpoints:     entry.endpoints,

@@ -289,6 +289,14 @@ type RawIPsecActivePeer struct {
 	RemoteAddress string `json:"remote-address"`
 }
 
+type RawRoute struct {
+	ID         string `json:".id"`
+	DstAddress string `json:"dst-address"`
+	Gateway    string `json:"gateway"`
+	Comment    string `json:"comment"`
+	Disabled   string `json:"disabled"`
+}
+
 type RawWireGuardInterface struct {
 	ID         string `json:".id"`
 	Name       string `json:"name"`

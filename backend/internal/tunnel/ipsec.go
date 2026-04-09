@@ -4,9 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
+
 	"github.com/pobradovic08/kormos/backend/internal/normalize"
 	"github.com/pobradovic08/kormos/backend/internal/routeros"
 )
+
+const ipsecRouteCommentPrefix = "ipsec:"
 
 type PerRouterIPsec struct {
 	Peers       []RawIPsecPeer
@@ -15,6 +19,7 @@ type PerRouterIPsec struct {
 	Identities  []RawIPsecIdentity
 	Policies    []RawIPsecPolicy
 	ActivePeers []RawIPsecActivePeer
+	Routes      []RawRoute
 }
 
 func FetchIPsecAll(ctx context.Context, client *routeros.Client) (*PerRouterIPsec, error) {
@@ -67,6 +72,20 @@ func FetchIPsecAll(ctx context.Context, client *routeros.Client) (*PerRouterIPse
 		result.ActivePeers = []RawIPsecActivePeer{}
 	}
 
+	// Fetch static routes tagged with the ipsec comment prefix.
+	var allRoutes []RawRoute
+	body, err = client.Get(ctx, "/ip/route")
+	if err != nil {
+		allRoutes = []RawRoute{}
+	} else if err := json.Unmarshal(body, &allRoutes); err != nil {
+		allRoutes = []RawRoute{}
+	}
+	for _, r := range allRoutes {
+		if strings.HasPrefix(r.Comment, ipsecRouteCommentPrefix) {
+			result.Routes = append(result.Routes, r)
+		}
+	}
+
 	return result, nil
 }
 
@@ -87,6 +106,8 @@ type assembledIPsec struct {
 	Secret        string
 	LocalSubnets  []string
 	RemoteSubnets []string
+	TunnelRoutes  []string
+	RouteIDs      []string
 	Mode          string
 	Established   bool
 }
@@ -113,6 +134,12 @@ func AssembleIPsec(data *PerRouterIPsec) []assembledIPsec {
 		if ap.State == "established" {
 			activePeerByAddr[ap.RemoteAddress] = true
 		}
+	}
+	// Group routes by tunnel name extracted from comment "ipsec:{name}".
+	routesByTunnel := map[string][]RawRoute{}
+	for _, r := range data.Routes {
+		name := strings.TrimPrefix(r.Comment, ipsecRouteCommentPrefix)
+		routesByTunnel[name] = append(routesByTunnel[name], r)
 	}
 
 	var result []assembledIPsec
@@ -166,6 +193,12 @@ func AssembleIPsec(data *PerRouterIPsec) []assembledIPsec {
 			}
 		} else {
 			a.Mode = "route-based"
+		}
+
+		// Attach tunnel routes from tagged static routes.
+		for _, r := range routesByTunnel[peer.Name] {
+			a.TunnelRoutes = append(a.TunnelRoutes, r.DstAddress)
+			a.RouteIDs = append(a.RouteIDs, r.ID)
 		}
 
 		a.Established = activePeerByAddr[peer.Address]
@@ -257,12 +290,31 @@ func BuildIPsecCreateOps(req CreateIPsecRequest, routerID string, ep CreateIPsec
 		}
 	}
 
+	// Route-based: create static routes for each tunnel route.
+	if req.Mode == "route-based" {
+		for _, dst := range req.TunnelRoutes {
+			ops = append(ops, ipsecOp{
+				RouterID:     routerID,
+				ResourcePath: "/ip/route",
+				Body: map[string]interface{}{
+					"dst-address": dst,
+					"gateway":     ep.RemoteAddress,
+					"comment":     ipsecRouteCommentPrefix + req.Name,
+				},
+			})
+		}
+	}
+
 	return ops
 }
 
 func BuildIPsecDeleteOps(routerID string, a assembledIPsec) []ipsecOp {
 	var ops []ipsecOp
 
+	// Delete routes first (before removing the peer/policy that references them).
+	for _, rid := range a.RouteIDs {
+		ops = append(ops, ipsecOp{RouterID: routerID, ResourcePath: "/ip/route", ResourceID: rid})
+	}
 	for _, pid := range a.PolicyIDs {
 		ops = append(ops, ipsecOp{RouterID: routerID, ResourcePath: "/ip/ipsec/policy", ResourceID: pid})
 	}
