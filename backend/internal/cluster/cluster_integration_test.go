@@ -34,16 +34,12 @@ func TestMain(m *testing.M) {
 }
 
 func TestCreateCluster_HA(t *testing.T) {
-	chr1IP := os.Getenv("CHR1_IP")
-	chr2IP := os.Getenv("CHR2_IP")
-	chrUser := os.Getenv("CHR_USER")
-	chrPass := os.Getenv("CHR_PASSWORD")
-
+	// Use fake IPs to avoid unique constraint with seeded cluster.
 	body := map[string]interface{}{
 		"name": "test-ha-cluster",
 		"routers": []map[string]interface{}{
-			{"name": "test-master", "hostname": chr1IP, "host": chr1IP, "port": 443, "username": chrUser, "password": chrPass, "role": "master"},
-			{"name": "test-backup", "hostname": chr2IP, "host": chr2IP, "port": 443, "username": chrUser, "password": chrPass, "role": "backup"},
+			{"name": "test-master", "hostname": "fake-chr1", "host": "10.99.99.1", "port": 443, "username": "admin", "password": "pass", "role": "master"},
+			{"name": "test-backup", "hostname": "fake-chr2", "host": "10.99.99.2", "port": 443, "username": "admin", "password": "pass", "role": "backup"},
 		},
 	}
 
@@ -74,14 +70,10 @@ func TestCreateCluster_HA(t *testing.T) {
 }
 
 func TestCreateCluster_Standalone(t *testing.T) {
-	chr1IP := os.Getenv("CHR1_IP")
-	chrUser := os.Getenv("CHR_USER")
-	chrPass := os.Getenv("CHR_PASSWORD")
-
 	body := map[string]interface{}{
 		"name": "test-standalone",
 		"routers": []map[string]interface{}{
-			{"name": "test-solo", "hostname": chr1IP, "host": chr1IP, "port": 443, "username": chrUser, "password": chrPass, "role": "master"},
+			{"name": "test-solo", "hostname": "fake-solo", "host": "10.99.99.3", "port": 443, "username": "admin", "password": "pass", "role": "master"},
 		},
 	}
 
@@ -247,16 +239,11 @@ func TestUpdateCluster_Rename(t *testing.T) {
 }
 
 func TestUpdateCluster_AddRouter(t *testing.T) {
-	// Create a standalone cluster first.
-	chr1IP := os.Getenv("CHR1_IP")
-	chr2IP := os.Getenv("CHR2_IP")
-	chrUser := os.Getenv("CHR_USER")
-	chrPass := os.Getenv("CHR_PASSWORD")
-
+	// Create a standalone cluster first using fake IPs to avoid unique constraint with seeded cluster.
 	createBody := map[string]interface{}{
 		"name": "test-add-router",
 		"routers": []map[string]interface{}{
-			{"name": "test-solo-add", "hostname": chr1IP, "host": chr1IP, "port": 443, "username": chrUser, "password": chrPass, "role": "master"},
+			{"name": "test-solo-add", "hostname": "fake-add-master", "host": "10.99.99.4", "port": 443, "username": "admin", "password": "pass", "role": "master"},
 		},
 	}
 
@@ -276,8 +263,8 @@ func TestUpdateCluster_AddRouter(t *testing.T) {
 	updateBody := map[string]interface{}{
 		"name": "test-add-router",
 		"routers": []map[string]interface{}{
-			{"id": masterID, "name": "test-solo-add", "hostname": chr1IP, "host": chr1IP, "port": 443, "username": chrUser, "password": chrPass, "role": "master"},
-			{"name": "test-new-backup", "hostname": chr2IP, "host": chr2IP, "port": 443, "username": chrUser, "password": chrPass, "role": "backup"},
+			{"id": masterID, "name": "test-solo-add", "hostname": "fake-add-master", "host": "10.99.99.4", "port": 443, "username": "admin", "password": "pass", "role": "master"},
+			{"name": "test-new-backup", "hostname": "fake-add-backup", "host": "10.99.99.5", "port": 443, "username": "admin", "password": "pass", "role": "backup"},
 		},
 	}
 
@@ -299,17 +286,12 @@ func TestUpdateCluster_AddRouter(t *testing.T) {
 }
 
 func TestUpdateCluster_RemoveRouter(t *testing.T) {
-	chr1IP := os.Getenv("CHR1_IP")
-	chr2IP := os.Getenv("CHR2_IP")
-	chrUser := os.Getenv("CHR_USER")
-	chrPass := os.Getenv("CHR_PASSWORD")
-
-	// Create HA cluster.
+	// Create HA cluster using fake IPs to avoid unique constraint with seeded cluster.
 	createBody := map[string]interface{}{
 		"name": "test-remove-router",
 		"routers": []map[string]interface{}{
-			{"name": "test-rm-master", "hostname": chr1IP, "host": chr1IP, "port": 443, "username": chrUser, "password": chrPass, "role": "master"},
-			{"name": "test-rm-backup", "hostname": chr2IP, "host": chr2IP, "port": 443, "username": chrUser, "password": chrPass, "role": "backup"},
+			{"name": "test-rm-master", "hostname": "fake-rm-master", "host": "10.99.99.6", "port": 443, "username": "admin", "password": "pass", "role": "master"},
+			{"name": "test-rm-backup", "hostname": "fake-rm-backup", "host": "10.99.99.7", "port": 443, "username": "admin", "password": "pass", "role": "backup"},
 		},
 	}
 
@@ -329,7 +311,7 @@ func TestUpdateCluster_RemoveRouter(t *testing.T) {
 	updateBody := map[string]interface{}{
 		"name": "test-remove-router",
 		"routers": []map[string]interface{}{
-			{"id": masterID, "name": "test-rm-master", "hostname": chr1IP, "host": chr1IP, "port": 443, "username": chrUser, "password": chrPass, "role": "master"},
+			{"id": masterID, "name": "test-rm-master", "hostname": "fake-rm-master", "host": "10.99.99.6", "port": 443, "username": "admin", "password": "pass", "role": "master"},
 		},
 	}
 
@@ -351,14 +333,11 @@ func TestUpdateCluster_RemoveRouter(t *testing.T) {
 }
 
 func TestDeleteCluster(t *testing.T) {
-	chr1IP := os.Getenv("CHR1_IP")
-	chrUser := os.Getenv("CHR_USER")
-	chrPass := os.Getenv("CHR_PASSWORD")
-
+	// Use a fake IP to avoid unique constraint with seeded cluster.
 	createBody := map[string]interface{}{
 		"name": "test-delete-cluster",
 		"routers": []map[string]interface{}{
-			{"name": "test-del-master", "hostname": chr1IP, "host": chr1IP, "port": 443, "username": chrUser, "password": chrPass, "role": "master"},
+			{"name": "test-del-master", "hostname": "fake-del-master", "host": "10.99.99.8", "port": 443, "username": "admin", "password": "pass", "role": "master"},
 		},
 	}
 
