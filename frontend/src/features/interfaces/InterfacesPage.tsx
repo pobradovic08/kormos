@@ -14,12 +14,12 @@ import {
   IconCrownFilled,
 } from '@tabler/icons-react';
 import { useClusterId } from '../../hooks/useClusterId';
-import { useInterfaces } from './interfacesApi';
+import { useMergedInterfaces } from './interfacesApi';
 import { interfaceColumns } from './interfaceColumns';
 import InterfaceDetail from './InterfaceDetail';
 import EmptyState from '../../components/common/EmptyState';
 import ErrorBanner from '../../components/common/ErrorBanner';
-import type { RouterInterface } from '../../api/types';
+import type { MergedInterface } from '../../api/types';
 
 function HeaderLabel({ children, adminOnly }: { children: string; adminOnly?: boolean }) {
   return (
@@ -119,11 +119,11 @@ function LoadingSkeleton() {
 
 export default function InterfacesPage() {
   const clusterId = useClusterId();
-  const { data: interfaces, isLoading, error, refetch } = useInterfaces(clusterId);
+  const { data: interfaces, isLoading, error, refetch } = useMergedInterfaces(clusterId);
 
   const [search, setSearch] = useState('');
   const [selectedInterface, setSelectedInterface] =
-    useState<RouterInterface | null>(null);
+    useState<MergedInterface | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
 
   const filteredInterfaces = useMemo(() => {
@@ -135,11 +135,15 @@ export default function InterfacesPage() {
       (iface) =>
         iface.name.toLowerCase().includes(query) ||
         iface.type.toLowerCase().includes(query) ||
-        iface.addresses.some((a) => a.address.toLowerCase().includes(query)),
+        (iface.comment && iface.comment.toLowerCase().includes(query)) ||
+        iface.endpoints.some((ep) =>
+          ep.addresses.some((a) => a.address.toLowerCase().includes(query)) ||
+          ep.macAddress.toLowerCase().includes(query),
+        ),
     );
   }, [interfaces, search]);
 
-  const handleRowClick = (iface: RouterInterface) => {
+  const handleRowClick = (iface: MergedInterface) => {
     setSelectedInterface(iface);
     setDetailOpen(true);
   };
@@ -149,7 +153,7 @@ export default function InterfacesPage() {
     setSelectedInterface(null);
   };
 
-  const handleEdit = (iface: RouterInterface) => {
+  const handleEdit = (iface: MergedInterface) => {
     setSelectedInterface(iface);
     setDetailOpen(true);
   };
@@ -196,7 +200,7 @@ export default function InterfacesPage() {
       {hasInterfaces ? (
         <>
           <TextInput
-            placeholder="Search by name, type, or IP address..."
+            placeholder="Search by name, type, IP address, or MAC..."
             leftSection={<IconSearch size={16} />}
             value={search}
             onChange={(e) => setSearch(e.currentTarget.value)}
@@ -226,7 +230,7 @@ export default function InterfacesPage() {
                 const isLast = index === filteredInterfaces.length - 1;
                 return (
                   <Table.Tr
-                    key={iface.id}
+                    key={iface.name}
                     onClick={() => handleRowClick(iface)}
                     style={{
                       cursor: 'pointer',
@@ -265,7 +269,7 @@ export default function InterfacesPage() {
         <EmptyState
           icon={IconNetwork}
           title="No interfaces found"
-          description="No interfaces found on this router."
+          description="No interfaces found on this cluster."
         />
       )}
 

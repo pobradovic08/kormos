@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import {
   Drawer,
   Stack,
@@ -13,25 +12,11 @@ import {
 import { IconPencil } from '@tabler/icons-react';
 import MonoText from '../../components/common/MonoText';
 import StatusIndicator from '../../components/common/StatusIndicator';
-import InterfaceForm from './InterfaceForm';
-import type { RouterInterface } from '../../api/types';
-
-const typeBadgeColors: Record<string, string> = {
-  ether: 'blue',
-  vlan: 'violet',
-  bridge: 'teal',
-  bonding: 'orange',
-  wireguard: 'green',
-  gre: 'cyan',
-  ovpn: 'grape',
-  pppoe: 'pink',
-  l2tp: 'yellow',
-  loopback: 'gray',
-  vrrp: 'red',
-};
+import type { MergedInterface } from '../../api/types';
+import { typeBadgeColors } from './interfaceColumns';
 
 interface InterfaceDetailProps {
-  iface: RouterInterface | null;
+  iface: MergedInterface | null;
   isOpen: boolean;
   onClose: () => void;
 }
@@ -47,12 +32,12 @@ function DetailField({ label, children }: { label: string; children: React.React
   );
 }
 
-function getStatus(iface: RouterInterface): {
+function getOverallStatus(iface: MergedInterface): {
   status: 'running' | 'stopped' | 'disabled';
   label: string;
 } {
   if (iface.disabled) return { status: 'disabled', label: 'Disabled' };
-  if (iface.running) return { status: 'running', label: 'Running' };
+  if (iface.endpoints.some((ep) => ep.running)) return { status: 'running', label: 'Running' };
   return { status: 'stopped', label: 'Stopped' };
 }
 
@@ -61,25 +46,14 @@ export default function InterfaceDetail({
   isOpen,
   onClose,
 }: InterfaceDetailProps) {
-  const [isEditing, setIsEditing] = useState(false);
-
-  const handleClose = () => {
-    setIsEditing(false);
-    onClose();
-  };
-
-  const handleEditClose = () => {
-    setIsEditing(false);
-  };
-
   if (!iface) return null;
 
-  const { status, label } = getStatus(iface);
+  const { status, label } = getOverallStatus(iface);
 
   return (
     <Drawer
       opened={isOpen}
-      onClose={handleClose}
+      onClose={onClose}
       title={
         <Group gap="sm">
           <Title order={4}>{iface.name}</Title>
@@ -90,105 +64,109 @@ export default function InterfaceDetail({
       size="lg"
       padding="xl"
     >
-      {isEditing ? (
-        <InterfaceForm iface={iface} onClose={handleEditClose} />
-      ) : (
-        <Stack gap="lg">
-          {/* Section 1: Interface Details */}
-          <Box>
-            <Text fw={600} size="sm" mb="sm">
-              Interface Details
-            </Text>
-            <Stack gap="xs">
-              <DetailField label="Name">
-                <MonoText>{iface.name}</MonoText>
+      <Stack gap="lg">
+        {/* Section 1: Interface Details */}
+        <Box>
+          <Text fw={600} size="sm" mb="sm">
+            Interface Details
+          </Text>
+          <Stack gap="xs">
+            <DetailField label="Name">
+              <MonoText>{iface.name}</MonoText>
+            </DetailField>
+            {iface.defaultName && iface.defaultName !== iface.name && (
+              <DetailField label="Original Name">
+                <MonoText c="dimmed">{iface.defaultName}</MonoText>
               </DetailField>
-              <DetailField label="Type">
-                <Badge
-                  variant="light"
-                  size="sm"
-                  radius="sm"
-                  color={typeBadgeColors[iface.type] ?? 'gray'}
-                >
-                  {iface.type}
-                </Badge>
-              </DetailField>
-              <DetailField label="Status">
-                <StatusIndicator status={status} label={label} />
-              </DetailField>
-              <DetailField label="MTU">
-                <MonoText>{iface.mtu}</MonoText>
-              </DetailField>
-              <DetailField label="MAC Address">
-                <MonoText>{iface.mac_address || '\u2014'}</MonoText>
-              </DetailField>
-              {iface.comment && (
-                <DetailField label="Comment">
-                  <Text size="sm">{iface.comment}</Text>
-                </DetailField>
-              )}
-            </Stack>
-          </Box>
-
-          <Divider />
-
-          {/* Section 2: IP Addresses */}
-          <Box>
-            <Text fw={600} size="sm" mb="sm">
-              IP Addresses
-            </Text>
-            {iface.addresses.length > 0 ? (
-              <Stack gap="xs">
-                {iface.addresses.map((addr) => (
-                  <Group key={addr.id} justify="space-between">
-                    <MonoText>{addr.address}</MonoText>
-                    <Text size="xs" c="dimmed">
-                      network: {addr.network}
-                    </Text>
-                  </Group>
-                ))}
-              </Stack>
-            ) : (
-              <Text size="sm" c="dimmed">
-                No addresses configured
-              </Text>
             )}
-          </Box>
+            <DetailField label="Type">
+              <Badge
+                variant="light"
+                size="sm"
+                radius="sm"
+                color={typeBadgeColors[iface.type] ?? 'gray'}
+              >
+                {iface.type}
+              </Badge>
+            </DetailField>
+            <DetailField label="MTU">
+              <MonoText>{iface.mtu}</MonoText>
+            </DetailField>
+            {iface.comment && (
+              <DetailField label="Comment">
+                <Text size="sm">{iface.comment}</Text>
+              </DetailField>
+            )}
+          </Stack>
+        </Box>
 
-          {Object.keys(iface.properties).length > 0 && (
-            <>
-              <Divider />
+        <Divider />
 
-              {/* Section 3: Properties */}
-              <Box>
-                <Text fw={600} size="sm" mb="sm">
-                  Properties
-                </Text>
-                <Stack gap="xs">
-                  {Object.entries(iface.properties).map(([key, value]) => (
-                    <DetailField key={key} label={key}>
-                      <MonoText>{String(value)}</MonoText>
-                    </DetailField>
-                  ))}
-                </Stack>
-              </Box>
-            </>
-          )}
+        {/* Section 2: Per-router endpoints */}
+        <Box>
+          <Text fw={600} size="sm" mb="sm">
+            Router Endpoints
+          </Text>
+          <Stack gap="md">
+            {iface.endpoints.map((ep) => {
+              const epStatus = iface.disabled
+                ? 'disabled'
+                : ep.running
+                  ? 'running'
+                  : 'stopped';
+              const epLabel = iface.disabled
+                ? 'Disabled'
+                : ep.running
+                  ? 'Running'
+                  : 'Stopped';
+              return (
+                <Box key={ep.routerName}>
+                  <Group gap="xs" mb={4}>
+                    <Text size="xs" fw={500}>{ep.routerName}</Text>
+                    <Badge variant="light" size="xs" radius="sm" color={ep.role === 'master' ? 'blue' : 'orange'}>
+                      {ep.role}
+                    </Badge>
+                    <StatusIndicator status={epStatus} label={epLabel} />
+                  </Group>
+                  <Stack gap={2} ml="sm">
+                    <Group gap="xs">
+                      <Text size="xs" c="dimmed" style={{ minWidth: 100 }}>MAC Address</Text>
+                      <MonoText size="xs">{ep.macAddress || '\u2014'}</MonoText>
+                    </Group>
+                    {ep.addresses.length > 0 ? (
+                      ep.addresses.map((addr) => (
+                        <Group key={addr.id} gap="xs">
+                          <Text size="xs" c="dimmed" style={{ minWidth: 100 }}>IP Address</Text>
+                          <MonoText size="xs">{addr.address}</MonoText>
+                          <Text size="xs" c="dimmed">({addr.network})</Text>
+                        </Group>
+                      ))
+                    ) : (
+                      <Group gap="xs">
+                        <Text size="xs" c="dimmed" style={{ minWidth: 100 }}>IP Address</Text>
+                        <Text size="xs" c="dimmed">&mdash;</Text>
+                      </Group>
+                    )}
+                  </Stack>
+                </Box>
+              );
+            })}
+          </Stack>
+        </Box>
 
-          <Divider />
+        <Divider />
 
-          {/* Action buttons */}
-          <Group>
-            <Button
-              variant="default"
-              leftSection={<IconPencil size={16} />}
-              onClick={() => setIsEditing(true)}
-            >
-              Edit
-            </Button>
-          </Group>
-        </Stack>
-      )}
+        {/* Action buttons */}
+        <Group>
+          <Button
+            variant="default"
+            leftSection={<IconPencil size={16} />}
+            onClick={onClose}
+          >
+            Edit
+          </Button>
+        </Group>
+      </Stack>
     </Drawer>
   );
 }
