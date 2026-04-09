@@ -558,3 +558,107 @@ func TestAssembleIPsec_ActivePeerEstablished(t *testing.T) {
 		t.Error("expected Established = true when active peer state is established")
 	}
 }
+
+// ─── buildIPsecUpdateBody ───────────────────────────────────────────────────
+
+func strPtr(s string) *string { return &s }
+func boolPtr(b bool) *bool    { return &b }
+
+func TestBuildIPsecUpdateBody(t *testing.T) {
+	t.Run("with endpoint and all fields", func(t *testing.T) {
+		ep := &UpdateIPsecEndpointInput{
+			LocalAddress:  strPtr("1.1.1.1"),
+			RemoteAddress: strPtr("2.2.2.2"),
+		}
+		req := UpdateIPsecRequest{
+			Disabled: boolPtr(true),
+			Comment:  strPtr("updated"),
+		}
+		body := buildIPsecUpdateBody(ep, req)
+
+		if body["local-address"] != "1.1.1.1" {
+			t.Errorf("local-address = %v; want %q", body["local-address"], "1.1.1.1")
+		}
+		if body["address"] != "2.2.2.2" {
+			t.Errorf("address = %v; want %q", body["address"], "2.2.2.2")
+		}
+		if body["disabled"] != "true" {
+			t.Errorf("disabled = %v; want %q", body["disabled"], "true")
+		}
+		if body["comment"] != "updated" {
+			t.Errorf("comment = %v; want %q", body["comment"], "updated")
+		}
+	})
+
+	t.Run("nil endpoint", func(t *testing.T) {
+		req := UpdateIPsecRequest{}
+		body := buildIPsecUpdateBody(nil, req)
+
+		if len(body) != 0 {
+			t.Errorf("expected empty body; got %v", body)
+		}
+	})
+
+	t.Run("disabled false", func(t *testing.T) {
+		req := UpdateIPsecRequest{
+			Disabled: boolPtr(false),
+		}
+		body := buildIPsecUpdateBody(nil, req)
+
+		if body["disabled"] != "false" {
+			t.Errorf("disabled = %v; want %q", body["disabled"], "false")
+		}
+	})
+}
+
+// ─── buildProfileUpdateBody ─────────────────────────────────────────────────
+
+func TestBuildProfileUpdateBody(t *testing.T) {
+	t.Run("partial update", func(t *testing.T) {
+		p1 := &Phase1Config{
+			Encryption: "aes-128",
+		}
+		body := buildProfileUpdateBody(p1)
+
+		if body["enc-algorithm"] != "aes-128" {
+			t.Errorf("enc-algorithm = %v; want %q", body["enc-algorithm"], "aes-128")
+		}
+		if _, ok := body["hash-algorithm"]; ok {
+			t.Error("hash-algorithm should be absent when Hash is empty")
+		}
+	})
+
+	t.Run("nil input", func(t *testing.T) {
+		body := buildProfileUpdateBody(nil)
+
+		if len(body) != 0 {
+			t.Errorf("expected empty body; got %v", body)
+		}
+	})
+}
+
+// ─── buildProposalUpdateBody ────────────────────────────────────────────────
+
+func TestBuildProposalUpdateBody(t *testing.T) {
+	t.Run("partial update", func(t *testing.T) {
+		p2 := &Phase2Config{
+			PFSGroup: "ecp384",
+		}
+		body := buildProposalUpdateBody(p2)
+
+		if body["pfs-group"] != "ecp384" {
+			t.Errorf("pfs-group = %v; want %q", body["pfs-group"], "ecp384")
+		}
+		if _, ok := body["enc-algorithms"]; ok {
+			t.Error("enc-algorithms should be absent when Encryption is empty")
+		}
+	})
+
+	t.Run("nil input", func(t *testing.T) {
+		body := buildProposalUpdateBody(nil)
+
+		if len(body) != 0 {
+			t.Errorf("expected empty body; got %v", body)
+		}
+	})
+}
