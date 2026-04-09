@@ -16,6 +16,14 @@ func ipsecBasePath() string {
 	return fmt.Sprintf("/api/clusters/%s/tunnels/ipsec", tc.ClusterID)
 }
 
+// routerSupportsLoopback returns true if the RouterOS instance supports /interface/loopback.
+// Loopback interfaces were added in RouterOS 7.12.
+func routerSupportsLoopback() bool {
+	ctx := context.Background()
+	_, err := tc.Router1Client.Get(ctx, "/interface/loopback")
+	return err == nil
+}
+
 func TestListIPsec_Empty(t *testing.T) {
 	resp, respBody := testutil.DoRequest(tc.Server, "GET", ipsecBasePath(), nil, tc.Token)
 
@@ -38,6 +46,10 @@ func TestListIPsec_Empty(t *testing.T) {
 }
 
 func TestCreateIPsec_RouteBased(t *testing.T) {
+	if !routerSupportsLoopback() {
+		t.Skip("RouterOS version does not support /interface/loopback (requires 7.12+)")
+	}
+
 	body := map[string]interface{}{
 		"name":        "test-ipsec-route",
 		"mode":        "route-based",
@@ -55,9 +67,16 @@ func TestCreateIPsec_RouteBased(t *testing.T) {
 			"pfsGroup":      "modp2048",
 			"lifetime":      "30m",
 		},
-		"comment": "test-ipsec-route",
+		"tunnelRoutes": []string{"10.50.0.0/24"},
+		"comment":      "test-ipsec-route",
 		"endpoints": []map[string]interface{}{
-			{"routerId": tc.Router1ID, "localAddress": "10.20.0.1", "remoteAddress": "10.20.0.2"},
+			{
+				"routerId":            tc.Router1ID,
+				"localAddress":        "10.20.0.1",
+				"remoteAddress":       "10.20.0.2",
+				"localTunnelAddress":  "10.255.0.0/31",
+				"remoteTunnelAddress": "10.255.0.1",
+			},
 		},
 	}
 
@@ -84,8 +103,92 @@ func TestCreateIPsec_RouteBased(t *testing.T) {
 		t.Fatal("expected phase1 encryption to be populated")
 	}
 
+	// Verify RouterOS state: loopback interface exists with correct comment.
+	ctx := context.Background()
+	testutil.AssertResourceExists(t, ctx, tc.Router1Client,
+		"/interface/loopback", "name", "lo-ipsec-test-ipsec-route")
+	testutil.AssertResourceField(t, ctx, tc.Router1Client,
+		"/interface/loopback", "name", "lo-ipsec-test-ipsec-route",
+		"comment", "ipsec-lo:test-ipsec-route:10.255.0.1")
+
+	// Verify IP address on the loopback.
+	testutil.AssertResourceField(t, ctx, tc.Router1Client,
+		"/ip/address", "interface", "lo-ipsec-test-ipsec-route",
+		"address", "10.255.0.0/31")
+
+	// Verify policy for tunnel has tunnel=true and correct SA addresses.
+	// Find by proposal name since peer field is not returned by RouterOS REST API.
+	testutil.AssertResourceField(t, ctx, tc.Router1Client,
+		"/ip/ipsec/policy", "proposal", "test-ipsec-route",
+		"tunnel", "true")
+	testutil.AssertResourceField(t, ctx, tc.Router1Client,
+		"/ip/ipsec/policy", "proposal", "test-ipsec-route",
+		"sa-src-address", "10.20.0.1")
+	testutil.AssertResourceField(t, ctx, tc.Router1Client,
+		"/ip/ipsec/policy", "proposal", "test-ipsec-route",
+		"sa-dst-address", "10.20.0.2")
+
+	// Verify static route with correct gateway.
+	testutil.AssertResourceField(t, ctx, tc.Router1Client,
+		"/ip/route", "comment", "ipsec:test-ipsec-route",
+		"gateway", "10.255.0.1")
+
 	t.Cleanup(func() {
 		testutil.DoRequest(tc.Server, "DELETE", ipsecBasePath()+"/test-ipsec-route", nil, tc.Token)
+		ctx := context.Background()
+		testutil.CleanupRouterOS(ctx, tc.Router1Client)
+	})
+}
+
+func TestCreateIPsec_RouteBasedNoTunnelAddresses(t *testing.T) {
+	body := map[string]interface{}{
+		"name":        "test-ipsec-noloop",
+		"mode":        "route-based",
+		"authMethod":  "pre-shared-key",
+		"ipsecSecret": "test-secret-noloop",
+		"phase1":      map[string]string{"encryption": "aes-256", "hash": "sha256", "dhGroup": "modp2048", "lifetime": "1d"},
+		"phase2":      map[string]string{"encryption": "aes-256-cbc", "authAlgorithm": "sha256", "pfsGroup": "modp2048", "lifetime": "30m"},
+		"tunnelRoutes": []string{"10.70.0.0/24"},
+		"comment":     "test-ipsec-noloop",
+		"endpoints": []map[string]interface{}{
+			{"routerId": tc.Router1ID, "localAddress": "10.32.0.1", "remoteAddress": "10.32.0.2"},
+		},
+	}
+
+	resp, respBody := testutil.DoRequest(tc.Server, "POST", ipsecBasePath(), body, tc.Token)
+
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("expected 201, got %d: %s", resp.StatusCode, string(respBody))
+	}
+
+	var result map[string]interface{}
+	if err := json.Unmarshal(respBody, &result); err != nil {
+		t.Fatalf("unmarshal response: %v\nbody: %s", err, string(respBody))
+	}
+
+	if result["name"] != "test-ipsec-noloop" {
+		t.Fatalf("expected name test-ipsec-noloop, got %v", result["name"])
+	}
+
+	// Verify RouterOS state: no loopback should be created (skip if loopback not supported).
+	ctx := context.Background()
+	if routerSupportsLoopback() {
+		testutil.AssertResourceNotExists(t, ctx, tc.Router1Client,
+			"/interface/loopback", "name", "lo-ipsec-test-ipsec-noloop")
+	}
+
+	// Template policy should exist (find by proposal name).
+	testutil.AssertResourceField(t, ctx, tc.Router1Client,
+		"/ip/ipsec/policy", "proposal", "test-ipsec-noloop",
+		"template", "true")
+
+	// Route gateway should be the remote peer address.
+	testutil.AssertResourceField(t, ctx, tc.Router1Client,
+		"/ip/route", "comment", "ipsec:test-ipsec-noloop",
+		"gateway", "10.32.0.2")
+
+	t.Cleanup(func() {
+		testutil.DoRequest(tc.Server, "DELETE", ipsecBasePath()+"/test-ipsec-noloop", nil, tc.Token)
 		ctx := context.Background()
 		testutil.CleanupRouterOS(ctx, tc.Router1Client)
 	})
@@ -136,6 +239,20 @@ func TestCreateIPsec_PolicyBased(t *testing.T) {
 	if localSubnets == nil {
 		t.Fatal("expected localSubnets to be populated for policy-based tunnel")
 	}
+
+	// Verify RouterOS state: no loopback for policy-based tunnel (skip if loopback not supported).
+	ctx := context.Background()
+	if routerSupportsLoopback() {
+		testutil.AssertResourceNotExists(t, ctx, tc.Router1Client,
+			"/interface/loopback", "name", "lo-ipsec-test-ipsec-policy")
+	}
+
+	// Verify policy exists for the peer.
+	// Note: RouterOS may override src/dst-address with peer's local/remote addresses,
+	// so we verify the policy exists by peer name and check it's not a template.
+	testutil.AssertResourceField(t, ctx, tc.Router1Client,
+		"/ip/ipsec/policy", "peer", "test-ipsec-policy",
+		"tunnel", "false")
 
 	t.Cleanup(func() {
 		testutil.DoRequest(tc.Server, "DELETE", ipsecBasePath()+"/test-ipsec-policy", nil, tc.Token)
@@ -411,16 +528,39 @@ func TestDeleteIPsec(t *testing.T) {
 }
 
 func TestDeleteIPsec_VerifyCleanup(t *testing.T) {
+	hasLoopback := routerSupportsLoopback()
+
 	body := map[string]interface{}{
 		"name":        "test-ipsec-clean",
 		"mode":        "route-based",
 		"authMethod":  "pre-shared-key",
 		"ipsecSecret": "test-secret-clean",
+		"tunnelRoutes": []string{"10.60.0.0/24"},
 		"phase1":      map[string]string{"encryption": "aes-256", "hash": "sha256", "dhGroup": "modp2048", "lifetime": "1d"},
 		"phase2":      map[string]string{"encryption": "aes-256-cbc", "authAlgorithm": "sha256", "pfsGroup": "modp2048", "lifetime": "30m"},
 		"comment":     "test-ipsec-clean",
-		"endpoints":   []map[string]interface{}{{"routerId": tc.Router1ID, "localAddress": "10.30.0.1", "remoteAddress": "10.30.0.2"}},
+		"endpoints": []map[string]interface{}{
+			{
+				"routerId":      tc.Router1ID,
+				"localAddress":  "10.30.0.1",
+				"remoteAddress": "10.30.0.2",
+			},
+		},
 	}
+
+	// Add tunnel addresses only if loopback is supported.
+	if hasLoopback {
+		body["endpoints"] = []map[string]interface{}{
+			{
+				"routerId":            tc.Router1ID,
+				"localAddress":        "10.30.0.1",
+				"remoteAddress":       "10.30.0.2",
+				"localTunnelAddress":  "10.255.1.0/31",
+				"remoteTunnelAddress": "10.255.1.1",
+			},
+		}
+	}
+
 	testutil.DoRequest(tc.Server, "POST", ipsecBasePath(), body, tc.Token)
 	testutil.DoRequest(tc.Server, "DELETE", ipsecBasePath()+"/test-ipsec-clean", nil, tc.Token)
 
@@ -432,38 +572,18 @@ func TestDeleteIPsec_VerifyCleanup(t *testing.T) {
 	// Verify no orphaned resources on RouterOS.
 	ctx := context.Background()
 
-	peersBody, _ := tc.Router1Client.Get(ctx, "/ip/ipsec/peer")
-	var peers []map[string]interface{}
-	if err := json.Unmarshal(peersBody, &peers); err != nil {
-		t.Fatalf("unmarshal peers: %v\nbody: %s", err, string(peersBody))
+	testutil.AssertResourceNotExists(t, ctx, tc.Router1Client,
+		"/ip/ipsec/peer", "name", "test-ipsec-clean")
+	testutil.AssertResourceNotExists(t, ctx, tc.Router1Client,
+		"/ip/ipsec/profile", "name", "test-ipsec-clean")
+	testutil.AssertResourceNotExists(t, ctx, tc.Router1Client,
+		"/ip/ipsec/proposal", "name", "test-ipsec-clean")
+	if hasLoopback {
+		testutil.AssertResourceNotExists(t, ctx, tc.Router1Client,
+			"/interface/loopback", "name", "lo-ipsec-test-ipsec-clean")
 	}
-	for _, p := range peers {
-		if p["name"] == "test-ipsec-clean" {
-			t.Fatal("orphaned IPsec peer found after delete")
-		}
-	}
-
-	profilesBody, _ := tc.Router1Client.Get(ctx, "/ip/ipsec/profile")
-	var profiles []map[string]interface{}
-	if err := json.Unmarshal(profilesBody, &profiles); err != nil {
-		t.Fatalf("unmarshal profiles: %v\nbody: %s", err, string(profilesBody))
-	}
-	for _, p := range profiles {
-		if p["name"] == "test-ipsec-clean" {
-			t.Fatal("orphaned IPsec profile found after delete")
-		}
-	}
-
-	proposalsBody, _ := tc.Router1Client.Get(ctx, "/ip/ipsec/proposal")
-	var proposals []map[string]interface{}
-	if err := json.Unmarshal(proposalsBody, &proposals); err != nil {
-		t.Fatalf("unmarshal proposals: %v\nbody: %s", err, string(proposalsBody))
-	}
-	for _, p := range proposals {
-		if p["name"] == "test-ipsec-clean" {
-			t.Fatal("orphaned IPsec proposal found after delete")
-		}
-	}
+	testutil.AssertResourceNotExists(t, ctx, tc.Router1Client,
+		"/ip/route", "comment", "ipsec:test-ipsec-clean")
 }
 
 func TestIPsec_Undo(t *testing.T) {
