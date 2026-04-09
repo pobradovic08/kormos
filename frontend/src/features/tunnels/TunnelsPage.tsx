@@ -17,14 +17,90 @@ import {
 } from '@tabler/icons-react';
 import { useClusterId } from '../../hooks/useClusterId';
 import { looksLikeCIDR, prefixOverlaps } from '../../utils/cidr';
-import { useTunnels, useDeleteTunnel } from './tunnelsApi';
+import {
+  useGRETunnels,
+  useIPsecTunnels,
+  useDeleteGRETunnel,
+  useDeleteIPsecTunnel,
+} from './tunnelsApi';
 import TunnelTable, { TunnelTableSkeleton } from './TunnelTable';
 import TunnelDetail from './TunnelDetail';
 import TunnelForm from './TunnelForm';
 import EmptyState from '../../components/common/EmptyState';
 import ErrorBanner from '../../components/common/ErrorBanner';
 import ConfirmDialog from '../../components/common/ConfirmDialog';
-import type { Tunnel, IPsecTunnel } from '../../api/types';
+import type {
+  Tunnel,
+  GRETunnel,
+  IPsecTunnel,
+  MergedGRETunnel,
+  MergedIPsecTunnel,
+  DisplayEndpoint,
+} from '../../api/types';
+
+// ─── Tunnel with endpoints for display ───────────────────────────────────────
+
+export type DisplayTunnel = Tunnel & { displayEndpoints: DisplayEndpoint[] };
+
+function mergedGREToDisplay(t: MergedGRETunnel): DisplayTunnel {
+  const ep = t.endpoints[0];
+  const base: GRETunnel = {
+    id: t.name,
+    name: t.name,
+    tunnelType: 'gre',
+    localAddress: ep?.localAddress ?? '0.0.0.0',
+    remoteAddress: ep?.remoteAddress ?? '',
+    mtu: t.mtu,
+    keepaliveInterval: t.keepaliveInterval,
+    keepaliveRetries: t.keepaliveRetries,
+    ipsecSecret: t.ipsecSecret,
+    disabled: t.disabled,
+    running: ep?.running ?? false,
+    comment: t.comment,
+  };
+  return {
+    ...base,
+    displayEndpoints: t.endpoints.map((e) => ({
+      routerName: e.routerName,
+      role: e.role,
+      localAddress: e.localAddress,
+      remoteAddress: e.remoteAddress,
+    })),
+  };
+}
+
+function mergedIPsecToDisplay(t: MergedIPsecTunnel): DisplayTunnel {
+  const ep = t.endpoints[0];
+  const base: IPsecTunnel = {
+    id: t.name,
+    name: t.name,
+    tunnelType: 'ipsec',
+    mode: t.mode as 'route-based' | 'policy-based',
+    localAddress: ep?.localAddress ?? '0.0.0.0',
+    remoteAddress: ep?.remoteAddress ?? '',
+    authMethod: t.authMethod as 'pre-shared-key' | 'digital-signature',
+    ipsecSecret: t.ipsecSecret,
+    phase1: t.phase1,
+    phase2: t.phase2,
+    localSubnets: t.localSubnets,
+    remoteSubnets: t.remoteSubnets,
+    tunnelRoutes: t.tunnelRoutes,
+    disabled: t.disabled,
+    established: ep?.established ?? false,
+    comment: t.comment,
+  };
+  return {
+    ...base,
+    displayEndpoints: t.endpoints.map((e) => ({
+      routerName: e.routerName,
+      role: e.role,
+      localAddress: e.localAddress,
+      remoteAddress: e.remoteAddress,
+    })),
+  };
+}
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function AddTunnelButton({
   onAddGRE,
@@ -91,18 +167,42 @@ function matchesTunnel(
   return false;
 }
 
+// ─── Page ────────────────────────────────────────────────────────────────────
+
 export default function TunnelsPage() {
   const clusterId = useClusterId();
-  const { data: tunnels, isLoading, error, refetch } = useTunnels(clusterId);
-  const deleteMutation = useDeleteTunnel(clusterId);
+
+  // Cluster-scoped queries
+  const { data: greTunnels, isLoading: greLoading, error: greError, refetch: greRefetch } = useGRETunnels(clusterId);
+  const { data: ipsecTunnels, isLoading: ipsecLoading, error: ipsecError, refetch: ipsecRefetch } = useIPsecTunnels(clusterId);
+  const deleteGRE = useDeleteGRETunnel(clusterId);
+  const deleteIPsec = useDeleteIPsecTunnel(clusterId);
+
+  const isLoading = greLoading || ipsecLoading;
+  const error = greError || ipsecError;
+
+  // Keep a map from name → merged tunnel for edit/detail
+  const mergedByName = useMemo(() => {
+    const map = new Map<string, MergedGRETunnel | MergedIPsecTunnel>();
+    for (const t of greTunnels ?? []) map.set(t.name, t);
+    for (const t of ipsecTunnels ?? []) map.set(t.name, t);
+    return map;
+  }, [greTunnels, ipsecTunnels]);
+
+  // Convert to DisplayTunnel[] for table/detail
+  const tunnels = useMemo<DisplayTunnel[]>(() => {
+    const gre = (greTunnels ?? []).map(mergedGREToDisplay);
+    const ipsec = (ipsecTunnels ?? []).map(mergedIPsecToDisplay);
+    return [...gre, ...ipsec];
+  }, [greTunnels, ipsecTunnels]);
 
   const [search, setSearch] = useState('');
-  const [selectedTunnel, setSelectedTunnel] = useState<Tunnel | null>(null);
+  const [selectedTunnel, setSelectedTunnel] = useState<DisplayTunnel | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
   const [formOpen, setFormOpen] = useState(false);
   const [formType, setFormType] = useState<'gre' | 'ipsec'>('gre');
-  const [editTunnel, setEditTunnel] = useState<Tunnel | null>(null);
-  const [deleteTarget, setDeleteTarget] = useState<Tunnel | null>(null);
+  const [editTunnel, setEditTunnel] = useState<MergedGRETunnel | MergedIPsecTunnel | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<DisplayTunnel | null>(null);
 
   // Reset state when cluster changes
   const prevClusterId = useRef(clusterId);
@@ -120,7 +220,6 @@ export default function TunnelsPage() {
 
   // Filter tunnels based on search
   const filtered = useMemo(() => {
-    if (!tunnels) return [];
     const trimmed = search.trim();
     if (!trimmed) return tunnels;
 
@@ -142,7 +241,7 @@ export default function TunnelsPage() {
     setFormOpen(true);
   };
 
-  const handleRowClick = (tunnel: Tunnel) => {
+  const handleRowClick = (tunnel: DisplayTunnel) => {
     setSelectedTunnel(tunnel);
     setDetailOpen(true);
   };
@@ -151,29 +250,30 @@ export default function TunnelsPage() {
     setDetailOpen(false);
   };
 
-  const handleEdit = (tunnel: Tunnel) => {
+  const handleEdit = (tunnel: DisplayTunnel) => {
     setDetailOpen(false);
-    setEditTunnel(tunnel);
+    const merged = mergedByName.get(tunnel.name) ?? null;
+    setEditTunnel(merged);
     setFormType(tunnel.tunnelType);
     setFormOpen(true);
   };
 
-  const handleDelete = (tunnel: Tunnel) => {
+  const handleDelete = (tunnel: DisplayTunnel) => {
     setDetailOpen(false);
     setDeleteTarget(tunnel);
   };
 
   const handleDeleteConfirm = () => {
     if (!deleteTarget) return;
-    deleteMutation.mutate(
-      { id: deleteTarget.id },
-      {
-        onSuccess: () => {
-          setDeleteTarget(null);
-          setSelectedTunnel(null);
-        },
-      },
-    );
+    const onSuccess = () => {
+      setDeleteTarget(null);
+      setSelectedTunnel(null);
+    };
+    if (deleteTarget.tunnelType === 'gre') {
+      deleteGRE.mutate(deleteTarget.name, { onSuccess });
+    } else {
+      deleteIPsec.mutate(deleteTarget.name, { onSuccess });
+    }
   };
 
   const handleFormClose = () => {
@@ -189,7 +289,7 @@ export default function TunnelsPage() {
           <Stack gap={4}>
             <Title order={2}>Tunnels</Title>
             <Text size="sm" c="dimmed">
-              GRE and IPsec tunnels for this router
+              GRE and IPsec tunnels for this cluster
             </Text>
           </Stack>
         </Group>
@@ -204,12 +304,12 @@ export default function TunnelsPage() {
     return (
       <ErrorBanner
         message="Failed to load tunnels. Please try again later."
-        onRetry={() => void refetch()}
+        onRetry={() => { void greRefetch(); void ipsecRefetch(); }}
       />
     );
   }
 
-  const hasTunnels = tunnels && tunnels.length > 0;
+  const hasTunnels = tunnels.length > 0;
 
   return (
     <>
@@ -217,7 +317,7 @@ export default function TunnelsPage() {
         <Stack gap={4}>
           <Title order={2}>Tunnels</Title>
           <Text size="sm" c="dimmed">
-            GRE and IPsec tunnels for this router
+            GRE and IPsec tunnels for this cluster
           </Text>
         </Stack>
         <AddTunnelButton onAddGRE={handleAddGRE} onAddIPsec={handleAddIPsec} />
@@ -237,13 +337,15 @@ export default function TunnelsPage() {
             tunnels={filtered}
             search={search}
             onRowClick={handleRowClick}
+            onEdit={handleEdit}
+            onDelete={handleDelete}
           />
         </>
       ) : (
         <EmptyState
           icon={IconBuilding}
           title="No tunnels configured"
-          description="This router has no GRE or IPsec tunnels configured."
+          description="This cluster has no GRE or IPsec tunnels configured."
           action={
             <AddTunnelButton
               onAddGRE={handleAddGRE}
@@ -264,7 +366,7 @@ export default function TunnelsPage() {
       <TunnelForm
         isOpen={formOpen}
         onClose={handleFormClose}
-        routerId={clusterId}
+        clusterId={clusterId}
         tunnelType={formType}
         editTunnel={editTunnel}
       />
