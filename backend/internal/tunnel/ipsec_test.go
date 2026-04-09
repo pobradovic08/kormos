@@ -322,3 +322,239 @@ func TestBuildIPsecCreateOps_MultipleRoutes(t *testing.T) {
 		}
 	}
 }
+
+// ─── BuildIPsecDeleteOps ────────────────────────────────────────────────────
+
+func TestBuildIPsecDeleteOps_WithLoopbackAndRoutes(t *testing.T) {
+	a := assembledIPsec{
+		PeerID:     "*1",
+		ProfileID:  "*2",
+		ProposalID: "*3",
+		IdentityID: "*4",
+		PolicyIDs:  []string{"*5", "*6"},
+		RouteIDs:   []string{"*7", "*8"},
+		LoopbackID: "*9",
+		AddressID:  "*10",
+	}
+	ops := BuildIPsecDeleteOps("r1", a)
+
+	if len(ops) != 10 {
+		t.Fatalf("expected 10 ops; got %d", len(ops))
+	}
+
+	// Expected ordering: routes → address → loopback → policies → identity → peer → proposal → profile
+	expected := []struct {
+		path string
+		id   string
+	}{
+		{"/ip/route", "*7"},
+		{"/ip/route", "*8"},
+		{"/ip/address", "*10"},
+		{"/interface/loopback", "*9"},
+		{"/ip/ipsec/policy", "*5"},
+		{"/ip/ipsec/policy", "*6"},
+		{"/ip/ipsec/identity", "*4"},
+		{"/ip/ipsec/peer", "*1"},
+		{"/ip/ipsec/proposal", "*3"},
+		{"/ip/ipsec/profile", "*2"},
+	}
+	for i, want := range expected {
+		if ops[i].ResourcePath != want.path {
+			t.Errorf("ops[%d].ResourcePath = %q; want %q", i, ops[i].ResourcePath, want.path)
+		}
+		if ops[i].ResourceID != want.id {
+			t.Errorf("ops[%d].ResourceID = %q; want %q", i, ops[i].ResourceID, want.id)
+		}
+		if ops[i].RouterID != "r1" {
+			t.Errorf("ops[%d].RouterID = %q; want %q", i, ops[i].RouterID, "r1")
+		}
+	}
+}
+
+func TestBuildIPsecDeleteOps_WithoutLoopback(t *testing.T) {
+	a := assembledIPsec{
+		PeerID:     "*1",
+		ProfileID:  "*2",
+		ProposalID: "*3",
+		IdentityID: "*4",
+		PolicyIDs:  []string{"*5", "*6"},
+		// No LoopbackID, AddressID, or RouteIDs.
+	}
+	ops := BuildIPsecDeleteOps("r1", a)
+
+	for _, op := range ops {
+		if op.ResourcePath == "/interface/loopback" {
+			t.Error("unexpected /interface/loopback op when no LoopbackID set")
+		}
+		if op.ResourcePath == "/ip/address" {
+			t.Error("unexpected /ip/address op when no AddressID set")
+		}
+		if op.ResourcePath == "/ip/route" {
+			t.Error("unexpected /ip/route op when no RouteIDs set")
+		}
+	}
+
+	// policies(2) + identity + peer + proposal + profile = 6
+	if len(ops) != 6 {
+		t.Fatalf("expected 6 ops; got %d", len(ops))
+	}
+}
+
+func TestBuildIPsecDeleteOps_EmptyOptionalIDs(t *testing.T) {
+	a := assembledIPsec{
+		PeerID: "*1",
+		// All other IDs empty.
+	}
+	ops := BuildIPsecDeleteOps("r1", a)
+
+	if len(ops) != 1 {
+		t.Fatalf("expected 1 op; got %d", len(ops))
+	}
+	if ops[0].ResourcePath != "/ip/ipsec/peer" {
+		t.Errorf("ops[0].ResourcePath = %q; want %q", ops[0].ResourcePath, "/ip/ipsec/peer")
+	}
+	if ops[0].ResourceID != "*1" {
+		t.Errorf("ops[0].ResourceID = %q; want %q", ops[0].ResourceID, "*1")
+	}
+}
+
+// ─── AssembleIPsec ──────────────────────────────────────────────────────────
+
+func TestAssembleIPsec_TunnelModePolicy(t *testing.T) {
+	data := &PerRouterIPsec{
+		Peers: []RawIPsecPeer{
+			{ID: "*1", Name: "tun1", Address: "5.6.7.8", LocalAddress: "1.2.3.4", Profile: "tun1"},
+		},
+		Policies: []RawIPsecPolicy{
+			{ID: "*5", Peer: "tun1", Tunnel: "true", SrcAddress: "172.16.0.1/30", DstAddress: "172.16.0.2/30"},
+		},
+	}
+	result := AssembleIPsec(data)
+	if len(result) != 1 {
+		t.Fatalf("expected 1 assembled tunnel; got %d", len(result))
+	}
+	if result[0].Mode != "route-based" {
+		t.Errorf("Mode = %q; want %q", result[0].Mode, "route-based")
+	}
+}
+
+func TestAssembleIPsec_TemplatePolicy(t *testing.T) {
+	data := &PerRouterIPsec{
+		Peers: []RawIPsecPeer{
+			{ID: "*1", Name: "tun1", Address: "5.6.7.8", LocalAddress: "1.2.3.4", Profile: "tun1"},
+		},
+		Policies: []RawIPsecPolicy{
+			{ID: "*5", Peer: "tun1", Template: "true", SrcAddress: "0.0.0.0/0", DstAddress: "0.0.0.0/0"},
+		},
+	}
+	result := AssembleIPsec(data)
+	if len(result) != 1 {
+		t.Fatalf("expected 1 assembled tunnel; got %d", len(result))
+	}
+	if result[0].Mode != "route-based" {
+		t.Errorf("Mode = %q; want %q", result[0].Mode, "route-based")
+	}
+}
+
+func TestAssembleIPsec_PolicyBased(t *testing.T) {
+	data := &PerRouterIPsec{
+		Peers: []RawIPsecPeer{
+			{ID: "*1", Name: "tun1", Address: "5.6.7.8", LocalAddress: "1.2.3.4", Profile: "tun1"},
+		},
+		Policies: []RawIPsecPolicy{
+			{ID: "*5", Peer: "tun1", SrcAddress: "192.168.1.0/24", DstAddress: "10.0.1.0/24"},
+		},
+	}
+	result := AssembleIPsec(data)
+	if len(result) != 1 {
+		t.Fatalf("expected 1 assembled tunnel; got %d", len(result))
+	}
+	if result[0].Mode != "policy-based" {
+		t.Errorf("Mode = %q; want %q", result[0].Mode, "policy-based")
+	}
+	if len(result[0].LocalSubnets) != 1 || result[0].LocalSubnets[0] != "192.168.1.0/24" {
+		t.Errorf("LocalSubnets = %v; want [192.168.1.0/24]", result[0].LocalSubnets)
+	}
+	if len(result[0].RemoteSubnets) != 1 || result[0].RemoteSubnets[0] != "10.0.1.0/24" {
+		t.Errorf("RemoteSubnets = %v; want [10.0.1.0/24]", result[0].RemoteSubnets)
+	}
+}
+
+func TestAssembleIPsec_LoopbackAndAddress(t *testing.T) {
+	data := &PerRouterIPsec{
+		Peers: []RawIPsecPeer{
+			{ID: "*1", Name: "tun1", Address: "5.6.7.8", LocalAddress: "1.2.3.4", Profile: "tun1"},
+		},
+		Loopbacks: []RawLoopback{
+			{ID: "*9", Name: "lo-ipsec-tun1", Comment: "ipsec-lo:tun1:10.255.0.1"},
+		},
+		Addresses: []RawIPAddress{
+			{ID: "*10", Address: "10.255.0.0/31", Interface: "lo-ipsec-tun1"},
+		},
+	}
+	result := AssembleIPsec(data)
+	if len(result) != 1 {
+		t.Fatalf("expected 1 assembled tunnel; got %d", len(result))
+	}
+	a := result[0]
+	if a.LoopbackID != "*9" {
+		t.Errorf("LoopbackID = %q; want %q", a.LoopbackID, "*9")
+	}
+	if a.AddressID != "*10" {
+		t.Errorf("AddressID = %q; want %q", a.AddressID, "*10")
+	}
+	if a.LocalTunnelAddress != "10.255.0.0/31" {
+		t.Errorf("LocalTunnelAddress = %q; want %q", a.LocalTunnelAddress, "10.255.0.0/31")
+	}
+	if a.RemoteTunnelAddress != "10.255.0.1" {
+		t.Errorf("RemoteTunnelAddress = %q; want %q", a.RemoteTunnelAddress, "10.255.0.1")
+	}
+}
+
+func TestAssembleIPsec_RoutesGroupedByName(t *testing.T) {
+	data := &PerRouterIPsec{
+		Peers: []RawIPsecPeer{
+			{ID: "*1", Name: "foo", Address: "5.6.7.8", LocalAddress: "1.2.3.4", Profile: "foo"},
+		},
+		Routes: []RawRoute{
+			{ID: "*r1", DstAddress: "10.0.0.0/24", Comment: "ipsec:foo"},
+			{ID: "*r2", DstAddress: "10.0.1.0/24", Comment: "ipsec:foo"},
+			{ID: "*r3", DstAddress: "172.16.0.0/16", Comment: "ipsec:bar"},
+		},
+	}
+	result := AssembleIPsec(data)
+	if len(result) != 1 {
+		t.Fatalf("expected 1 assembled tunnel; got %d", len(result))
+	}
+	a := result[0]
+	if len(a.TunnelRoutes) != 2 {
+		t.Fatalf("expected 2 TunnelRoutes; got %d", len(a.TunnelRoutes))
+	}
+	if len(a.RouteIDs) != 2 {
+		t.Fatalf("expected 2 RouteIDs; got %d", len(a.RouteIDs))
+	}
+	// Verify the route IDs belong to "foo" routes, not "bar".
+	for _, id := range a.RouteIDs {
+		if id == "*r3" {
+			t.Error("RouteIDs should not contain *r3 (belongs to ipsec:bar)")
+		}
+	}
+}
+
+func TestAssembleIPsec_ActivePeerEstablished(t *testing.T) {
+	data := &PerRouterIPsec{
+		Peers: []RawIPsecPeer{
+			{ID: "*1", Name: "tun1", Address: "5.6.7.8", LocalAddress: "1.2.3.4", Profile: "tun1"},
+		},
+		ActivePeers: []RawIPsecActivePeer{
+			{ID: "*a1", State: "established", RemoteAddress: "5.6.7.8"},
+		},
+	}
+	result := AssembleIPsec(data)
+	if len(result) != 1 {
+		t.Fatalf("expected 1 assembled tunnel; got %d", len(result))
+	}
+	if !result[0].Established {
+		t.Error("expected Established = true when active peer state is established")
+	}
+}
