@@ -109,7 +109,7 @@ function getInitialGREState(
       keepaliveInterval: merged.keepaliveInterval,
       keepaliveRetries: merged.keepaliveRetries,
       mtu: merged.mtu,
-      ipsecSecret: merged.ipsecSecret,
+      ipsecSecret: merged.ipsecSecret || '',
       comment: merged.comment,
     };
   }
@@ -187,7 +187,7 @@ function getInitialIPsecState(
         remoteAddress: ep.remoteAddress || '',
       })),
       authMethod: merged.authMethod,
-      ipsecSecret: merged.ipsecSecret,
+      ipsecSecret: merged.ipsecSecret || '',
       comment: merged.comment,
       p1Encryption: merged.phase1.encryption,
       p1Hash: merged.phase1.hash,
@@ -515,7 +515,7 @@ export default function TunnelForm({
           newErrors[`endpoint-${ep.routerId}-remoteAddress`] = 'Must be a valid IPv4 address';
         }
       }
-      if (ipsecState.authMethod === 'pre-shared-key' && !(ipsecState.ipsecSecret || '').trim()) {
+      if (!isEdit && ipsecState.authMethod === 'pre-shared-key' && !(ipsecState.ipsecSecret || '').trim()) {
         newErrors.ipsecSecret = 'Pre-shared key is required';
       }
     }
