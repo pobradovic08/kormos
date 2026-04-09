@@ -280,6 +280,7 @@ type RawIPsecPolicy struct {
 	Peer       string `json:"peer"`
 	SrcAddress string `json:"src-address"`
 	DstAddress string `json:"dst-address"`
+	Template   string `json:"template"`
 	Disabled   string `json:"disabled"`
 }
 

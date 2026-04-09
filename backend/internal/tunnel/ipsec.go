@@ -188,10 +188,14 @@ func AssembleIPsec(data *PerRouterIPsec) []assembledIPsec {
 		}
 
 		policies := policiesByPeer[peer.Name]
-		if len(policies) > 0 {
-			a.Mode = "policy-based"
-			for _, pol := range policies {
-				a.PolicyIDs = append(a.PolicyIDs, pol.ID)
+		hasTemplatePolicy := false
+		hasRealPolicy := false
+		for _, pol := range policies {
+			a.PolicyIDs = append(a.PolicyIDs, pol.ID)
+			if normalize.ParseBool(pol.Template) {
+				hasTemplatePolicy = true
+			} else {
+				hasRealPolicy = true
 				if pol.SrcAddress != "" && pol.SrcAddress != "0.0.0.0/0" {
 					a.LocalSubnets = append(a.LocalSubnets, pol.SrcAddress)
 				}
@@ -199,6 +203,11 @@ func AssembleIPsec(data *PerRouterIPsec) []assembledIPsec {
 					a.RemoteSubnets = append(a.RemoteSubnets, pol.DstAddress)
 				}
 			}
+		}
+		if hasRealPolicy {
+			a.Mode = "policy-based"
+		} else if hasTemplatePolicy {
+			a.Mode = "route-based"
 		} else {
 			a.Mode = "route-based"
 		}
@@ -298,8 +307,20 @@ func BuildIPsecCreateOps(req CreateIPsecRequest, routerID string, ep CreateIPsec
 		}
 	}
 
-	// Route-based: create static routes for each tunnel route.
+	// Route-based: create policy template + static routes.
 	if req.Mode == "route-based" {
+		ops = append(ops, ipsecOp{
+			RouterID:     routerID,
+			ResourcePath: "/ip/ipsec/policy",
+			Body: map[string]interface{}{
+				"peer":        req.Name,
+				"proposal":    req.Name,
+				"template":    "yes",
+				"src-address": "0.0.0.0/0",
+				"dst-address": "0.0.0.0/0",
+			},
+		})
+
 		gw := stripPrefix(ep.RemoteAddress)
 		for _, dst := range req.TunnelRoutes {
 			ops = append(ops, ipsecOp{
