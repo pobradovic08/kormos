@@ -252,7 +252,7 @@ export interface IPsecRosIds {
   proposal: string;
   identity: string;
   policies?: string[];
-  loopback?: string;
+  bridge?: string;
   address?: string;
 }
 

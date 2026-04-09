@@ -79,7 +79,7 @@ type IPsecRosIDs struct {
 	Proposal string   `json:"proposal"`
 	Identity string   `json:"identity"`
 	Policies []string `json:"policies,omitempty"`
-	Loopback string   `json:"loopback,omitempty"`
+	Bridge string   `json:"bridge,omitempty"`
 	Address  string   `json:"address,omitempty"`
 }
 
@@ -309,7 +309,7 @@ type RawRoute struct {
 	Disabled   string `json:"disabled"`
 }
 
-type RawLoopback struct {
+type RawBridge struct {
 	ID       string `json:".id"`
 	Name     string `json:"name"`
 	Comment  string `json:"comment"`

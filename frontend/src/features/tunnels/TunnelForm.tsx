@@ -925,7 +925,7 @@ function IPsecConnectionStep({
             message: { fontSize: 'var(--mantine-font-size-xs)' },
           }}>
           MikroTik route-based IPsec does not create a named tunnel interface.
-          A loopback will be created with the tunnel transit addresses for each router.
+          A bridge (no ports) will be created with the tunnel transit addresses for each router.
           This enables BGP and dynamic routing over the IPsec tunnel.
         </Alert>
       )}

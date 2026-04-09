@@ -420,7 +420,7 @@ func (s *Service) UpdateIPsec(ctx context.Context, tenantID, userID, clusterID, 
 			})
 		}
 
-		// Update loopback address and tunnel-mode policy if tunnel addresses changed.
+		// Update bridge address and tunnel-mode policy if tunnel addresses changed.
 		if epInput != nil && epInput.LocalTunnelAddress != nil && a.AddressID != "" {
 			ops = append(ops, operation.ExecuteOperation{
 				RouterID:      ri.ID,
@@ -431,20 +431,20 @@ func (s *Service) UpdateIPsec(ctx context.Context, tenantID, userID, clusterID, 
 				Body:          map[string]interface{}{"address": *epInput.LocalTunnelAddress},
 			})
 		}
-		if epInput != nil && epInput.RemoteTunnelAddress != nil && a.LoopbackID != "" {
+		if epInput != nil && epInput.RemoteTunnelAddress != nil && a.BridgeID != "" {
 			ops = append(ops, operation.ExecuteOperation{
 				RouterID:      ri.ID,
 				Module:        "tunnels",
 				OperationType: operation.OpModify,
-				ResourcePath:  "/interface/loopback",
-				ResourceID:    a.LoopbackID,
+				ResourcePath:  "/interface/bridge",
+				ResourceID:    a.BridgeID,
 				Body: map[string]interface{}{
-					"comment": ipsecLoopbackCommentPrefix + name + ":" + stripPrefix(*epInput.RemoteTunnelAddress),
+					"comment": ipsecBridgeCommentPrefix + name + ":" + stripPrefix(*epInput.RemoteTunnelAddress),
 				},
 			})
 		}
 		// Update tunnel-mode policy src/dst addresses if tunnel addresses changed.
-		if epInput != nil && (epInput.LocalTunnelAddress != nil || epInput.RemoteTunnelAddress != nil) && a.LoopbackID != "" {
+		if epInput != nil && (epInput.LocalTunnelAddress != nil || epInput.RemoteTunnelAddress != nil) && a.BridgeID != "" {
 			localTA := a.LocalTunnelAddress
 			if epInput.LocalTunnelAddress != nil {
 				localTA = *epInput.LocalTunnelAddress

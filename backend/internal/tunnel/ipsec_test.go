@@ -115,15 +115,15 @@ func TestBuildIPsecCreateOps_RouteBasedWithTunnelAddresses(t *testing.T) {
 	assertContainsPath(t, ops, "/ip/ipsec/identity")
 
 	// Loopback interface must exist.
-	loOp := findOp(ops, "/interface/loopback")
+	loOp := findOp(ops, "/interface/bridge")
 	if loOp == nil {
 		t.Fatal("expected /interface/loopback op for route-based with tunnel addresses")
 	}
-	if loOp.Body["name"] != "lo-ipsec-tunnel-a" {
-		t.Errorf("loopback name = %v; want %q", loOp.Body["name"], "lo-ipsec-tunnel-a")
+	if loOp.Body["name"] != "br-ipsec-tunnel-a" {
+		t.Errorf("loopback name = %v; want %q", loOp.Body["name"], "br-ipsec-tunnel-a")
 	}
 	// Loopback comment should contain the remote tunnel address (stripped of prefix).
-	wantLoComment := "ipsec-lo:tunnel-a:172.16.0.2"
+	wantLoComment := "ipsec-br:tunnel-a:172.16.0.2"
 	if loOp.Body["comment"] != wantLoComment {
 		t.Errorf("loopback comment = %v; want %q", loOp.Body["comment"], wantLoComment)
 	}
@@ -136,8 +136,8 @@ func TestBuildIPsecCreateOps_RouteBasedWithTunnelAddresses(t *testing.T) {
 	if addrOp.Body["address"] != "172.16.0.1/30" {
 		t.Errorf("address = %v; want %q", addrOp.Body["address"], "172.16.0.1/30")
 	}
-	if addrOp.Body["interface"] != "lo-ipsec-tunnel-a" {
-		t.Errorf("address interface = %v; want %q", addrOp.Body["interface"], "lo-ipsec-tunnel-a")
+	if addrOp.Body["interface"] != "br-ipsec-tunnel-a" {
+		t.Errorf("address interface = %v; want %q", addrOp.Body["interface"], "br-ipsec-tunnel-a")
 	}
 
 	// Tunnel-mode policy: src/dst should be tunnel addresses, sa-* should be stripped peer addresses.
@@ -186,7 +186,7 @@ func TestBuildIPsecCreateOps_RouteBasedNoTunnelAddresses(t *testing.T) {
 	ops := BuildIPsecCreateOps(req, ep.RouterID, ep)
 
 	// There should be NO loopback or address ops.
-	if findOp(ops, "/interface/loopback") != nil {
+	if findOp(ops, "/interface/bridge") != nil {
 		t.Error("unexpected /interface/loopback op when no tunnel addresses")
 	}
 	if findOp(ops, "/ip/address") != nil {
@@ -252,7 +252,7 @@ func TestBuildIPsecCreateOps_PolicyBased(t *testing.T) {
 	}
 
 	// No loopback, no address, no route ops for policy-based.
-	if findOp(ops, "/interface/loopback") != nil {
+	if findOp(ops, "/interface/bridge") != nil {
 		t.Error("unexpected /interface/loopback op for policy-based")
 	}
 	if findOp(ops, "/ip/address") != nil {
@@ -333,7 +333,7 @@ func TestBuildIPsecDeleteOps_WithLoopbackAndRoutes(t *testing.T) {
 		IdentityID: "*4",
 		PolicyIDs:  []string{"*5", "*6"},
 		RouteIDs:   []string{"*7", "*8"},
-		LoopbackID: "*9",
+		BridgeID: "*9",
 		AddressID:  "*10",
 	}
 	ops := BuildIPsecDeleteOps("r1", a)
@@ -350,7 +350,7 @@ func TestBuildIPsecDeleteOps_WithLoopbackAndRoutes(t *testing.T) {
 		{"/ip/route", "*7"},
 		{"/ip/route", "*8"},
 		{"/ip/address", "*10"},
-		{"/interface/loopback", "*9"},
+		{"/interface/bridge", "*9"},
 		{"/ip/ipsec/policy", "*5"},
 		{"/ip/ipsec/policy", "*6"},
 		{"/ip/ipsec/identity", "*4"},
@@ -378,13 +378,13 @@ func TestBuildIPsecDeleteOps_WithoutLoopback(t *testing.T) {
 		ProposalID: "*3",
 		IdentityID: "*4",
 		PolicyIDs:  []string{"*5", "*6"},
-		// No LoopbackID, AddressID, or RouteIDs.
+		// No BridgeID, AddressID, or RouteIDs.
 	}
 	ops := BuildIPsecDeleteOps("r1", a)
 
 	for _, op := range ops {
-		if op.ResourcePath == "/interface/loopback" {
-			t.Error("unexpected /interface/loopback op when no LoopbackID set")
+		if op.ResourcePath == "/interface/bridge" {
+			t.Error("unexpected /interface/loopback op when no BridgeID set")
 		}
 		if op.ResourcePath == "/ip/address" {
 			t.Error("unexpected /ip/address op when no AddressID set")
@@ -485,11 +485,11 @@ func TestAssembleIPsec_LoopbackAndAddress(t *testing.T) {
 		Peers: []RawIPsecPeer{
 			{ID: "*1", Name: "tun1", Address: "5.6.7.8", LocalAddress: "1.2.3.4", Profile: "tun1"},
 		},
-		Loopbacks: []RawLoopback{
-			{ID: "*9", Name: "lo-ipsec-tun1", Comment: "ipsec-lo:tun1:10.255.0.1"},
+		Bridges: []RawBridge{
+			{ID: "*9", Name: "br-ipsec-tun1", Comment: "ipsec-br:tun1:10.255.0.1"},
 		},
 		Addresses: []RawIPAddress{
-			{ID: "*10", Address: "10.255.0.0/31", Interface: "lo-ipsec-tun1"},
+			{ID: "*10", Address: "10.255.0.0/31", Interface: "br-ipsec-tun1"},
 		},
 	}
 	result := AssembleIPsec(data)
@@ -497,8 +497,8 @@ func TestAssembleIPsec_LoopbackAndAddress(t *testing.T) {
 		t.Fatalf("expected 1 assembled tunnel; got %d", len(result))
 	}
 	a := result[0]
-	if a.LoopbackID != "*9" {
-		t.Errorf("LoopbackID = %q; want %q", a.LoopbackID, "*9")
+	if a.BridgeID != "*9" {
+		t.Errorf("BridgeID = %q; want %q", a.BridgeID, "*9")
 	}
 	if a.AddressID != "*10" {
 		t.Errorf("AddressID = %q; want %q", a.AddressID, "*10")

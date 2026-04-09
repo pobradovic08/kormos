@@ -16,11 +16,10 @@ func ipsecBasePath() string {
 	return fmt.Sprintf("/api/clusters/%s/tunnels/ipsec", tc.ClusterID)
 }
 
-// routerSupportsLoopback returns true if the RouterOS instance supports /interface/loopback.
-// Loopback interfaces were added in RouterOS 7.12.
-func routerSupportsLoopback() bool {
+// routerSupportsBridge returns true if the RouterOS instance supports /interface/bridge.
+func routerSupportsBridge() bool {
 	ctx := context.Background()
-	_, err := tc.Router1Client.Get(ctx, "/interface/loopback")
+	_, err := tc.Router1Client.Get(ctx, "/interface/bridge")
 	return err == nil
 }
 
@@ -46,8 +45,8 @@ func TestListIPsec_Empty(t *testing.T) {
 }
 
 func TestCreateIPsec_RouteBased(t *testing.T) {
-	if !routerSupportsLoopback() {
-		t.Skip("RouterOS version does not support /interface/loopback (requires 7.12+)")
+	if !routerSupportsBridge() {
+		t.Skip("RouterOS does not support /interface/bridge")
 	}
 
 	body := map[string]interface{}{
@@ -106,14 +105,14 @@ func TestCreateIPsec_RouteBased(t *testing.T) {
 	// Verify RouterOS state: loopback interface exists with correct comment.
 	ctx := context.Background()
 	testutil.AssertResourceExists(t, ctx, tc.Router1Client,
-		"/interface/loopback", "name", "lo-ipsec-test-ipsec-route")
+		"/interface/bridge", "name", "br-ipsec-test-ipsec-route")
 	testutil.AssertResourceField(t, ctx, tc.Router1Client,
-		"/interface/loopback", "name", "lo-ipsec-test-ipsec-route",
-		"comment", "ipsec-lo:test-ipsec-route:10.255.0.1")
+		"/interface/bridge", "name", "br-ipsec-test-ipsec-route",
+		"comment", "ipsec-br:test-ipsec-route:10.255.0.1")
 
 	// Verify IP address on the loopback.
 	testutil.AssertResourceField(t, ctx, tc.Router1Client,
-		"/ip/address", "interface", "lo-ipsec-test-ipsec-route",
+		"/ip/address", "interface", "br-ipsec-test-ipsec-route",
 		"address", "10.255.0.0/31")
 
 	// Verify policy for tunnel has tunnel=true and correct SA addresses.
@@ -172,9 +171,9 @@ func TestCreateIPsec_RouteBasedNoTunnelAddresses(t *testing.T) {
 
 	// Verify RouterOS state: no loopback should be created (skip if loopback not supported).
 	ctx := context.Background()
-	if routerSupportsLoopback() {
+	if routerSupportsBridge() {
 		testutil.AssertResourceNotExists(t, ctx, tc.Router1Client,
-			"/interface/loopback", "name", "lo-ipsec-test-ipsec-noloop")
+			"/interface/bridge", "name", "br-ipsec-test-ipsec-noloop")
 	}
 
 	// Template policy should exist (find by proposal name).
@@ -242,9 +241,9 @@ func TestCreateIPsec_PolicyBased(t *testing.T) {
 
 	// Verify RouterOS state: no loopback for policy-based tunnel (skip if loopback not supported).
 	ctx := context.Background()
-	if routerSupportsLoopback() {
+	if routerSupportsBridge() {
 		testutil.AssertResourceNotExists(t, ctx, tc.Router1Client,
-			"/interface/loopback", "name", "lo-ipsec-test-ipsec-policy")
+			"/interface/bridge", "name", "br-ipsec-test-ipsec-policy")
 	}
 
 	// Verify policy exists for the peer.
@@ -528,7 +527,7 @@ func TestDeleteIPsec(t *testing.T) {
 }
 
 func TestDeleteIPsec_VerifyCleanup(t *testing.T) {
-	hasLoopback := routerSupportsLoopback()
+	hasBridge := routerSupportsBridge()
 
 	body := map[string]interface{}{
 		"name":        "test-ipsec-clean",
@@ -549,7 +548,7 @@ func TestDeleteIPsec_VerifyCleanup(t *testing.T) {
 	}
 
 	// Add tunnel addresses only if loopback is supported.
-	if hasLoopback {
+	if hasBridge {
 		body["endpoints"] = []map[string]interface{}{
 			{
 				"routerId":            tc.Router1ID,
@@ -578,9 +577,9 @@ func TestDeleteIPsec_VerifyCleanup(t *testing.T) {
 		"/ip/ipsec/profile", "name", "test-ipsec-clean")
 	testutil.AssertResourceNotExists(t, ctx, tc.Router1Client,
 		"/ip/ipsec/proposal", "name", "test-ipsec-clean")
-	if hasLoopback {
+	if hasBridge {
 		testutil.AssertResourceNotExists(t, ctx, tc.Router1Client,
-			"/interface/loopback", "name", "lo-ipsec-test-ipsec-clean")
+			"/interface/bridge", "name", "br-ipsec-test-ipsec-clean")
 	}
 	testutil.AssertResourceNotExists(t, ctx, tc.Router1Client,
 		"/ip/route", "comment", "ipsec:test-ipsec-clean")
