@@ -165,6 +165,8 @@ export interface IPsecTunnel {
   localSubnets: string[];
   remoteSubnets: string[];
   tunnelRoutes: string[];
+  localTunnelAddress?: string;
+  remoteTunnelAddress?: string;
   disabled: boolean;
   established: boolean;
   comment: string;
@@ -201,6 +203,8 @@ export interface CreateIPsecTunnelPayload {
   localSubnets: string[];
   remoteSubnets: string[];
   tunnelRoutes: string[];
+  localTunnelAddress?: string;
+  remoteTunnelAddress?: string;
   disabled: boolean;
   comment: string;
   endpoints: TunnelEndpointPayload[];
@@ -242,6 +246,8 @@ export interface IPsecRosIds {
   proposal: string;
   identity: string;
   policies?: string[];
+  loopback?: string;
+  address?: string;
 }
 
 export interface IPsecTunnelEndpoint {
@@ -275,6 +281,8 @@ export interface MergedIPsecTunnel {
   localSubnets: string[];
   remoteSubnets: string[];
   tunnelRoutes: string[];
+  localTunnelAddress?: string;
+  remoteTunnelAddress?: string;
   disabled: boolean;
   comment: string;
   endpoints: IPsecTunnelEndpoint[];

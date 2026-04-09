@@ -231,12 +231,28 @@ export default function TunnelDetail({
                   </Box>
                 </>
               )}
-              {(ipsec.mode === 'route-based' && ipsec.tunnelRoutes.length > 0) && (
+              {ipsec.mode === 'route-based' && (ipsec.localTunnelAddress || ipsec.tunnelRoutes.length > 0) && (
                 <>
                   <Divider />
                   <Box>
-                    <Text fw={600} size="sm" mb="sm">Tunnel Routes</Text>
-                    <Stack gap={2}>{ipsec.tunnelRoutes.map((r) => <MonoText key={r}>{r}</MonoText>)}</Stack>
+                    <Text fw={600} size="sm" mb="sm">Tunnel Transit / Routes</Text>
+                    <Stack gap="xs">
+                      {ipsec.localTunnelAddress && (
+                        <DetailField label="Local Transit IP">
+                          <MonoText>{ipsec.localTunnelAddress}</MonoText>
+                        </DetailField>
+                      )}
+                      {ipsec.remoteTunnelAddress && (
+                        <DetailField label="Remote Transit IP">
+                          <MonoText>{ipsec.remoteTunnelAddress}</MonoText>
+                        </DetailField>
+                      )}
+                      {ipsec.tunnelRoutes.length > 0 && (
+                        <DetailField label="Routes">
+                          <Stack gap={2}>{ipsec.tunnelRoutes.map((r) => <MonoText key={r}>{r}</MonoText>)}</Stack>
+                        </DetailField>
+                      )}
+                    </Stack>
                   </Box>
                 </>
               )}

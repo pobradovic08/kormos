@@ -11,6 +11,8 @@ import (
 )
 
 const ipsecRouteCommentPrefix = "ipsec:"
+const ipsecLoopbackPrefix = "lo-ipsec-"
+const ipsecLoopbackCommentPrefix = "ipsec-lo:"
 
 // stripPrefix removes a CIDR prefix length (e.g. "/32") from an address.
 func stripPrefix(addr string) string {
@@ -28,6 +30,8 @@ type PerRouterIPsec struct {
 	Policies    []RawIPsecPolicy
 	ActivePeers []RawIPsecActivePeer
 	Routes      []RawRoute
+	Loopbacks   []RawLoopback
+	Addresses   []RawIPAddress
 }
 
 func FetchIPsecAll(ctx context.Context, client *routeros.Client) (*PerRouterIPsec, error) {
@@ -94,30 +98,62 @@ func FetchIPsecAll(ctx context.Context, client *routeros.Client) (*PerRouterIPse
 		}
 	}
 
+	// Fetch loopback interfaces tagged with ipsec-lo: comment.
+	var allLoopbacks []RawLoopback
+	body, err = client.Get(ctx, "/interface/loopback")
+	if err != nil {
+		allLoopbacks = []RawLoopback{}
+	} else if err := json.Unmarshal(body, &allLoopbacks); err != nil {
+		allLoopbacks = []RawLoopback{}
+	}
+	for _, lo := range allLoopbacks {
+		if strings.HasPrefix(lo.Comment, ipsecLoopbackCommentPrefix) {
+			result.Loopbacks = append(result.Loopbacks, lo)
+		}
+	}
+
+	// Fetch IP addresses on IPsec loopbacks.
+	var allAddresses []RawIPAddress
+	body, err = client.Get(ctx, "/ip/address")
+	if err != nil {
+		allAddresses = []RawIPAddress{}
+	} else if err := json.Unmarshal(body, &allAddresses); err != nil {
+		allAddresses = []RawIPAddress{}
+	}
+	for _, a := range allAddresses {
+		if strings.HasPrefix(a.Interface, ipsecLoopbackPrefix) {
+			result.Addresses = append(result.Addresses, a)
+		}
+	}
+
 	return result, nil
 }
 
 type assembledIPsec struct {
-	PeerName      string
-	PeerID        string
-	LocalAddress  string
-	RemoteAddress string
-	Disabled      bool
-	Comment       string
-	ProfileID     string
-	ProposalID    string
-	IdentityID    string
-	PolicyIDs     []string
-	Phase1        Phase1Config
-	Phase2        Phase2Config
-	AuthMethod    string
-	Secret        string
-	LocalSubnets  []string
-	RemoteSubnets []string
-	TunnelRoutes  []string
-	RouteIDs      []string
-	Mode          string
-	Established   bool
+	PeerName            string
+	PeerID              string
+	LocalAddress        string
+	RemoteAddress       string
+	Disabled            bool
+	Comment             string
+	ProfileID           string
+	ProposalID          string
+	IdentityID          string
+	PolicyIDs           []string
+	Phase1              Phase1Config
+	Phase2              Phase2Config
+	AuthMethod          string
+	Secret              string
+	LocalSubnets        []string
+	RemoteSubnets       []string
+	TunnelRoutes        []string
+	RouteIDs            []string
+	LocalTunnelAddress  string
+	RemoteTunnelAddress string
+	LoopbackID          string
+	AddressID           string
+	Mode                string
+	Established         bool
 }
 
 func AssembleIPsec(data *PerRouterIPsec) []assembledIPsec {
@@ -148,6 +184,22 @@ func AssembleIPsec(data *PerRouterIPsec) []assembledIPsec {
 	for _, r := range data.Routes {
 		name := strings.TrimPrefix(r.Comment, ipsecRouteCommentPrefix)
 		routesByTunnel[name] = append(routesByTunnel[name], r)
+	}
+	// Index loopbacks by tunnel name from comment "ipsec-lo:{name}:{remoteAddr}".
+	loopbackByTunnel := map[string]RawLoopback{}
+	loopbackRemoteAddr := map[string]string{}
+	for _, lo := range data.Loopbacks {
+		rest := strings.TrimPrefix(lo.Comment, ipsecLoopbackCommentPrefix)
+		parts := strings.SplitN(rest, ":", 2)
+		loopbackByTunnel[parts[0]] = lo
+		if len(parts) > 1 {
+			loopbackRemoteAddr[parts[0]] = parts[1]
+		}
+	}
+	// Index addresses by loopback interface name.
+	addressByInterface := map[string]RawIPAddress{}
+	for _, a := range data.Addresses {
+		addressByInterface[a.Interface] = a
 	}
 
 	var result []assembledIPsec
@@ -188,11 +240,14 @@ func AssembleIPsec(data *PerRouterIPsec) []assembledIPsec {
 		}
 
 		policies := policiesByPeer[peer.Name]
+		hasTunnelPolicy := false
 		hasTemplatePolicy := false
 		hasRealPolicy := false
 		for _, pol := range policies {
 			a.PolicyIDs = append(a.PolicyIDs, pol.ID)
-			if normalize.ParseBool(pol.Template) {
+			if normalize.ParseBool(pol.Tunnel) {
+				hasTunnelPolicy = true
+			} else if normalize.ParseBool(pol.Template) {
 				hasTemplatePolicy = true
 			} else {
 				hasRealPolicy = true
@@ -206,10 +261,21 @@ func AssembleIPsec(data *PerRouterIPsec) []assembledIPsec {
 		}
 		if hasRealPolicy {
 			a.Mode = "policy-based"
-		} else if hasTemplatePolicy {
+		} else if hasTunnelPolicy || hasTemplatePolicy {
 			a.Mode = "route-based"
 		} else {
 			a.Mode = "route-based"
+		}
+
+		// Attach loopback and address for route-based tunnels.
+		if lo, ok := loopbackByTunnel[peer.Name]; ok {
+			a.LoopbackID = lo.ID
+			a.RemoteTunnelAddress = loopbackRemoteAddr[peer.Name]
+			loName := ipsecLoopbackPrefix + peer.Name
+			if addr, ok := addressByInterface[loName]; ok {
+				a.AddressID = addr.ID
+				a.LocalTunnelAddress = addr.Address
+			}
 		}
 
 		// Attach tunnel routes from tagged static routes.
@@ -307,21 +373,64 @@ func BuildIPsecCreateOps(req CreateIPsecRequest, routerID string, ep CreateIPsec
 		}
 	}
 
-	// Route-based: create policy template + static routes.
+	// Route-based: create loopback + address + tunnel-mode policy + static routes.
 	if req.Mode == "route-based" {
-		ops = append(ops, ipsecOp{
-			RouterID:     routerID,
-			ResourcePath: "/ip/ipsec/policy",
-			Body: map[string]interface{}{
-				"peer":        req.Name,
-				"proposal":    req.Name,
-				"template":    "yes",
-				"src-address": "0.0.0.0/0",
-				"dst-address": "0.0.0.0/0",
-			},
-		})
+		if req.LocalTunnelAddress != "" && req.RemoteTunnelAddress != "" {
+			// Create loopback interface for transit IP.
+			ops = append(ops, ipsecOp{
+				RouterID:     routerID,
+				ResourcePath: "/interface/loopback",
+				Body: map[string]interface{}{
+					"name":    ipsecLoopbackPrefix + req.Name,
+					"comment": ipsecLoopbackCommentPrefix + req.Name + ":" + stripPrefix(req.RemoteTunnelAddress),
+				},
+			})
 
+			// Assign local tunnel address to the loopback.
+			ops = append(ops, ipsecOp{
+				RouterID:     routerID,
+				ResourcePath: "/ip/address",
+				Body: map[string]interface{}{
+					"address":   req.LocalTunnelAddress,
+					"interface": ipsecLoopbackPrefix + req.Name,
+					"comment":   ipsecLoopbackCommentPrefix + req.Name,
+				},
+			})
+
+			// Tunnel-mode policy: encrypts traffic between transit addresses.
+			ops = append(ops, ipsecOp{
+				RouterID:     routerID,
+				ResourcePath: "/ip/ipsec/policy",
+				Body: map[string]interface{}{
+					"peer":           req.Name,
+					"proposal":       req.Name,
+					"tunnel":         "yes",
+					"src-address":    req.LocalTunnelAddress,
+					"dst-address":    req.RemoteTunnelAddress,
+					"sa-src-address": stripPrefix(ep.LocalAddress),
+					"sa-dst-address": stripPrefix(ep.RemoteAddress),
+				},
+			})
+		} else {
+			// Fallback: template policy when no tunnel addresses provided.
+			ops = append(ops, ipsecOp{
+				RouterID:     routerID,
+				ResourcePath: "/ip/ipsec/policy",
+				Body: map[string]interface{}{
+					"peer":        req.Name,
+					"proposal":    req.Name,
+					"template":    "yes",
+					"src-address": "0.0.0.0/0",
+					"dst-address": "0.0.0.0/0",
+				},
+			})
+		}
+
+		// Static routes: gateway is remote tunnel IP if available, else remote peer IP.
 		gw := stripPrefix(ep.RemoteAddress)
+		if req.RemoteTunnelAddress != "" {
+			gw = stripPrefix(req.RemoteTunnelAddress)
+		}
 		for _, dst := range req.TunnelRoutes {
 			ops = append(ops, ipsecOp{
 				RouterID:     routerID,
@@ -344,6 +453,13 @@ func BuildIPsecDeleteOps(routerID string, a assembledIPsec) []ipsecOp {
 	// Delete routes first (before removing the peer/policy that references them).
 	for _, rid := range a.RouteIDs {
 		ops = append(ops, ipsecOp{RouterID: routerID, ResourcePath: "/ip/route", ResourceID: rid})
+	}
+	// Delete loopback address and interface.
+	if a.AddressID != "" {
+		ops = append(ops, ipsecOp{RouterID: routerID, ResourcePath: "/ip/address", ResourceID: a.AddressID})
+	}
+	if a.LoopbackID != "" {
+		ops = append(ops, ipsecOp{RouterID: routerID, ResourcePath: "/interface/loopback", ResourceID: a.LoopbackID})
 	}
 	for _, pid := range a.PolicyIDs {
 		ops = append(ops, ipsecOp{RouterID: routerID, ResourcePath: "/ip/ipsec/policy", ResourceID: pid})
@@ -373,6 +489,8 @@ func buildIPsecEndpoint(ri RouterInfo, a assembledIPsec) IPsecEndpoint {
 			Proposal: a.ProposalID,
 			Identity: a.IdentityID,
 			Policies: a.PolicyIDs,
+			Loopback: a.LoopbackID,
+			Address:  a.AddressID,
 		},
 		LocalAddress:  a.LocalAddress,
 		RemoteAddress: a.RemoteAddress,

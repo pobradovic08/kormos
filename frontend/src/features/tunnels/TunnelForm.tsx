@@ -170,6 +170,8 @@ interface IPsecFormState {
   localSubnets: string[];
   remoteSubnets: string[];
   tunnelRoutes: string[];
+  localTunnelAddress: string;
+  remoteTunnelAddress: string;
 }
 
 function getInitialIPsecState(
@@ -202,6 +204,8 @@ function getInitialIPsecState(
       localSubnets: [...merged.localSubnets],
       remoteSubnets: [...merged.remoteSubnets],
       tunnelRoutes: [...merged.tunnelRoutes],
+      localTunnelAddress: merged.localTunnelAddress || '',
+      remoteTunnelAddress: merged.remoteTunnelAddress || '',
     };
   }
   if (isLegacyTunnel(tunnel) && tunnel.tunnelType === 'ipsec') {
@@ -230,6 +234,8 @@ function getInitialIPsecState(
       localSubnets: [...ipsec.localSubnets],
       remoteSubnets: [...ipsec.remoteSubnets],
       tunnelRoutes: [...ipsec.tunnelRoutes],
+      localTunnelAddress: '',
+      remoteTunnelAddress: '',
     };
   }
   return {
@@ -256,6 +262,8 @@ function getInitialIPsecState(
     localSubnets: [],
     remoteSubnets: [],
     tunnelRoutes: [],
+    localTunnelAddress: '',
+    remoteTunnelAddress: '',
   };
 }
 
@@ -604,6 +612,8 @@ export default function TunnelForm({
           localSubnets: ipsecState.localSubnets,
           remoteSubnets: ipsecState.remoteSubnets,
           tunnelRoutes: ipsecState.tunnelRoutes,
+          localTunnelAddress: ipsecState.localTunnelAddress || undefined,
+          remoteTunnelAddress: ipsecState.remoteTunnelAddress || undefined,
           disabled: false,
           comment: (ipsecState.comment || '').trim(),
           endpoints: ipsecState.endpoints.map((ep) => ({
@@ -882,10 +892,9 @@ function IPsecConnectionStep({
             title: { fontSize: 'var(--mantine-font-size-sm)' },
             message: { fontSize: 'var(--mantine-font-size-xs)' },
           }}>
-          MikroTik route-based IPsec uses policy templates without a tunnel interface.
-          The remote side cannot ping a P2P tunnel address on this router. If you need
-          a pingable tunnel link (e.g. for BGP or health checks), use a GRE tunnel with
-          IPsec encryption instead.
+          MikroTik route-based IPsec does not create a named tunnel interface. For BGP
+          or dynamic routing, create a dummy bridge (no ports) with a transit IP and use
+          an IPsec policy in tunnel mode to encrypt traffic between transit addresses.
         </Alert>
       )}
       {/* Router endpoint cards */}
@@ -1079,8 +1088,28 @@ function IPsecNetworksStep({ state, errors = {}, onUpdate }: IPsecStepProps) {
   if (state.mode === 'route-based') {
     return (
       <Stack gap="md">
-        <Text size="sm" c="dimmed">
-          Add destination networks to route through this tunnel.
+        <Text size="sm" fw={500}>Tunnel Transit Addresses</Text>
+        <Text size="xs" c="dimmed">
+          A loopback interface will be created with the local address. The remote address is the peer's transit IP for BGP/routing.
+        </Text>
+        <SimpleGrid cols={2}>
+          <TextInput
+            label="Local tunnel address"
+            placeholder="e.g. 10.255.0.0/31"
+            value={state.localTunnelAddress}
+            onChange={(e) => onUpdate('localTunnelAddress', e.currentTarget.value)}
+          />
+          <TextInput
+            label="Remote tunnel address"
+            placeholder="e.g. 10.255.0.1"
+            value={state.remoteTunnelAddress}
+            onChange={(e) => onUpdate('remoteTunnelAddress', e.currentTarget.value)}
+          />
+        </SimpleGrid>
+
+        <Text size="sm" fw={500} mt="sm">Tunnel Routes</Text>
+        <Text size="xs" c="dimmed">
+          Destination networks to route through this tunnel.
         </Text>
         <SubnetList
           items={state.tunnelRoutes}

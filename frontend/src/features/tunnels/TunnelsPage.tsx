@@ -85,6 +85,8 @@ function mergedIPsecToDisplay(t: MergedIPsecTunnel): DisplayTunnel {
     localSubnets: t.localSubnets,
     remoteSubnets: t.remoteSubnets,
     tunnelRoutes: t.tunnelRoutes,
+    localTunnelAddress: t.localTunnelAddress,
+    remoteTunnelAddress: t.remoteTunnelAddress,
     disabled: t.disabled,
     established: ep?.established ?? false,
     comment: t.comment,
