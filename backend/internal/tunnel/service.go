@@ -447,9 +447,9 @@ func (s *Service) UpdateIPsec(ctx context.Context, tenantID, userID, clusterID, 
 			}
 
 			// Determine gateway from endpoint or existing peer.
-			gateway := a.RemoteAddress
+			gateway := stripPrefix(a.RemoteAddress)
 			if epInput != nil && epInput.RemoteAddress != nil {
-				gateway = *epInput.RemoteAddress
+				gateway = stripPrefix(*epInput.RemoteAddress)
 			}
 
 			// Add new routes.

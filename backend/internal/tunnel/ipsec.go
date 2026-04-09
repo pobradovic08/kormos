@@ -12,6 +12,14 @@ import (
 
 const ipsecRouteCommentPrefix = "ipsec:"
 
+// stripPrefix removes a CIDR prefix length (e.g. "/32") from an address.
+func stripPrefix(addr string) string {
+	if i := strings.IndexByte(addr, '/'); i >= 0 {
+		return addr[:i]
+	}
+	return addr
+}
+
 type PerRouterIPsec struct {
 	Peers       []RawIPsecPeer
 	Profiles    []RawIPsecProfile
@@ -292,13 +300,14 @@ func BuildIPsecCreateOps(req CreateIPsecRequest, routerID string, ep CreateIPsec
 
 	// Route-based: create static routes for each tunnel route.
 	if req.Mode == "route-based" {
+		gw := stripPrefix(ep.RemoteAddress)
 		for _, dst := range req.TunnelRoutes {
 			ops = append(ops, ipsecOp{
 				RouterID:     routerID,
 				ResourcePath: "/ip/route",
 				Body: map[string]interface{}{
 					"dst-address": dst,
-					"gateway":     ep.RemoteAddress,
+					"gateway":     gw,
 					"comment":     ipsecRouteCommentPrefix + req.Name,
 				},
 			})
