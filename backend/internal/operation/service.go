@@ -482,6 +482,23 @@ func applyOperation(ctx context.Context, client *routeros.Client, op ExecuteOper
 	}
 }
 
+// stripVolatileFields returns a copy of state with volatile/read-only fields removed.
+// RouterOS rejects PATCH/PUT requests that include read-only fields like "dynamic".
+func stripVolatileFields(state map[string]interface{}) map[string]interface{} {
+	clean := make(map[string]interface{}, len(state))
+	for k, v := range state {
+		if VolatileFields[k] {
+			continue
+		}
+		// Also skip the .id field — it's read-only on RouterOS.
+		if k == ".id" {
+			continue
+		}
+		clean[k] = v
+	}
+	return clean
+}
+
 // reverseOperation applies the inverse of a previously applied operation.
 func reverseOperation(ctx context.Context, client *routeros.Client, op Operation) error {
 	switch op.OperationType {
@@ -489,11 +506,11 @@ func reverseOperation(ctx context.Context, client *routeros.Client, op Operation
 		return client.Delete(ctx, buildResourcePath(op.ResourcePath, op.ResourceID))
 
 	case OpModify:
-		_, err := client.Patch(ctx, buildResourcePath(op.ResourcePath, op.ResourceID), op.BeforeState)
+		_, err := client.Patch(ctx, buildResourcePath(op.ResourcePath, op.ResourceID), stripVolatileFields(op.BeforeState))
 		return err
 
 	case OpDelete:
-		_, err := client.Put(ctx, op.ResourcePath, op.BeforeState)
+		_, err := client.Put(ctx, op.ResourcePath, stripVolatileFields(op.BeforeState))
 		return err
 
 	default:

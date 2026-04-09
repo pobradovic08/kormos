@@ -50,7 +50,7 @@ func TestCreateIPsec_RouteBased(t *testing.T) {
 			"lifetime":   "1d",
 		},
 		"phase2": map[string]string{
-			"encryption":    "aes-256",
+			"encryption":    "aes-256-cbc",
 			"authAlgorithm": "sha256",
 			"pfsGroup":      "modp2048",
 			"lifetime":      "30m",
@@ -106,7 +106,7 @@ func TestCreateIPsec_PolicyBased(t *testing.T) {
 			"lifetime":   "1d",
 		},
 		"phase2": map[string]string{
-			"encryption":    "aes-128",
+			"encryption":    "aes-128-cbc",
 			"authAlgorithm": "sha1",
 			"pfsGroup":      "modp1024",
 			"lifetime":      "30m",
@@ -166,7 +166,7 @@ func TestListIPsec_AfterCreate(t *testing.T) {
 		"authMethod":  "pre-shared-key",
 		"ipsecSecret": "test-secret-list",
 		"phase1":      map[string]string{"encryption": "aes-256", "hash": "sha256", "dhGroup": "modp2048", "lifetime": "1d"},
-		"phase2":      map[string]string{"encryption": "aes-256", "authAlgorithm": "sha256", "pfsGroup": "modp2048", "lifetime": "30m"},
+		"phase2":      map[string]string{"encryption": "aes-256-cbc", "authAlgorithm": "sha256", "pfsGroup": "modp2048", "lifetime": "30m"},
 		"comment":     "test-ipsec-list",
 		"endpoints": []map[string]interface{}{
 			{"routerId": tc.Router1ID, "localAddress": "10.23.0.1", "remoteAddress": "10.23.0.2"},
@@ -209,7 +209,7 @@ func TestGetIPsec(t *testing.T) {
 		"authMethod":  "pre-shared-key",
 		"ipsecSecret": "test-secret-get",
 		"phase1":      map[string]string{"encryption": "aes-256", "hash": "sha256", "dhGroup": "modp2048", "lifetime": "1d"},
-		"phase2":      map[string]string{"encryption": "aes-256", "authAlgorithm": "sha256", "pfsGroup": "modp2048", "lifetime": "30m"},
+		"phase2":      map[string]string{"encryption": "aes-256-cbc", "authAlgorithm": "sha256", "pfsGroup": "modp2048", "lifetime": "30m"},
 		"comment":     "test-ipsec-get",
 		"endpoints": []map[string]interface{}{
 			{"routerId": tc.Router1ID, "localAddress": "10.24.0.1", "remoteAddress": "10.24.0.2"},
@@ -274,7 +274,7 @@ func TestUpdateIPsec_Phase1(t *testing.T) {
 		"authMethod":  "pre-shared-key",
 		"ipsecSecret": "test-secret-up1",
 		"phase1":      map[string]string{"encryption": "aes-256", "hash": "sha256", "dhGroup": "modp2048", "lifetime": "1d"},
-		"phase2":      map[string]string{"encryption": "aes-256", "authAlgorithm": "sha256", "pfsGroup": "modp2048", "lifetime": "30m"},
+		"phase2":      map[string]string{"encryption": "aes-256-cbc", "authAlgorithm": "sha256", "pfsGroup": "modp2048", "lifetime": "30m"},
 		"comment":     "test-ipsec-up1",
 		"endpoints":   []map[string]interface{}{{"routerId": tc.Router1ID, "localAddress": "10.25.0.1", "remoteAddress": "10.25.0.2"}},
 	}
@@ -303,7 +303,7 @@ func TestUpdateIPsec_Phase2(t *testing.T) {
 		"authMethod":  "pre-shared-key",
 		"ipsecSecret": "test-secret-up2",
 		"phase1":      map[string]string{"encryption": "aes-256", "hash": "sha256", "dhGroup": "modp2048", "lifetime": "1d"},
-		"phase2":      map[string]string{"encryption": "aes-256", "authAlgorithm": "sha256", "pfsGroup": "modp2048", "lifetime": "30m"},
+		"phase2":      map[string]string{"encryption": "aes-256-cbc", "authAlgorithm": "sha256", "pfsGroup": "modp2048", "lifetime": "30m"},
 		"comment":     "test-ipsec-up2",
 		"endpoints":   []map[string]interface{}{{"routerId": tc.Router1ID, "localAddress": "10.26.0.1", "remoteAddress": "10.26.0.2"}},
 	}
@@ -332,7 +332,7 @@ func TestUpdateIPsec_Identity(t *testing.T) {
 		"authMethod":  "pre-shared-key",
 		"ipsecSecret": "test-secret-up3",
 		"phase1":      map[string]string{"encryption": "aes-256", "hash": "sha256", "dhGroup": "modp2048", "lifetime": "1d"},
-		"phase2":      map[string]string{"encryption": "aes-256", "authAlgorithm": "sha256", "pfsGroup": "modp2048", "lifetime": "30m"},
+		"phase2":      map[string]string{"encryption": "aes-256-cbc", "authAlgorithm": "sha256", "pfsGroup": "modp2048", "lifetime": "30m"},
 		"comment":     "test-ipsec-up3",
 		"endpoints":   []map[string]interface{}{{"routerId": tc.Router1ID, "localAddress": "10.27.0.1", "remoteAddress": "10.27.0.2"}},
 	}
@@ -361,7 +361,7 @@ func TestUpdateIPsec_Endpoint(t *testing.T) {
 		"authMethod":  "pre-shared-key",
 		"ipsecSecret": "test-secret-up4",
 		"phase1":      map[string]string{"encryption": "aes-256", "hash": "sha256", "dhGroup": "modp2048", "lifetime": "1d"},
-		"phase2":      map[string]string{"encryption": "aes-256", "authAlgorithm": "sha256", "pfsGroup": "modp2048", "lifetime": "30m"},
+		"phase2":      map[string]string{"encryption": "aes-256-cbc", "authAlgorithm": "sha256", "pfsGroup": "modp2048", "lifetime": "30m"},
 		"comment":     "test-ipsec-up4",
 		"endpoints":   []map[string]interface{}{{"routerId": tc.Router1ID, "localAddress": "10.28.0.1", "remoteAddress": "10.28.0.2"}},
 	}
@@ -392,7 +392,7 @@ func TestDeleteIPsec(t *testing.T) {
 		"authMethod":  "pre-shared-key",
 		"ipsecSecret": "test-secret-del",
 		"phase1":      map[string]string{"encryption": "aes-256", "hash": "sha256", "dhGroup": "modp2048", "lifetime": "1d"},
-		"phase2":      map[string]string{"encryption": "aes-256", "authAlgorithm": "sha256", "pfsGroup": "modp2048", "lifetime": "30m"},
+		"phase2":      map[string]string{"encryption": "aes-256-cbc", "authAlgorithm": "sha256", "pfsGroup": "modp2048", "lifetime": "30m"},
 		"comment":     "test-ipsec-del",
 		"endpoints":   []map[string]interface{}{{"routerId": tc.Router1ID, "localAddress": "10.29.0.1", "remoteAddress": "10.29.0.2"}},
 	}
@@ -417,7 +417,7 @@ func TestDeleteIPsec_VerifyCleanup(t *testing.T) {
 		"authMethod":  "pre-shared-key",
 		"ipsecSecret": "test-secret-clean",
 		"phase1":      map[string]string{"encryption": "aes-256", "hash": "sha256", "dhGroup": "modp2048", "lifetime": "1d"},
-		"phase2":      map[string]string{"encryption": "aes-256", "authAlgorithm": "sha256", "pfsGroup": "modp2048", "lifetime": "30m"},
+		"phase2":      map[string]string{"encryption": "aes-256-cbc", "authAlgorithm": "sha256", "pfsGroup": "modp2048", "lifetime": "30m"},
 		"comment":     "test-ipsec-clean",
 		"endpoints":   []map[string]interface{}{{"routerId": tc.Router1ID, "localAddress": "10.30.0.1", "remoteAddress": "10.30.0.2"}},
 	}
@@ -473,7 +473,7 @@ func TestIPsec_Undo(t *testing.T) {
 		"authMethod":  "pre-shared-key",
 		"ipsecSecret": "test-secret-undo",
 		"phase1":      map[string]string{"encryption": "aes-256", "hash": "sha256", "dhGroup": "modp2048", "lifetime": "1d"},
-		"phase2":      map[string]string{"encryption": "aes-256", "authAlgorithm": "sha256", "pfsGroup": "modp2048", "lifetime": "30m"},
+		"phase2":      map[string]string{"encryption": "aes-256-cbc", "authAlgorithm": "sha256", "pfsGroup": "modp2048", "lifetime": "30m"},
 		"comment":     "test-ipsec-undo",
 		"endpoints":   []map[string]interface{}{{"routerId": tc.Router1ID, "localAddress": "10.31.0.1", "remoteAddress": "10.31.0.2"}},
 	}
