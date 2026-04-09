@@ -83,6 +83,11 @@ func TestCreateWGInterface(t *testing.T) {
 		t.Fatal("expected publicKey to be populated")
 	}
 
+	// Verify the interface exists on RouterOS.
+	ctx := context.Background()
+	testutil.AssertResourceExists(t, ctx, tc.Router1Client,
+		"/interface/wireguard", "name", "test-wg-basic")
+
 	t.Cleanup(func() {
 		testutil.DoRequest(tc.Server, "DELETE", wgBasePath()+"/"+tc.Router1ID+"/test-wg-basic", nil, tc.Token)
 		ctx := context.Background()
@@ -265,6 +270,12 @@ func TestCreateWGPeer(t *testing.T) {
 	if !ok || len(peers) < 1 {
 		t.Fatal("expected at least 1 peer in response")
 	}
+
+	// Verify the peer exists on RouterOS with the correct allowed-address.
+	ctx := context.Background()
+	testutil.AssertResourceField(t, ctx, tc.Router1Client,
+		"/interface/wireguard/peers", "interface", "test-wg-peer",
+		"allowed-address", "10.0.0.0/24")
 }
 
 func TestCreateWGPeer_MultiplePeers(t *testing.T) {
@@ -443,6 +454,11 @@ func TestDeleteWGInterface(t *testing.T) {
 	if getResp.StatusCode != http.StatusNotFound {
 		t.Fatalf("expected 404 after interface deletion, got %d", getResp.StatusCode)
 	}
+
+	// Verify the interface no longer exists on RouterOS.
+	ctx := context.Background()
+	testutil.AssertResourceNotExists(t, ctx, tc.Router1Client,
+		"/interface/wireguard", "name", "test-wg-del")
 
 	t.Cleanup(func() {
 		ctx := context.Background()
