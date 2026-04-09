@@ -57,6 +57,8 @@ interface EndpointState {
   role: string;
   localAddress: string;
   remoteAddress: string;
+  localTunnelAddress: string;
+  remoteTunnelAddress: string;
 }
 
 // ─── IPv4 validation ─────────────────────────────────────────────────────────
@@ -107,6 +109,8 @@ function getInitialGREState(
         role: ep.role,
         localAddress: ep.localAddress || '0.0.0.0',
         remoteAddress: ep.remoteAddress || '',
+        localTunnelAddress: '',
+        remoteTunnelAddress: '',
       })),
       keepaliveInterval: merged.keepaliveInterval,
       keepaliveRetries: merged.keepaliveRetries,
@@ -125,6 +129,8 @@ function getInitialGREState(
         role: r.role,
         localAddress: gre.localAddress || '0.0.0.0',
         remoteAddress: gre.remoteAddress || '',
+        localTunnelAddress: '',
+        remoteTunnelAddress: '',
       })),
       keepaliveInterval: gre.keepaliveInterval,
       keepaliveRetries: gre.keepaliveRetries,
@@ -141,6 +147,8 @@ function getInitialGREState(
       role: r.role,
       localAddress: '0.0.0.0',
       remoteAddress: '',
+      localTunnelAddress: '',
+      remoteTunnelAddress: '',
     })),
     keepaliveInterval: 10,
     keepaliveRetries: 10,
@@ -170,8 +178,6 @@ interface IPsecFormState {
   localSubnets: string[];
   remoteSubnets: string[];
   tunnelRoutes: string[];
-  localTunnelAddress: string;
-  remoteTunnelAddress: string;
 }
 
 function getInitialIPsecState(
@@ -189,6 +195,8 @@ function getInitialIPsecState(
         role: ep.role,
         localAddress: ep.localAddress || '0.0.0.0',
         remoteAddress: ep.remoteAddress || '',
+        localTunnelAddress: ep.localTunnelAddress || '',
+        remoteTunnelAddress: ep.remoteTunnelAddress || '',
       })),
       authMethod: merged.authMethod,
       ipsecSecret: merged.ipsecSecret || '',
@@ -204,8 +212,6 @@ function getInitialIPsecState(
       localSubnets: [...merged.localSubnets],
       remoteSubnets: [...merged.remoteSubnets],
       tunnelRoutes: [...merged.tunnelRoutes],
-      localTunnelAddress: merged.localTunnelAddress || '',
-      remoteTunnelAddress: merged.remoteTunnelAddress || '',
     };
   }
   if (isLegacyTunnel(tunnel) && tunnel.tunnelType === 'ipsec') {
@@ -219,6 +225,8 @@ function getInitialIPsecState(
         role: r.role,
         localAddress: ipsec.localAddress || '0.0.0.0',
         remoteAddress: ipsec.remoteAddress || '',
+        localTunnelAddress: '',
+        remoteTunnelAddress: '',
       })),
       authMethod: ipsec.authMethod,
       ipsecSecret: ipsec.ipsecSecret,
@@ -234,8 +242,6 @@ function getInitialIPsecState(
       localSubnets: [...ipsec.localSubnets],
       remoteSubnets: [...ipsec.remoteSubnets],
       tunnelRoutes: [...ipsec.tunnelRoutes],
-      localTunnelAddress: '',
-      remoteTunnelAddress: '',
     };
   }
   return {
@@ -247,6 +253,8 @@ function getInitialIPsecState(
       role: r.role,
       localAddress: '0.0.0.0',
       remoteAddress: '',
+      localTunnelAddress: '',
+      remoteTunnelAddress: '',
     })),
     authMethod: 'pre-shared-key',
     ipsecSecret: '',
@@ -262,8 +270,6 @@ function getInitialIPsecState(
     localSubnets: [],
     remoteSubnets: [],
     tunnelRoutes: [],
-    localTunnelAddress: '',
-    remoteTunnelAddress: '',
   };
 }
 
@@ -323,8 +329,11 @@ interface RouterEndpointCardProps {
   addressOptions: { value: string; label: string }[];
   errors: Record<string, string>;
   submitted: boolean;
+  showTunnelAddresses?: boolean;
   onLocalAddressChange: (value: string) => void;
   onRemoteAddressChange: (value: string) => void;
+  onLocalTunnelAddressChange?: (value: string) => void;
+  onRemoteTunnelAddressChange?: (value: string) => void;
 }
 
 function RouterEndpointCard({
@@ -332,8 +341,11 @@ function RouterEndpointCard({
   addressOptions,
   errors,
   submitted,
+  showTunnelAddresses,
   onLocalAddressChange,
   onRemoteAddressChange,
+  onLocalTunnelAddressChange,
+  onRemoteTunnelAddressChange,
 }: RouterEndpointCardProps) {
   const errorKey = `endpoint-${endpoint.routerId}-remoteAddress`;
   return (
@@ -375,6 +387,26 @@ function RouterEndpointCard({
           error={submitted ? errors[errorKey] : undefined}
         />
       </SimpleGrid>
+      {showTunnelAddresses && (
+        <SimpleGrid cols={2} spacing="sm" mt="sm">
+          <TextInput
+            label="Local Tunnel Address"
+            placeholder="e.g. 10.255.0.0/31"
+            size="sm"
+            radius="sm"
+            value={endpoint.localTunnelAddress}
+            onChange={(e) => onLocalTunnelAddressChange?.(e.currentTarget.value)}
+          />
+          <TextInput
+            label="Remote Tunnel Address"
+            placeholder="e.g. 10.255.0.1"
+            size="sm"
+            radius="sm"
+            value={endpoint.remoteTunnelAddress}
+            onChange={(e) => onRemoteTunnelAddressChange?.(e.currentTarget.value)}
+          />
+        </SimpleGrid>
+      )}
     </Box>
   );
 }
@@ -478,7 +510,7 @@ export default function TunnelForm({
     }
   }
 
-  function updateIPsecEndpoint(routerId: string, field: 'localAddress' | 'remoteAddress', value: string) {
+  function updateIPsecEndpoint(routerId: string, field: 'localAddress' | 'remoteAddress' | 'localTunnelAddress' | 'remoteTunnelAddress', value: string) {
     setIpsecState((prev) => ({
       ...prev,
       endpoints: prev.endpoints.map((ep) =>
@@ -612,14 +644,14 @@ export default function TunnelForm({
           localSubnets: ipsecState.localSubnets,
           remoteSubnets: ipsecState.remoteSubnets,
           tunnelRoutes: ipsecState.tunnelRoutes,
-          localTunnelAddress: ipsecState.localTunnelAddress || undefined,
-          remoteTunnelAddress: ipsecState.remoteTunnelAddress || undefined,
           disabled: false,
           comment: (ipsecState.comment || '').trim(),
           endpoints: ipsecState.endpoints.map((ep) => ({
             routerId: ep.routerId,
             localAddress: ep.localAddress,
             remoteAddress: (ep.remoteAddress || '').trim(),
+            localTunnelAddress: ep.localTunnelAddress || undefined,
+            remoteTunnelAddress: ep.remoteTunnelAddress || undefined,
           })),
         };
 
@@ -850,7 +882,7 @@ interface IPsecStepProps {
   onUpdate: <K extends keyof IPsecFormState>(field: K, value: IPsecFormState[K]) => void;
   endpoints?: EndpointState[];
   addressOptionsByRouter?: Record<string, { value: string; label: string }[]>;
-  onEndpointChange?: (routerId: string, field: 'localAddress' | 'remoteAddress', value: string) => void;
+  onEndpointChange?: (routerId: string, field: 'localAddress' | 'remoteAddress' | 'localTunnelAddress' | 'remoteTunnelAddress', value: string) => void;
 }
 
 function IPsecConnectionStep({
@@ -892,9 +924,9 @@ function IPsecConnectionStep({
             title: { fontSize: 'var(--mantine-font-size-sm)' },
             message: { fontSize: 'var(--mantine-font-size-xs)' },
           }}>
-          MikroTik route-based IPsec does not create a named tunnel interface. For BGP
-          or dynamic routing, create a dummy bridge (no ports) with a transit IP and use
-          an IPsec policy in tunnel mode to encrypt traffic between transit addresses.
+          MikroTik route-based IPsec does not create a named tunnel interface.
+          A loopback will be created with the tunnel transit addresses for each router.
+          This enables BGP and dynamic routing over the IPsec tunnel.
         </Alert>
       )}
       {/* Router endpoint cards */}
@@ -907,8 +939,11 @@ function IPsecConnectionStep({
             addressOptions={addressOptionsByRouter[ep.routerId] ?? [{ value: '0.0.0.0', label: 'Auto (0.0.0.0)' }]}
             errors={errors}
             submitted={submitted}
+            showTunnelAddresses={state.mode === 'route-based'}
             onLocalAddressChange={(val) => onEndpointChange?.(ep.routerId, 'localAddress', val)}
             onRemoteAddressChange={(val) => onEndpointChange?.(ep.routerId, 'remoteAddress', val)}
+            onLocalTunnelAddressChange={(val) => onEndpointChange?.(ep.routerId, 'localTunnelAddress', val)}
+            onRemoteTunnelAddressChange={(val) => onEndpointChange?.(ep.routerId, 'remoteTunnelAddress', val)}
           />
         ))}
       </Stack>
@@ -1088,28 +1123,8 @@ function IPsecNetworksStep({ state, errors = {}, onUpdate }: IPsecStepProps) {
   if (state.mode === 'route-based') {
     return (
       <Stack gap="md">
-        <Text size="sm" fw={500}>Tunnel Transit Addresses</Text>
-        <Text size="xs" c="dimmed">
-          A loopback interface will be created with the local address. The remote address is the peer's transit IP for BGP/routing.
-        </Text>
-        <SimpleGrid cols={2}>
-          <TextInput
-            label="Local tunnel address"
-            placeholder="e.g. 10.255.0.0/31"
-            value={state.localTunnelAddress}
-            onChange={(e) => onUpdate('localTunnelAddress', e.currentTarget.value)}
-          />
-          <TextInput
-            label="Remote tunnel address"
-            placeholder="e.g. 10.255.0.1"
-            value={state.remoteTunnelAddress}
-            onChange={(e) => onUpdate('remoteTunnelAddress', e.currentTarget.value)}
-          />
-        </SimpleGrid>
-
-        <Text size="sm" fw={500} mt="sm">Tunnel Routes</Text>
-        <Text size="xs" c="dimmed">
-          Destination networks to route through this tunnel.
+        <Text size="sm" c="dimmed">
+          Add destination networks to route through this tunnel.
         </Text>
         <SubnetList
           items={state.tunnelRoutes}

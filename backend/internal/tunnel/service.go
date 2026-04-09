@@ -421,17 +421,17 @@ func (s *Service) UpdateIPsec(ctx context.Context, tenantID, userID, clusterID, 
 		}
 
 		// Update loopback address and tunnel-mode policy if tunnel addresses changed.
-		if req.LocalTunnelAddress != nil && a.AddressID != "" {
+		if epInput != nil && epInput.LocalTunnelAddress != nil && a.AddressID != "" {
 			ops = append(ops, operation.ExecuteOperation{
 				RouterID:      ri.ID,
 				Module:        "tunnels",
 				OperationType: operation.OpModify,
 				ResourcePath:  "/ip/address",
 				ResourceID:    a.AddressID,
-				Body:          map[string]interface{}{"address": *req.LocalTunnelAddress},
+				Body:          map[string]interface{}{"address": *epInput.LocalTunnelAddress},
 			})
 		}
-		if req.RemoteTunnelAddress != nil && a.LoopbackID != "" {
+		if epInput != nil && epInput.RemoteTunnelAddress != nil && a.LoopbackID != "" {
 			ops = append(ops, operation.ExecuteOperation{
 				RouterID:      ri.ID,
 				Module:        "tunnels",
@@ -439,29 +439,28 @@ func (s *Service) UpdateIPsec(ctx context.Context, tenantID, userID, clusterID, 
 				ResourcePath:  "/interface/loopback",
 				ResourceID:    a.LoopbackID,
 				Body: map[string]interface{}{
-					"comment": ipsecLoopbackCommentPrefix + name + ":" + stripPrefix(*req.RemoteTunnelAddress),
+					"comment": ipsecLoopbackCommentPrefix + name + ":" + stripPrefix(*epInput.RemoteTunnelAddress),
 				},
 			})
 		}
 		// Update tunnel-mode policy src/dst addresses if tunnel addresses changed.
-		if (req.LocalTunnelAddress != nil || req.RemoteTunnelAddress != nil) && a.LoopbackID != "" {
+		if epInput != nil && (epInput.LocalTunnelAddress != nil || epInput.RemoteTunnelAddress != nil) && a.LoopbackID != "" {
 			localTA := a.LocalTunnelAddress
-			if req.LocalTunnelAddress != nil {
-				localTA = *req.LocalTunnelAddress
+			if epInput.LocalTunnelAddress != nil {
+				localTA = *epInput.LocalTunnelAddress
 			}
 			remoteTA := a.RemoteTunnelAddress
-			if req.RemoteTunnelAddress != nil {
-				remoteTA = *req.RemoteTunnelAddress
+			if epInput.RemoteTunnelAddress != nil {
+				remoteTA = *epInput.RemoteTunnelAddress
 			}
 			policyBody := map[string]interface{}{
 				"src-address": localTA,
 				"dst-address": remoteTA,
 			}
-			// Also update sa-src/sa-dst if endpoint addresses changed.
-			if epInput != nil && epInput.LocalAddress != nil {
+			if epInput.LocalAddress != nil {
 				policyBody["sa-src-address"] = stripPrefix(*epInput.LocalAddress)
 			}
-			if epInput != nil && epInput.RemoteAddress != nil {
+			if epInput.RemoteAddress != nil {
 				policyBody["sa-dst-address"] = stripPrefix(*epInput.RemoteAddress)
 			}
 			for _, pid := range a.PolicyIDs {
@@ -507,8 +506,8 @@ func (s *Service) UpdateIPsec(ctx context.Context, tenantID, userID, clusterID, 
 			if a.RemoteTunnelAddress != "" {
 				gateway = stripPrefix(a.RemoteTunnelAddress)
 			}
-			if req.RemoteTunnelAddress != nil {
-				gateway = stripPrefix(*req.RemoteTunnelAddress)
+			if epInput != nil && epInput.RemoteTunnelAddress != nil {
+				gateway = stripPrefix(*epInput.RemoteTunnelAddress)
 			} else if epInput != nil && epInput.RemoteAddress != nil {
 				gateway = stripPrefix(*epInput.RemoteAddress)
 			}

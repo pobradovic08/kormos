@@ -375,14 +375,14 @@ func BuildIPsecCreateOps(req CreateIPsecRequest, routerID string, ep CreateIPsec
 
 	// Route-based: create loopback + address + tunnel-mode policy + static routes.
 	if req.Mode == "route-based" {
-		if req.LocalTunnelAddress != "" && req.RemoteTunnelAddress != "" {
+		if ep.LocalTunnelAddress != "" && ep.RemoteTunnelAddress != "" {
 			// Create loopback interface for transit IP.
 			ops = append(ops, ipsecOp{
 				RouterID:     routerID,
 				ResourcePath: "/interface/loopback",
 				Body: map[string]interface{}{
 					"name":    ipsecLoopbackPrefix + req.Name,
-					"comment": ipsecLoopbackCommentPrefix + req.Name + ":" + stripPrefix(req.RemoteTunnelAddress),
+					"comment": ipsecLoopbackCommentPrefix + req.Name + ":" + stripPrefix(ep.RemoteTunnelAddress),
 				},
 			})
 
@@ -391,7 +391,7 @@ func BuildIPsecCreateOps(req CreateIPsecRequest, routerID string, ep CreateIPsec
 				RouterID:     routerID,
 				ResourcePath: "/ip/address",
 				Body: map[string]interface{}{
-					"address":   req.LocalTunnelAddress,
+					"address":   ep.LocalTunnelAddress,
 					"interface": ipsecLoopbackPrefix + req.Name,
 					"comment":   ipsecLoopbackCommentPrefix + req.Name,
 				},
@@ -405,8 +405,8 @@ func BuildIPsecCreateOps(req CreateIPsecRequest, routerID string, ep CreateIPsec
 					"peer":           req.Name,
 					"proposal":       req.Name,
 					"tunnel":         "yes",
-					"src-address":    req.LocalTunnelAddress,
-					"dst-address":    req.RemoteTunnelAddress,
+					"src-address":    ep.LocalTunnelAddress,
+					"dst-address":    ep.RemoteTunnelAddress,
 					"sa-src-address": stripPrefix(ep.LocalAddress),
 					"sa-dst-address": stripPrefix(ep.RemoteAddress),
 				},
@@ -428,8 +428,8 @@ func BuildIPsecCreateOps(req CreateIPsecRequest, routerID string, ep CreateIPsec
 
 		// Static routes: gateway is remote tunnel IP if available, else remote peer IP.
 		gw := stripPrefix(ep.RemoteAddress)
-		if req.RemoteTunnelAddress != "" {
-			gw = stripPrefix(req.RemoteTunnelAddress)
+		if ep.RemoteTunnelAddress != "" {
+			gw = stripPrefix(ep.RemoteTunnelAddress)
 		}
 		for _, dst := range req.TunnelRoutes {
 			ops = append(ops, ipsecOp{
@@ -492,9 +492,11 @@ func buildIPsecEndpoint(ri RouterInfo, a assembledIPsec) IPsecEndpoint {
 			Loopback: a.LoopbackID,
 			Address:  a.AddressID,
 		},
-		LocalAddress:  a.LocalAddress,
-		RemoteAddress: a.RemoteAddress,
-		Established:   a.Established,
+		LocalAddress:        a.LocalAddress,
+		RemoteAddress:       a.RemoteAddress,
+		LocalTunnelAddress:  a.LocalTunnelAddress,
+		RemoteTunnelAddress: a.RemoteTunnelAddress,
+		Established:         a.Established,
 	}
 }
 

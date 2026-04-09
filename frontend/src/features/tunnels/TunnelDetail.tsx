@@ -92,13 +92,25 @@ export default function TunnelDetail({
                 </Group>
                 <Stack gap={2} ml="sm">
                   <Group gap="xs">
-                    <Text size="xs" c="dimmed" style={{ minWidth: 100 }}>Local Address</Text>
+                    <Text size="xs" c="dimmed" style={{ minWidth: 120 }}>Local Address</Text>
                     <MonoText size="xs">{ep.localAddress}</MonoText>
                   </Group>
                   <Group gap="xs">
-                    <Text size="xs" c="dimmed" style={{ minWidth: 100 }}>Remote Address</Text>
+                    <Text size="xs" c="dimmed" style={{ minWidth: 120 }}>Remote Address</Text>
                     <MonoText size="xs">{ep.remoteAddress || '\u2014'}</MonoText>
                   </Group>
+                  {ep.localTunnelAddress && (
+                    <Group gap="xs">
+                      <Text size="xs" c="dimmed" style={{ minWidth: 120 }}>Local Tunnel IP</Text>
+                      <MonoText size="xs">{ep.localTunnelAddress}</MonoText>
+                    </Group>
+                  )}
+                  {ep.remoteTunnelAddress && (
+                    <Group gap="xs">
+                      <Text size="xs" c="dimmed" style={{ minWidth: 120 }}>Remote Tunnel IP</Text>
+                      <MonoText size="xs">{ep.remoteTunnelAddress}</MonoText>
+                    </Group>
+                  )}
                 </Stack>
               </Box>
             ))}
@@ -231,28 +243,12 @@ export default function TunnelDetail({
                   </Box>
                 </>
               )}
-              {ipsec.mode === 'route-based' && (ipsec.localTunnelAddress || ipsec.tunnelRoutes.length > 0) && (
+              {(ipsec.mode === 'route-based' && ipsec.tunnelRoutes.length > 0) && (
                 <>
                   <Divider />
                   <Box>
-                    <Text fw={600} size="sm" mb="sm">Tunnel Transit / Routes</Text>
-                    <Stack gap="xs">
-                      {ipsec.localTunnelAddress && (
-                        <DetailField label="Local Transit IP">
-                          <MonoText>{ipsec.localTunnelAddress}</MonoText>
-                        </DetailField>
-                      )}
-                      {ipsec.remoteTunnelAddress && (
-                        <DetailField label="Remote Transit IP">
-                          <MonoText>{ipsec.remoteTunnelAddress}</MonoText>
-                        </DetailField>
-                      )}
-                      {ipsec.tunnelRoutes.length > 0 && (
-                        <DetailField label="Routes">
-                          <Stack gap={2}>{ipsec.tunnelRoutes.map((r) => <MonoText key={r}>{r}</MonoText>)}</Stack>
-                        </DetailField>
-                      )}
-                    </Stack>
+                    <Text fw={600} size="sm" mb="sm">Tunnel Routes</Text>
+                    <Stack gap={2}>{ipsec.tunnelRoutes.map((r) => <MonoText key={r}>{r}</MonoText>)}</Stack>
                   </Box>
                 </>
               )}

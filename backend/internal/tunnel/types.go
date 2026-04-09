@@ -84,76 +84,76 @@ type IPsecRosIDs struct {
 }
 
 type IPsecEndpoint struct {
-	RouterID      string      `json:"routerId"`
-	RouterName    string      `json:"routerName"`
-	Role          string      `json:"role"`
-	RosIDs        IPsecRosIDs `json:"rosIds"`
-	LocalAddress  string      `json:"localAddress"`
-	RemoteAddress string      `json:"remoteAddress"`
-	Established   bool        `json:"established"`
+	RouterID            string      `json:"routerId"`
+	RouterName          string      `json:"routerName"`
+	Role                string      `json:"role"`
+	RosIDs              IPsecRosIDs `json:"rosIds"`
+	LocalAddress        string      `json:"localAddress"`
+	RemoteAddress       string      `json:"remoteAddress"`
+	LocalTunnelAddress  string      `json:"localTunnelAddress,omitempty"`
+	RemoteTunnelAddress string      `json:"remoteTunnelAddress,omitempty"`
+	Established         bool        `json:"established"`
 }
 
 type MergedIPsecTunnel struct {
-	Name                string          `json:"name"`
-	TunnelType          string          `json:"tunnelType"`
-	Mode                string          `json:"mode"`
-	AuthMethod          string          `json:"authMethod"`
-	IpsecSecret         string          `json:"ipsecSecret,omitempty"`
-	Phase1              Phase1Config    `json:"phase1"`
-	Phase2              Phase2Config    `json:"phase2"`
-	LocalSubnets        []string        `json:"localSubnets"`
-	RemoteSubnets       []string        `json:"remoteSubnets"`
-	TunnelRoutes        []string        `json:"tunnelRoutes"`
-	LocalTunnelAddress  string          `json:"localTunnelAddress,omitempty"`
-	RemoteTunnelAddress string          `json:"remoteTunnelAddress,omitempty"`
-	Disabled            bool            `json:"disabled"`
-	Comment             string          `json:"comment,omitempty"`
-	Endpoints           []IPsecEndpoint `json:"endpoints"`
+	Name          string          `json:"name"`
+	TunnelType    string          `json:"tunnelType"`
+	Mode          string          `json:"mode"`
+	AuthMethod    string          `json:"authMethod"`
+	IpsecSecret   string          `json:"ipsecSecret,omitempty"`
+	Phase1        Phase1Config    `json:"phase1"`
+	Phase2        Phase2Config    `json:"phase2"`
+	LocalSubnets  []string        `json:"localSubnets"`
+	RemoteSubnets []string        `json:"remoteSubnets"`
+	TunnelRoutes  []string        `json:"tunnelRoutes"`
+	Disabled      bool            `json:"disabled"`
+	Comment       string          `json:"comment,omitempty"`
+	Endpoints     []IPsecEndpoint `json:"endpoints"`
 }
 
 type CreateIPsecRequest struct {
-	Name                string                    `json:"name"`
-	Mode                string                    `json:"mode"`
-	AuthMethod          string                    `json:"authMethod"`
-	IpsecSecret         string                    `json:"ipsecSecret,omitempty"`
-	Phase1              Phase1Config              `json:"phase1"`
-	Phase2              Phase2Config              `json:"phase2"`
-	LocalSubnets        []string                  `json:"localSubnets,omitempty"`
-	RemoteSubnets       []string                  `json:"remoteSubnets,omitempty"`
-	TunnelRoutes        []string                  `json:"tunnelRoutes,omitempty"`
-	LocalTunnelAddress  string                    `json:"localTunnelAddress,omitempty"`
-	RemoteTunnelAddress string                    `json:"remoteTunnelAddress,omitempty"`
-	Disabled            bool                      `json:"disabled"`
-	Comment             string                    `json:"comment,omitempty"`
-	Endpoints           []CreateIPsecEndpointInput `json:"endpoints"`
+	Name          string                    `json:"name"`
+	Mode          string                    `json:"mode"`
+	AuthMethod    string                    `json:"authMethod"`
+	IpsecSecret   string                    `json:"ipsecSecret,omitempty"`
+	Phase1        Phase1Config              `json:"phase1"`
+	Phase2        Phase2Config              `json:"phase2"`
+	LocalSubnets  []string                  `json:"localSubnets,omitempty"`
+	RemoteSubnets []string                  `json:"remoteSubnets,omitempty"`
+	TunnelRoutes  []string                  `json:"tunnelRoutes,omitempty"`
+	Disabled      bool                      `json:"disabled"`
+	Comment       string                    `json:"comment,omitempty"`
+	Endpoints     []CreateIPsecEndpointInput `json:"endpoints"`
 }
 
 type CreateIPsecEndpointInput struct {
-	RouterID      string `json:"routerId"`
-	LocalAddress  string `json:"localAddress"`
-	RemoteAddress string `json:"remoteAddress"`
+	RouterID            string `json:"routerId"`
+	LocalAddress        string `json:"localAddress"`
+	RemoteAddress       string `json:"remoteAddress"`
+	LocalTunnelAddress  string `json:"localTunnelAddress,omitempty"`
+	RemoteTunnelAddress string `json:"remoteTunnelAddress,omitempty"`
 }
 
 type UpdateIPsecRequest struct {
-	Mode                *string                    `json:"mode,omitempty"`
-	AuthMethod          *string                    `json:"authMethod,omitempty"`
-	IpsecSecret         *string                    `json:"ipsecSecret,omitempty"`
-	Comment             *string                    `json:"comment,omitempty"`
-	Phase1              *Phase1Config              `json:"phase1,omitempty"`
-	Phase2              *Phase2Config              `json:"phase2,omitempty"`
-	LocalSubnets        []string                   `json:"localSubnets,omitempty"`
-	RemoteSubnets       []string                   `json:"remoteSubnets,omitempty"`
-	TunnelRoutes        []string                   `json:"tunnelRoutes,omitempty"`
-	LocalTunnelAddress  *string                    `json:"localTunnelAddress,omitempty"`
-	RemoteTunnelAddress *string                    `json:"remoteTunnelAddress,omitempty"`
-	Disabled            *bool                      `json:"disabled,omitempty"`
-	Endpoints           []UpdateIPsecEndpointInput `json:"endpoints,omitempty"`
+	Mode          *string                    `json:"mode,omitempty"`
+	AuthMethod    *string                    `json:"authMethod,omitempty"`
+	IpsecSecret   *string                    `json:"ipsecSecret,omitempty"`
+	Comment       *string                    `json:"comment,omitempty"`
+	Phase1        *Phase1Config              `json:"phase1,omitempty"`
+	Phase2        *Phase2Config              `json:"phase2,omitempty"`
+	LocalSubnets  []string                   `json:"localSubnets,omitempty"`
+	RemoteSubnets []string                   `json:"remoteSubnets,omitempty"`
+	TunnelRoutes  []string                   `json:"tunnelRoutes,omitempty"`
+	Disabled      *bool                      `json:"disabled,omitempty"`
+	Endpoints     []UpdateIPsecEndpointInput `json:"endpoints,omitempty"`
 }
 
 type UpdateIPsecEndpointInput struct {
-	RouterID      string  `json:"routerId"`
-	LocalAddress  *string `json:"localAddress,omitempty"`
-	RemoteAddress *string `json:"remoteAddress,omitempty"`
+	RouterID            string  `json:"routerId"`
+	LocalAddress        *string `json:"localAddress,omitempty"`
+	RemoteAddress       *string `json:"remoteAddress,omitempty"`
+	LocalTunnelAddress  *string `json:"localTunnelAddress,omitempty"`
+	RemoteTunnelAddress *string `json:"remoteTunnelAddress,omitempty"`
 }
 
 // ─── WireGuard Types ──────────────────────────────────────────────────────────

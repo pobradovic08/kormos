@@ -165,8 +165,6 @@ export interface IPsecTunnel {
   localSubnets: string[];
   remoteSubnets: string[];
   tunnelRoutes: string[];
-  localTunnelAddress?: string;
-  remoteTunnelAddress?: string;
   disabled: boolean;
   established: boolean;
   comment: string;
@@ -193,6 +191,14 @@ export interface CreateGRETunnelPayload {
   endpoints: TunnelEndpointPayload[];
 }
 
+export interface IPsecEndpointPayload {
+  routerId: string;
+  localAddress: string;
+  remoteAddress: string;
+  localTunnelAddress?: string;
+  remoteTunnelAddress?: string;
+}
+
 export interface CreateIPsecTunnelPayload {
   name: string;
   mode: string;
@@ -203,11 +209,9 @@ export interface CreateIPsecTunnelPayload {
   localSubnets: string[];
   remoteSubnets: string[];
   tunnelRoutes: string[];
-  localTunnelAddress?: string;
-  remoteTunnelAddress?: string;
   disabled: boolean;
   comment: string;
-  endpoints: TunnelEndpointPayload[];
+  endpoints: IPsecEndpointPayload[];
 }
 
 // Display endpoint for table/detail views (shared across GRE/IPsec)
@@ -216,6 +220,8 @@ export interface DisplayEndpoint {
   role: string;
   localAddress: string;
   remoteAddress: string;
+  localTunnelAddress?: string;
+  remoteTunnelAddress?: string;
 }
 
 export interface GRETunnelEndpoint {
@@ -257,6 +263,8 @@ export interface IPsecTunnelEndpoint {
   rosIds: IPsecRosIds;
   localAddress: string;
   remoteAddress: string;
+  localTunnelAddress?: string;
+  remoteTunnelAddress?: string;
   established: boolean;
 }
 
@@ -281,8 +289,6 @@ export interface MergedIPsecTunnel {
   localSubnets: string[];
   remoteSubnets: string[];
   tunnelRoutes: string[];
-  localTunnelAddress?: string;
-  remoteTunnelAddress?: string;
   disabled: boolean;
   comment: string;
   endpoints: IPsecTunnelEndpoint[];

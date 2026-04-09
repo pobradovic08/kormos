@@ -134,21 +134,19 @@ func MergeIPsecTunnels(perRouter map[string][]assembledIPsec, routers []RouterIn
 			tunnelRoutes = []string{}
 		}
 		result = append(result, MergedIPsecTunnel{
-			Name:                a.PeerName,
-			TunnelType:          "ipsec",
-			Mode:                a.Mode,
-			AuthMethod:          a.AuthMethod,
-			IpsecSecret:         a.Secret,
-			Phase1:              a.Phase1,
-			Phase2:              a.Phase2,
-			LocalSubnets:        localSubnets,
-			RemoteSubnets:       remoteSubnets,
-			TunnelRoutes:        tunnelRoutes,
-			LocalTunnelAddress:  a.LocalTunnelAddress,
-			RemoteTunnelAddress: a.RemoteTunnelAddress,
-			Disabled:            a.Disabled,
-			Comment:             a.Comment,
-			Endpoints:           entry.endpoints,
+			Name:          a.PeerName,
+			TunnelType:    "ipsec",
+			Mode:          a.Mode,
+			AuthMethod:    a.AuthMethod,
+			IpsecSecret:   a.Secret,
+			Phase1:        a.Phase1,
+			Phase2:        a.Phase2,
+			LocalSubnets:  localSubnets,
+			RemoteSubnets: remoteSubnets,
+			TunnelRoutes:  tunnelRoutes,
+			Disabled:      a.Disabled,
+			Comment:       a.Comment,
+			Endpoints:     entry.endpoints,
 		})
 	}
 	return result
