@@ -44,16 +44,16 @@ function matchesRule(rule: FirewallRule, query: string): boolean {
 }
 
 export default function FirewallPage() {
-  const selectedRouterId = useClusterId();
-  const { data: rules, isLoading, error, refetch } = useFirewallRules(selectedRouterId);
-  const updateMutation = useUpdateFirewallRule(selectedRouterId);
-  const deleteMutation = useDeleteFirewallRule(selectedRouterId);
-  const moveMutation = useMoveFirewallRule(selectedRouterId);
-  const { data: interfaces } = useInterfaces(selectedRouterId);
+  const clusterId = useClusterId();
+  const { data: rules, isLoading, error, refetch } = useFirewallRules(clusterId);
+  const updateMutation = useUpdateFirewallRule(clusterId);
+  const deleteMutation = useDeleteFirewallRule(clusterId);
+  const moveMutation = useMoveFirewallRule(clusterId);
+  const { data: interfaces } = useInterfaces(clusterId);
 
   const routerInterfaces = interfaces ?? [];
 
-  const { data: addressLists } = useAddressLists(selectedRouterId);
+  const { data: addressLists } = useAddressLists(clusterId);
   const addressListNames = useMemo(() => {
     if (!addressLists) return [];
     return addressLists.map((l) => l.name);
@@ -67,10 +67,10 @@ export default function FirewallPage() {
   const [editRule, setEditRule] = useState<FirewallRule | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<FirewallRule | null>(null);
 
-  // Reset state when router changes
-  const prevRouterId = useRef(selectedRouterId);
+  // Reset state when cluster changes
+  const prevClusterId = useRef(clusterId);
   useEffect(() => {
-    if (prevRouterId.current !== selectedRouterId) {
+    if (prevClusterId.current !== clusterId) {
       setActiveTab('forward');
       setSearch('');
       setSelectedRule(null);
@@ -78,9 +78,9 @@ export default function FirewallPage() {
       setFormOpen(false);
       setEditRule(null);
       setDeleteTarget(null);
-      prevRouterId.current = selectedRouterId;
+      prevClusterId.current = clusterId;
     }
-  }, [selectedRouterId]);
+  }, [clusterId]);
 
   const filtered = useMemo(() => {
     if (!rules) return [];
@@ -241,7 +241,7 @@ export default function FirewallPage() {
       <FirewallForm
         isOpen={formOpen}
         onClose={handleFormClose}
-        routerId={selectedRouterId}
+        routerId={clusterId}
         chain={activeTab}
         editRule={editRule}
       />

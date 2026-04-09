@@ -1,41 +1,95 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import apiClient from '../../api/client';
 import type { Route } from '../../api/types';
 import { useMockMode } from '../../mocks/useMockMode';
 import { listRoutes, getRoute } from '../../mocks/mockRoutesData';
 
-export function useRoutes(routerId: string | null) {
+export interface CreateRoutePayload {
+  destination: string;
+  gateway: string;
+  distance: number;
+  comment?: string;
+}
+
+export interface UpdateRoutePayload {
+  gateway?: string;
+  distance?: number;
+  disabled?: boolean;
+  comment?: string;
+}
+
+export function useRoutes(clusterId: string | null) {
   const isMock = useMockMode();
 
   return useQuery<Route[]>({
-    queryKey: ['routes', routerId],
+    queryKey: ['routes', clusterId],
     queryFn: async () => {
-      if (isMock) return listRoutes(routerId!);
+      if (isMock) return listRoutes(clusterId!);
       const response = await apiClient.get<Route[]>(
-        `/routers/${routerId}/routes`,
+        `/clusters/${clusterId}/routes`,
       );
       return response.data;
     },
-    enabled: !!routerId,
+    enabled: !!clusterId,
   });
 }
 
-export function useRoute(routerId: string | null, id: string) {
+export function useRoute(clusterId: string | null, id: string) {
   const isMock = useMockMode();
 
   return useQuery<Route>({
-    queryKey: ['routes', routerId, id],
+    queryKey: ['routes', clusterId, id],
     queryFn: async () => {
       if (isMock) {
-        const route = getRoute(routerId!, id);
+        const route = getRoute(clusterId!, id);
         if (!route) throw new Error(`Route ${id} not found`);
         return route;
       }
       const response = await apiClient.get<Route>(
-        `/routers/${routerId}/routes/${id}`,
+        `/clusters/${clusterId}/routes/${id}`,
       );
       return response.data;
     },
-    enabled: !!routerId && !!id,
+    enabled: !!clusterId && !!id,
+  });
+}
+
+export function useCreateRoute(clusterId: string | null) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (payload: CreateRoutePayload) => {
+      const response = await apiClient.post<Route>(
+        `/clusters/${clusterId}/routes`,
+        payload,
+      );
+      return response.data;
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['routes', clusterId] });
+    },
+  });
+}
+
+export function useUpdateRoute(clusterId: string | null) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, ...payload }: UpdateRoutePayload & { id: string }) => {
+      await apiClient.patch(`/clusters/${clusterId}/routes/${id}`, payload);
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['routes', clusterId] });
+    },
+  });
+}
+
+export function useDeleteRoute(clusterId: string | null) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      await apiClient.delete(`/clusters/${clusterId}/routes/${id}`);
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['routes', clusterId] });
+    },
   });
 }

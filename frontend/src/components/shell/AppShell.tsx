@@ -9,13 +9,13 @@ import {
 } from '@mantine/core';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { IconChevronDown } from '@tabler/icons-react';
-import CommitPanel from '../commit/CommitPanel';
-import RouterSelector from './RouterSelector';
-import CommitButton from './CommitButton';
+import UndoHistoryPanel from '../undo/UndoHistoryPanel';
+import ClusterSelector from './ClusterSelector';
+import UndoHistoryButton from '../undo/UndoHistoryButton';
 import UserMenu from './UserMenu';
 import { modules, configurePath } from '../../features/configure/moduleConfig';
 import { usePortalStore } from '../../stores/usePortalStore';
-import { useRouterStore } from '../../stores/useRouterStore';
+import { useClusterStore } from '../../stores/useClusterStore';
 
 const simpleNavLinks = [
   { label: 'Dashboard', to: '/dashboard' },
@@ -82,17 +82,17 @@ function NavLink({
 export default function AppShellLayout() {
   const location = useLocation();
   const navigate = useNavigate();
-  const [commitPanelOpen, setCommitPanelOpen] = useState(false);
+  const [historyPanelOpen, setHistoryPanelOpen] = useState(false);
   const portalName = usePortalStore((s) => s.portalName) || 'Kormos';
 
   const isConfigureActive = location.pathname.startsWith('/configure');
 
-  const selectedRouterId = useRouterStore((s) => s.selectedRouterId);
+  const selectedClusterId = useClusterStore((s) => s.selectedClusterId);
 
   // Extract clusterId from URL if on a configure page, else fall back to store
   const configureClusterId = isConfigureActive
-    ? location.pathname.split('/')[2] ?? selectedRouterId
-    : selectedRouterId;
+    ? location.pathname.split('/')[2] ?? selectedClusterId
+    : selectedClusterId;
 
   return (
     <AppShell
@@ -205,9 +205,9 @@ export default function AppShellLayout() {
             </Group>
           </Group>
 
-          {/* Right side: RouterSelector, CommitButton, UserMenu */}
+          {/* Right side: RouterSelector, UndoHistoryButton, UserMenu */}
           <Group gap="sm" wrap="nowrap">
-            <RouterSelector />
+            <ClusterSelector />
 
             <Divider
               orientation="vertical"
@@ -215,7 +215,7 @@ export default function AppShellLayout() {
               style={{ height: 24, alignSelf: 'center' }}
             />
 
-            <CommitButton onClick={() => setCommitPanelOpen(true)} />
+            <UndoHistoryButton onClick={() => setHistoryPanelOpen(true)} />
 
             <UserMenu />
           </Group>
@@ -226,9 +226,9 @@ export default function AppShellLayout() {
         <Outlet />
       </AppShell.Main>
 
-      <CommitPanel
-        isOpen={commitPanelOpen}
-        onClose={() => setCommitPanelOpen(false)}
+      <UndoHistoryPanel
+        isOpen={historyPanelOpen}
+        onClose={() => setHistoryPanelOpen(false)}
       />
     </AppShell>
   );

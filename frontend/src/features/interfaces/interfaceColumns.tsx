@@ -1,7 +1,6 @@
 import {
   Badge,
   Group,
-  Box,
   Text,
   Stack,
   Button,
@@ -33,8 +32,9 @@ const typeBadgeColors: Record<string, string> = {
 export interface InterfaceColumn {
   accessor: string;
   header: string;
-  width?: number;
+  width?: number | string;
   align?: 'left' | 'center' | 'right';
+  adminOnly?: boolean;
   render: (
     iface: RouterInterface,
     actions?: {
@@ -48,39 +48,41 @@ export const interfaceColumns: InterfaceColumn[] = [
     accessor: 'name',
     header: 'Interface',
     render: (iface) => {
-      const dotColor = typeBadgeColors[iface.type] ?? 'gray';
+      const badgeColor = typeBadgeColors[iface.type] ?? 'gray';
       return (
-        <Group gap={8} wrap="nowrap" align="flex-start">
-          <Box
-            w={7}
-            h={7}
-            mt={6}
-            style={{ borderRadius: '50%', flexShrink: 0 }}
-            bg={`${dotColor}.5`}
-          />
-          <div>
-            <Group gap={6} wrap="nowrap">
-              <Text fw={500} size="sm">
-                {iface.name}
-              </Text>
-              <Badge
-                color={dotColor}
-                variant="light"
-                size="xs"
-                radius="sm"
-              >
-                {iface.type}
-              </Badge>
-            </Group>
-            {iface.comment && (
-              <Text size="xs" c="dimmed" lineClamp={1}>
-                {iface.comment}
-              </Text>
-            )}
-          </div>
-        </Group>
+        <div>
+          <Group gap={6} wrap="nowrap">
+            <Text fw={500} size="sm">
+              {iface.name}
+            </Text>
+            <Badge
+              color={badgeColor}
+              variant="light"
+              size="xs"
+              radius="sm"
+            >
+              {iface.type}
+            </Badge>
+          </Group>
+          {iface.comment && (
+            <Text size="xs" c="dimmed" lineClamp={1}>
+              {iface.comment}
+            </Text>
+          )}
+        </div>
       );
     },
+  },
+  {
+    accessor: 'default_name',
+    header: 'Original Name',
+    width: '20%',
+    adminOnly: true,
+    render: (iface) => (
+      <MonoText size="xs" c="dimmed">
+        {iface.default_name || iface.name}
+      </MonoText>
+    ),
   },
   {
     accessor: 'addresses',

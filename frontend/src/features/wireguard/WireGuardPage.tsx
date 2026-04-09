@@ -14,18 +14,18 @@ import WireGuardInterfaceTab from './WireGuardInterface';
 import WireGuardPeers from './WireGuardPeers';
 
 export default function WireGuardPage() {
-  const selectedRouterId = useClusterId();
-  const { isLoading, error, refetch } = useWireGuardInterfaces(selectedRouterId);
+  const clusterId = useClusterId();
+  const { isLoading, error, refetch } = useWireGuardInterfaces(clusterId);
 
   const [activeTab, setActiveTab] = useState<string | null>('interface');
 
-  const prevRouterId = useRef(selectedRouterId);
+  const prevClusterId = useRef(clusterId);
   useEffect(() => {
-    if (prevRouterId.current !== selectedRouterId) {
+    if (prevClusterId.current !== clusterId) {
       setActiveTab('interface');
-      prevRouterId.current = selectedRouterId;
+      prevClusterId.current = clusterId;
     }
-  }, [selectedRouterId]);
+  }, [clusterId]);
 
   if (isLoading) {
     return (
@@ -67,11 +67,11 @@ export default function WireGuardPage() {
         </Tabs.List>
 
         <Tabs.Panel value="interface">
-          <WireGuardInterfaceTab routerId={selectedRouterId} />
+          <WireGuardInterfaceTab routerId={clusterId} />
         </Tabs.Panel>
 
         <Tabs.Panel value="peers">
-          <WireGuardPeers routerId={selectedRouterId} />
+          <WireGuardPeers routerId={clusterId} />
         </Tabs.Panel>
       </Tabs>
     </>

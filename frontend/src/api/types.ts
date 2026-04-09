@@ -70,6 +70,7 @@ export interface InterfaceAddress {
 export interface RouterInterface {
   id: string;
   name: string;
+  default_name?: string;
   type: string;
   running: boolean;
   disabled: boolean;
@@ -78,6 +79,26 @@ export interface RouterInterface {
   mac_address: string;
   addresses: InterfaceAddress[];
   properties: Record<string, unknown>;
+}
+
+export interface MergedInterfaceEndpoint {
+  routerId: string;
+  routerName: string;
+  role: string;
+  rosId: string;
+  macAddress: string;
+  running: boolean;
+  addresses: InterfaceAddress[];
+}
+
+export interface MergedInterface {
+  name: string;
+  defaultName?: string;
+  type: string;
+  mtu: number;
+  disabled: boolean;
+  comment: string;
+  endpoints: MergedInterfaceEndpoint[];
 }
 
 export interface Route {
@@ -151,29 +172,70 @@ export interface IPsecTunnel {
 
 export type Tunnel = GRETunnel | IPsecTunnel;
 
-export interface PendingChange {
-  id: string;
+export interface GRETunnelEndpoint {
   routerId: string;
-  module: string;
-  operation: 'add' | 'modify' | 'delete';
-  resourcePath: string;
-  resourceId: string | null;
-  before: Record<string, unknown> | null;
-  after: Record<string, unknown> | null;
-  createdAt: string;
+  routerName: string;
+  role: string;
+  rosId: string;
+  localAddress: string;
+  remoteAddress: string;
+  running: boolean;
 }
 
-export interface OperationResult {
-  index: number;
-  status: 'success' | 'failure';
-  resource_id: string | null;
-  error?: string;
+export interface MergedGRETunnel {
+  name: string;
+  tunnelType: string;
+  mtu: number;
+  keepaliveInterval: number;
+  keepaliveRetries: number;
+  ipsecSecret: string;
+  disabled: boolean;
+  comment: string;
+  endpoints: GRETunnelEndpoint[];
 }
 
-export interface CommitResponse {
-  status: 'success' | 'partial' | 'failure';
-  results: OperationResult[];
-  audit_id: string;
+export interface IPsecRosIds {
+  peer: string;
+  profile: string;
+  proposal: string;
+  identity: string;
+  policies?: string[];
+}
+
+export interface IPsecTunnelEndpoint {
+  routerId: string;
+  routerName: string;
+  role: string;
+  rosIds: IPsecRosIds;
+  localAddress: string;
+  remoteAddress: string;
+  established: boolean;
+}
+
+export interface MergedIPsecTunnel {
+  name: string;
+  tunnelType: string;
+  mode: string;
+  authMethod: string;
+  ipsecSecret: string;
+  phase1: {
+    encryption: string;
+    hash: string;
+    dhGroup: string;
+    lifetime: string;
+  };
+  phase2: {
+    encryption: string;
+    authAlgorithm: string;
+    pfsGroup: string;
+    lifetime: string;
+  };
+  localSubnets: string[];
+  remoteSubnets: string[];
+  tunnelRoutes: string[];
+  disabled: boolean;
+  comment: string;
+  endpoints: IPsecTunnelEndpoint[];
 }
 
 export interface AuditOperation {
@@ -234,6 +296,55 @@ export interface WireGuardPeer {
   clientPrivateKey?: string;
 }
 
+export interface RouterWireGuardInterface {
+  router_id: string;
+  router_name: string;
+  interfaces: WireGuardInterface[];
+}
+
+export interface RouterWireGuardPeer {
+  router_id: string;
+  router_name: string;
+  peers: WireGuardPeer[];
+}
+
+// Backend cluster-scoped WireGuard response shape (one entry per router interface).
+export interface WGInterfaceRaw {
+  rosId: string;
+  name: string;
+  listenPort: number;
+  mtu: number;
+  privateKey: string;
+  publicKey: string;
+  disabled: boolean;
+  running: boolean;
+}
+
+export interface WGPeerRaw {
+  rosId: string;
+  interface: string;
+  name: string;
+  publicKey: string;
+  presharedKey: string;
+  allowedAddress: string;
+  endpointAddress: string;
+  endpointPort: number;
+  lastHandshake: string;
+  rx: number;
+  tx: number;
+  persistentKeepalive: number;
+  disabled: boolean;
+  comment: string;
+}
+
+export interface RouterWireGuard {
+  routerId: string;
+  routerName: string;
+  role: string;
+  interface: WGInterfaceRaw;
+  peers: WGPeerRaw[];
+}
+
 // ─── Firewall ─────────────────────────────────────────────────────────────────
 
 export type FirewallChain = 'forward' | 'input' | 'output';
@@ -256,4 +367,139 @@ export interface FirewallRule {
   connectionState?: ConnectionState[];
   disabled: boolean;
   comment: string;
+}
+
+// --- Operation Log & Undo ---
+
+export interface OperationGroup {
+  id: string;
+  tenant_id: string;
+  user_id: string;
+  description: string;
+  status: 'applied' | 'undone' | 'failed' | 'requires_attention';
+  created_at: string;
+  expires_at: string;
+  user: { id: string; name: string; email: string };
+  operations: OperationEntry[];
+  can_undo: boolean;
+}
+
+export interface OperationEntry {
+  id: string;
+  group_id: string;
+  router_id: string;
+  module: string;
+  operation_type: 'add' | 'modify' | 'delete';
+  resource_path: string;
+  resource_id?: string;
+  before_state?: Record<string, unknown>;
+  after_state?: Record<string, unknown>;
+  sequence: number;
+  status: 'applied' | 'undone' | 'failed';
+  error?: string;
+  applied_at: string;
+}
+
+export interface ExecuteOperationRequest {
+  description: string;
+  operations: {
+    router_id: string;
+    module: string;
+    operation_type: 'add' | 'modify' | 'delete';
+    resource_path: string;
+    resource_id?: string;
+    body: Record<string, unknown>;
+  }[];
+}
+
+export interface ExecuteOperationResponse {
+  group_id: string;
+  status: string;
+  operations: {
+    id: string;
+    status: string;
+    resource_id?: string;
+    after_state?: Record<string, unknown>;
+    error?: string;
+  }[];
+}
+
+export interface UndoResponse {
+  group_id: string;
+  status: string;
+  reason?: string;
+  drifted_operation?: {
+    id: string;
+    resource_path: string;
+    resource_id: string;
+    expected_state: Record<string, unknown>;
+    current_state: Record<string, unknown>;
+  };
+}
+
+export interface OperationHistoryResponse {
+  groups: OperationGroup[];
+  total: number;
+}
+
+// --- Cluster Management ---
+
+export interface ClusterResponse {
+  id: string;
+  name: string;
+  mode: 'ha' | 'standalone';
+  created_at: string;
+  routers: ClusterRouter[];
+}
+
+export interface ClusterRouter {
+  id: string;
+  name: string;
+  hostname: string;
+  host: string;
+  port: number;
+  role: 'master' | 'backup';
+  is_reachable: boolean;
+  last_seen: string | null;
+}
+
+export interface CreateClusterRequest {
+  name: string;
+  routers: {
+    name: string;
+    hostname: string;
+    host: string;
+    port: number;
+    username: string;
+    password: string;
+    role: 'master' | 'backup';
+  }[];
+}
+
+export interface UpdateClusterRequest {
+  name: string;
+  routers: {
+    id?: string;
+    name: string;
+    hostname: string;
+    host: string;
+    port: number;
+    username: string;
+    password: string;
+    role: 'master' | 'backup';
+  }[];
+}
+
+export interface TestConnectionRequest {
+  host: string;
+  port: number;
+  username: string;
+  password: string;
+}
+
+export interface TestConnectionResponse {
+  success: boolean;
+  routeros_version?: string;
+  board_name?: string;
+  error?: string;
 }

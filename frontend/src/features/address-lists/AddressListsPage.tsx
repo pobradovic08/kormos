@@ -45,10 +45,10 @@ function LoadingSkeleton() {
 }
 
 export default function AddressListsPage() {
-  const selectedRouterId = useClusterId();
-  const { data: lists, isLoading, error, refetch } = useAddressLists(selectedRouterId);
-  const deleteMutation = useDeleteAddressList(selectedRouterId);
-  const deleteEntriesMutation = useDeleteEntries(selectedRouterId);
+  const clusterId = useClusterId();
+  const { data: lists, isLoading, error, refetch } = useAddressLists(clusterId);
+  const deleteMutation = useDeleteAddressList(clusterId);
+  const deleteEntriesMutation = useDeleteEntries(clusterId);
 
   const [search, setSearch] = useState('');
   const [collapsedLists, setCollapsedLists] = useState<Set<string>>(new Set());
@@ -58,16 +58,16 @@ export default function AddressListsPage() {
 
   const [deleteListTarget, setDeleteListTarget] = useState<string | null>(null);
 
-  // Reset state when router changes
-  const prevRouterId = useRef(selectedRouterId);
+  // Reset state when cluster changes
+  const prevClusterId = useRef(clusterId);
   useEffect(() => {
-    if (prevRouterId.current !== selectedRouterId) {
+    if (prevClusterId.current !== clusterId) {
       setCollapsedLists(new Set());
       setSelectedEntries({});
       setSearch('');
-      prevRouterId.current = selectedRouterId;
+      prevClusterId.current = clusterId;
     }
-  }, [selectedRouterId]);
+  }, [clusterId]);
 
   // Collapse all lists by default when data loads
   const initializedRef = useRef(false);
@@ -78,10 +78,10 @@ export default function AddressListsPage() {
     }
   }, [lists]);
 
-  // Reset initialization when router changes
+  // Reset initialization when cluster changes
   useEffect(() => {
     initializedRef.current = false;
-  }, [selectedRouterId]);
+  }, [clusterId]);
 
   const filteredLists = useMemo(() => {
     if (!lists) return [];
@@ -149,8 +149,10 @@ export default function AddressListsPage() {
 
   const handleDeleteListConfirm = () => {
     if (!deleteListTarget) return;
+    const targetList = lists?.find((l) => l.name === deleteListTarget);
+    const entryIds = targetList?.entries.map((e) => e.id) ?? [];
     deleteMutation.mutate(
-      { name: deleteListTarget },
+      { name: deleteListTarget, entryIds },
       {
         onSuccess: () => {
           setDeleteListTarget(null);
@@ -228,7 +230,7 @@ export default function AddressListsPage() {
                 list={list}
                 isCollapsed={collapsedLists.has(list.name)}
                 onToggle={() => toggleList(list.name)}
-                routerId={selectedRouterId}
+                routerId={clusterId}
                 selectedEntries={selectedEntries[list.name] ?? new Set()}
                 onSelectionChange={(selected) => handleSelectionChange(list.name, selected)}
                 onAddEntry={(name) => setAddEntryTarget(name)}
@@ -260,7 +262,7 @@ export default function AddressListsPage() {
       <AddressListForm
         isOpen={addListOpen}
         onClose={() => setAddListOpen(false)}
-        routerId={selectedRouterId}
+        routerId={clusterId}
         existingNames={existingNames}
       />
 
@@ -268,7 +270,7 @@ export default function AddressListsPage() {
         <AddressListForm
           isOpen={!!addEntryTarget}
           onClose={() => setAddEntryTarget(null)}
-          routerId={selectedRouterId}
+          routerId={clusterId}
           existingNames={existingNames}
           targetListName={addEntryTarget}
           targetExistingPrefixes={getExistingPrefixes(addEntryTarget)}

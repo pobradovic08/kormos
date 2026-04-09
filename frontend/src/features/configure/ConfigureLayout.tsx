@@ -1,16 +1,16 @@
 import { useEffect } from 'react';
 import { Outlet, useParams } from 'react-router-dom';
-import { useRouterStore } from '../../stores/useRouterStore';
+import { useClusterStore } from '../../stores/useClusterStore';
 
 export default function ConfigureLayout() {
   const { clusterId } = useParams<{ clusterId: string }>();
-  const selectRouter = useRouterStore((s) => s.selectRouter);
+  const selectCluster = useClusterStore((s) => s.selectCluster);
 
   useEffect(() => {
     if (clusterId) {
-      selectRouter(clusterId);
+      selectCluster(clusterId);
     }
-  }, [clusterId, selectRouter]);
+  }, [clusterId, selectCluster]);
 
   return <Outlet />;
 }
