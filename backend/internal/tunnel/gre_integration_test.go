@@ -106,6 +106,14 @@ func TestCreateGRE(t *testing.T) {
 		t.Fatalf("expected 2 endpoints, got %d", len(endpoints))
 	}
 
+	// Verify the tunnel exists on RouterOS with correct remote-address.
+	ctx := context.Background()
+	res := testutil.AssertResourceExists(t, ctx, tc.Router1Client,
+		"/interface/gre", "name", "test-gre-basic")
+	if fmt.Sprint(res["remote-address"]) != "10.0.0.2" {
+		t.Errorf("remote-address = %v, want 10.0.0.2", res["remote-address"])
+	}
+
 	t.Cleanup(func() {
 		testutil.DoRequest(tc.Server, "DELETE", greBasePath()+"/test-gre-basic", nil, tc.Token)
 		ctx := context.Background()
@@ -372,11 +380,16 @@ func TestDeleteGRE(t *testing.T) {
 		t.Fatalf("expected 204, got %d", resp.StatusCode)
 	}
 
-	// Verify deleted.
+	// Verify deleted via API.
 	getResp, _ := testutil.DoRequest(tc.Server, "GET", greBasePath()+"/test-gre-delete", nil, tc.Token)
 	if getResp.StatusCode != http.StatusNotFound {
 		t.Fatalf("expected 404 after delete, got %d", getResp.StatusCode)
 	}
+
+	// Verify the tunnel no longer exists on RouterOS.
+	ctx := context.Background()
+	testutil.AssertResourceNotExists(t, ctx, tc.Router1Client,
+		"/interface/gre", "name", "test-gre-delete")
 }
 
 func TestDeleteGRE_NotFound(t *testing.T) {
