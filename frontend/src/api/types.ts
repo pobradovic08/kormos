@@ -172,6 +172,48 @@ export interface IPsecTunnel {
 
 export type Tunnel = GRETunnel | IPsecTunnel;
 
+// ─── Tunnel Create/Update Payloads (cluster-scoped, endpoints-based) ─────────
+
+export interface TunnelEndpointPayload {
+  routerId: string;
+  localAddress: string;
+  remoteAddress: string;
+}
+
+export interface CreateGRETunnelPayload {
+  name: string;
+  mtu: number;
+  keepaliveInterval: number;
+  keepaliveRetries: number;
+  ipsecSecret: string;
+  disabled: boolean;
+  comment: string;
+  endpoints: TunnelEndpointPayload[];
+}
+
+export interface CreateIPsecTunnelPayload {
+  name: string;
+  mode: string;
+  authMethod: string;
+  ipsecSecret: string;
+  phase1: { encryption: string; hash: string; dhGroup: string; lifetime: string };
+  phase2: { encryption: string; authAlgorithm: string; pfsGroup: string; lifetime: string };
+  localSubnets: string[];
+  remoteSubnets: string[];
+  tunnelRoutes: string[];
+  disabled: boolean;
+  comment: string;
+  endpoints: TunnelEndpointPayload[];
+}
+
+// Display endpoint for table/detail views (shared across GRE/IPsec)
+export interface DisplayEndpoint {
+  routerName: string;
+  role: string;
+  localAddress: string;
+  remoteAddress: string;
+}
+
 export interface GRETunnelEndpoint {
   routerId: string;
   routerName: string;

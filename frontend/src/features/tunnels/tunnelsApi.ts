@@ -1,6 +1,13 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import apiClient from '../../api/client';
-import type { GRETunnel, IPsecTunnel, MergedGRETunnel, MergedIPsecTunnel } from '../../api/types';
+import type {
+  GRETunnel,
+  IPsecTunnel,
+  MergedGRETunnel,
+  MergedIPsecTunnel,
+  CreateGRETunnelPayload,
+  CreateIPsecTunnelPayload,
+} from '../../api/types';
 import { useMockMode } from '../../mocks/useMockMode';
 import {
   listTunnels,
@@ -55,7 +62,7 @@ export function useGRETunnels(clusterId: string | null) {
 export function useCreateGRETunnel(clusterId: string | null) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (payload: Omit<GRETunnel, 'id' | 'running'>) => {
+    mutationFn: async (payload: CreateGRETunnelPayload) => {
       const response = await apiClient.post<MergedGRETunnel>(
         `/clusters/${clusterId}/tunnels/gre`,
         payload,
@@ -71,7 +78,7 @@ export function useCreateGRETunnel(clusterId: string | null) {
 export function useUpdateGRETunnel(clusterId: string | null) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ name, ...payload }: { name: string } & Partial<GRETunnel>) => {
+    mutationFn: async ({ name, ...payload }: { name: string } & Partial<CreateGRETunnelPayload>) => {
       await apiClient.patch(`/clusters/${clusterId}/tunnels/gre/${name}`, payload);
     },
     onSuccess: () => {
@@ -140,7 +147,7 @@ export function useIPsecTunnels(clusterId: string | null) {
 export function useCreateIPsecTunnel(clusterId: string | null) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (payload: Omit<IPsecTunnel, 'id' | 'established'>) => {
+    mutationFn: async (payload: CreateIPsecTunnelPayload) => {
       const response = await apiClient.post<MergedIPsecTunnel>(
         `/clusters/${clusterId}/tunnels/ipsec`,
         payload,
@@ -156,7 +163,7 @@ export function useCreateIPsecTunnel(clusterId: string | null) {
 export function useUpdateIPsecTunnel(clusterId: string | null) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ name, ...payload }: { name: string } & Partial<IPsecTunnel>) => {
+    mutationFn: async ({ name, ...payload }: { name: string } & Partial<CreateIPsecTunnelPayload>) => {
       await apiClient.patch(`/clusters/${clusterId}/tunnels/ipsec/${name}`, payload);
     },
     onSuccess: () => {
