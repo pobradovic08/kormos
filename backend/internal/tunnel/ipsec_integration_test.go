@@ -315,7 +315,7 @@ func TestUpdateIPsec_Phase2(t *testing.T) {
 	})
 
 	updateBody := map[string]interface{}{
-		"phase2": map[string]string{"encryption": "aes-128", "authAlgorithm": "sha1", "pfsGroup": "modp1024", "lifetime": "15m"},
+		"phase2": map[string]string{"encryption": "aes-128-cbc", "authAlgorithm": "sha1", "pfsGroup": "modp1024", "lifetime": "15m"},
 	}
 
 	resp, respBody := testutil.DoRequest(tc.Server, "PATCH", ipsecBasePath()+"/test-ipsec-up2", updateBody, tc.Token)
