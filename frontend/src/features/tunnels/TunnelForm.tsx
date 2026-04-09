@@ -15,28 +15,67 @@ import {
   Text,
   SimpleGrid,
   Alert,
+  Badge,
+  Box,
 } from '@mantine/core';
 import { IconBuildingTunnel, IconPlus, IconTrash } from '@tabler/icons-react';
-import type { Tunnel, GRETunnel, IPsecTunnel } from '../../api/types';
-import { useAddTunnel, useUpdateTunnel } from './tunnelsApi';
-import { useInterfaces } from '../interfaces/interfacesApi';
+import type {
+  Tunnel,
+  GRETunnel,
+  IPsecTunnel,
+  MergedGRETunnel,
+  MergedIPsecTunnel,
+  CreateGRETunnelPayload,
+  CreateIPsecTunnelPayload,
+} from '../../api/types';
+import {
+  useCreateGRETunnel,
+  useUpdateGRETunnel,
+  useCreateIPsecTunnel,
+  useUpdateIPsecTunnel,
+} from './tunnelsApi';
+import { useCluster } from '../routers/clustersApi';
+import { useMergedInterfaces } from '../interfaces/interfacesApi';
 
 type TunnelType = 'gre' | 'ipsec';
+
+type EditTunnel = Tunnel | MergedGRETunnel | MergedIPsecTunnel | null;
 
 interface TunnelFormProps {
   isOpen: boolean;
   onClose: () => void;
-  routerId: string;
+  clusterId: string;
   tunnelType: TunnelType;
-  editTunnel?: Tunnel | null;
+  editTunnel?: EditTunnel;
+}
+
+// ─── Shared endpoint state ───────────────────────────────────────────────────
+
+interface EndpointState {
+  routerId: string;
+  routerName: string;
+  role: string;
+  localAddress: string;
+  remoteAddress: string;
+}
+
+// ─── IPv4 validation ─────────────────────────────────────────────────────────
+
+function isValidIPv4(ip: string): boolean {
+  const parts = ip.split('.');
+  if (parts.length !== 4) return false;
+  return parts.every((p) => {
+    if (!/^\d{1,3}$/.test(p)) return false;
+    const n = Number(p);
+    return n >= 0 && n <= 255;
+  });
 }
 
 // ─── GRE Form State ─────────────────────────────────────────────────────────
 
 interface GREFormState {
   name: string;
-  remoteAddress: string;
-  localAddress: string;
+  endpoints: EndpointState[];
   keepaliveInterval: number;
   keepaliveRetries: number;
   mtu: number;
@@ -44,13 +83,47 @@ interface GREFormState {
   comment: string;
 }
 
-function getInitialGREState(tunnel?: Tunnel | null): GREFormState {
-  if (tunnel && tunnel.tunnelType === 'gre') {
+function isMergedTunnel(t: EditTunnel): t is MergedGRETunnel | MergedIPsecTunnel {
+  return !!t && 'endpoints' in t && !('id' in t);
+}
+
+function isLegacyTunnel(t: EditTunnel): t is Tunnel {
+  return !!t && 'id' in t;
+}
+
+function getInitialGREState(
+  tunnel: EditTunnel,
+  clusterRouters: { id: string; name: string; role: string }[],
+): GREFormState {
+  if (isMergedTunnel(tunnel) && 'mtu' in tunnel) {
+    const merged = tunnel as MergedGRETunnel;
+    return {
+      name: merged.name,
+      endpoints: merged.endpoints.map((ep) => ({
+        routerId: ep.routerId,
+        routerName: ep.routerName,
+        role: ep.role,
+        localAddress: ep.localAddress || '0.0.0.0',
+        remoteAddress: ep.remoteAddress || '',
+      })),
+      keepaliveInterval: merged.keepaliveInterval,
+      keepaliveRetries: merged.keepaliveRetries,
+      mtu: merged.mtu,
+      ipsecSecret: merged.ipsecSecret,
+      comment: merged.comment,
+    };
+  }
+  if (isLegacyTunnel(tunnel) && tunnel.tunnelType === 'gre') {
     const gre = tunnel as GRETunnel;
     return {
       name: gre.name,
-      remoteAddress: gre.remoteAddress,
-      localAddress: gre.localAddress || '0.0.0.0',
+      endpoints: clusterRouters.map((r) => ({
+        routerId: r.id,
+        routerName: r.name,
+        role: r.role,
+        localAddress: gre.localAddress || '0.0.0.0',
+        remoteAddress: gre.remoteAddress || '',
+      })),
       keepaliveInterval: gre.keepaliveInterval,
       keepaliveRetries: gre.keepaliveRetries,
       mtu: gre.mtu,
@@ -60,8 +133,13 @@ function getInitialGREState(tunnel?: Tunnel | null): GREFormState {
   }
   return {
     name: '',
-    remoteAddress: '',
-    localAddress: '0.0.0.0',
+    endpoints: clusterRouters.map((r) => ({
+      routerId: r.id,
+      routerName: r.name,
+      role: r.role,
+      localAddress: '0.0.0.0',
+      remoteAddress: '',
+    })),
     keepaliveInterval: 10,
     keepaliveRetries: 10,
     mtu: 1476,
@@ -75,8 +153,7 @@ function getInitialGREState(tunnel?: Tunnel | null): GREFormState {
 interface IPsecFormState {
   name: string;
   mode: 'route-based' | 'policy-based';
-  remoteAddress: string;
-  localAddress: string;
+  endpoints: EndpointState[];
   authMethod: string;
   ipsecSecret: string;
   comment: string;
@@ -93,14 +170,50 @@ interface IPsecFormState {
   tunnelRoutes: string[];
 }
 
-function getInitialIPsecState(tunnel?: Tunnel | null): IPsecFormState {
-  if (tunnel && tunnel.tunnelType === 'ipsec') {
+function getInitialIPsecState(
+  tunnel: EditTunnel,
+  clusterRouters: { id: string; name: string; role: string }[],
+): IPsecFormState {
+  if (isMergedTunnel(tunnel) && 'phase1' in tunnel) {
+    const merged = tunnel as MergedIPsecTunnel;
+    return {
+      name: merged.name,
+      mode: merged.mode as 'route-based' | 'policy-based',
+      endpoints: merged.endpoints.map((ep) => ({
+        routerId: ep.routerId,
+        routerName: ep.routerName,
+        role: ep.role,
+        localAddress: ep.localAddress || '0.0.0.0',
+        remoteAddress: ep.remoteAddress || '',
+      })),
+      authMethod: merged.authMethod,
+      ipsecSecret: merged.ipsecSecret,
+      comment: merged.comment,
+      p1Encryption: merged.phase1.encryption,
+      p1Hash: merged.phase1.hash,
+      p1DhGroup: merged.phase1.dhGroup,
+      p1Lifetime: merged.phase1.lifetime,
+      p2Encryption: merged.phase2.encryption,
+      p2AuthAlgorithm: merged.phase2.authAlgorithm,
+      p2PfsGroup: merged.phase2.pfsGroup,
+      p2Lifetime: merged.phase2.lifetime,
+      localSubnets: [...merged.localSubnets],
+      remoteSubnets: [...merged.remoteSubnets],
+      tunnelRoutes: [...merged.tunnelRoutes],
+    };
+  }
+  if (isLegacyTunnel(tunnel) && tunnel.tunnelType === 'ipsec') {
     const ipsec = tunnel as IPsecTunnel;
     return {
       name: ipsec.name,
       mode: ipsec.mode,
-      remoteAddress: ipsec.remoteAddress,
-      localAddress: ipsec.localAddress || '0.0.0.0',
+      endpoints: clusterRouters.map((r) => ({
+        routerId: r.id,
+        routerName: r.name,
+        role: r.role,
+        localAddress: ipsec.localAddress || '0.0.0.0',
+        remoteAddress: ipsec.remoteAddress || '',
+      })),
       authMethod: ipsec.authMethod,
       ipsecSecret: ipsec.ipsecSecret,
       comment: ipsec.comment,
@@ -120,8 +233,13 @@ function getInitialIPsecState(tunnel?: Tunnel | null): IPsecFormState {
   return {
     name: '',
     mode: 'route-based',
-    remoteAddress: '',
-    localAddress: '0.0.0.0',
+    endpoints: clusterRouters.map((r) => ({
+      routerId: r.id,
+      routerName: r.name,
+      role: r.role,
+      localAddress: '0.0.0.0',
+      remoteAddress: '',
+    })),
     authMethod: 'pre-shared-key',
     ipsecSecret: '',
     comment: '',
@@ -141,7 +259,6 @@ function getInitialIPsecState(tunnel?: Tunnel | null): IPsecFormState {
 
 // ─── Select options ─────────────────────────────────────────────────────────
 
-// Phase 1 (IKE Profile) options
 const P1_ENCRYPTION_OPTIONS = [
   { value: 'aes-128', label: 'AES-128' },
   { value: 'aes-192', label: 'AES-192' },
@@ -163,7 +280,6 @@ const DH_GROUP_OPTIONS = [
   { value: 'ecp521', label: 'ecp521 (Group 21)' },
 ];
 
-// Phase 2 (ESP Proposal) options
 const P2_ENCRYPTION_OPTIONS = [
   { value: 'aes-128-cbc', label: 'AES-128-CBC' },
   { value: 'aes-256-cbc', label: 'AES-256-CBC' },
@@ -190,61 +306,197 @@ const AUTH_METHOD_OPTIONS = [
   { value: 'digital-signature', label: 'Certificate' },
 ];
 
+// ─── Router Endpoint Card ────────────────────────────────────────────────────
+
+interface RouterEndpointCardProps {
+  endpoint: EndpointState;
+  addressOptions: { value: string; label: string }[];
+  errors: Record<string, string>;
+  submitted: boolean;
+  onLocalAddressChange: (value: string) => void;
+  onRemoteAddressChange: (value: string) => void;
+}
+
+function RouterEndpointCard({
+  endpoint,
+  addressOptions,
+  errors,
+  submitted,
+  onLocalAddressChange,
+  onRemoteAddressChange,
+}: RouterEndpointCardProps) {
+  const errorKey = `endpoint-${endpoint.routerId}-remoteAddress`;
+  return (
+    <Box
+      style={{
+        border: '1px solid var(--mantine-color-gray-3)',
+        borderRadius: 8,
+        padding: 12,
+      }}
+    >
+      <Group gap="xs" mb="sm">
+        <Text fw={500} size="sm">{endpoint.routerName}</Text>
+        <Badge
+          variant="light"
+          size="sm"
+          radius="sm"
+          color={endpoint.role === 'master' ? 'blue' : 'orange'}
+        >
+          {endpoint.role}
+        </Badge>
+      </Group>
+      <SimpleGrid cols={2} spacing="sm">
+        <Select
+          label="Local Address"
+          size="sm"
+          radius="sm"
+          data={addressOptions}
+          value={endpoint.localAddress}
+          onChange={(val) => onLocalAddressChange(val ?? '0.0.0.0')}
+        />
+        <TextInput
+          label="Remote Address"
+          placeholder="e.g. 172.16.10.1"
+          required
+          size="sm"
+          radius="sm"
+          value={endpoint.remoteAddress}
+          onChange={(e) => onRemoteAddressChange(e.currentTarget.value)}
+          error={submitted ? errors[errorKey] : undefined}
+        />
+      </SimpleGrid>
+    </Box>
+  );
+}
+
 // ─── Component ──────────────────────────────────────────────────────────────
 
 export default function TunnelForm({
   isOpen,
   onClose,
-  routerId,
+  clusterId,
   tunnelType,
   editTunnel,
 }: TunnelFormProps) {
   const isEdit = !!editTunnel;
+  const editName = editTunnel ? ('name' in editTunnel ? editTunnel.name : '') : '';
   const totalSteps = tunnelType === 'gre' ? 1 : 4;
 
   const [activeStep, setActiveStep] = useState(0);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitted, setSubmitted] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
-  const [greState, setGreState] = useState<GREFormState>(getInitialGREState(editTunnel));
-  const [ipsecState, setIpsecState] = useState<IPsecFormState>(getInitialIPsecState(editTunnel));
+  // Cluster data for router list and per-router interfaces
+  const { data: cluster } = useCluster(clusterId);
+  const { data: mergedInterfaces } = useMergedInterfaces(clusterId);
 
-  const addMutation = useAddTunnel(routerId);
-  const updateMutation = useUpdateTunnel(routerId);
+  const clusterRouters = useMemo(() => {
+    if (!cluster?.routers) return [];
+    return cluster.routers.map((r) => ({
+      id: r.id,
+      name: r.name,
+      role: r.role,
+    }));
+  }, [cluster?.routers]);
 
-  // Fetch router addresses for Local Address dropdown
-  const { data: interfaces } = useInterfaces(routerId);
-  const addressOptions = useMemo(() => {
-    const auto = { value: '0.0.0.0', label: 'Auto (0.0.0.0)' };
-    if (!interfaces) return [auto];
-    const addrs = interfaces.flatMap((iface) =>
-      iface.addresses.map((a) => ({
-        value: a.address.split('/')[0],
-        label: `${a.address.split('/')[0]} (${iface.name})`,
-      }))
-    );
-    return [auto, ...addrs];
-  }, [interfaces]);
+  // Build address options per router from merged interfaces
+  const addressOptionsByRouter = useMemo(() => {
+    const map: Record<string, { value: string; label: string }[]> = {};
+    for (const router of clusterRouters) {
+      const auto = { value: '0.0.0.0', label: 'Auto (0.0.0.0)' };
+      if (!mergedInterfaces) {
+        map[router.id] = [auto];
+        continue;
+      }
+      const addrs = mergedInterfaces.flatMap((iface) => {
+        const ep = iface.endpoints.find((e) => e.routerId === router.id);
+        if (!ep) return [];
+        return ep.addresses.map((a) => ({
+          value: a.address.split('/')[0],
+          label: `${a.address.split('/')[0]} (${iface.name})`,
+        }));
+      });
+      map[router.id] = [auto, ...addrs];
+    }
+    return map;
+  }, [clusterRouters, mergedInterfaces]);
 
-  // Reset form when drawer opens/closes
+  const [greState, setGreState] = useState<GREFormState>(
+    getInitialGREState(editTunnel ?? null, clusterRouters),
+  );
+  const [ipsecState, setIpsecState] = useState<IPsecFormState>(
+    getInitialIPsecState(editTunnel ?? null, clusterRouters),
+  );
+
+  // Cluster-scoped mutation hooks
+  const createGRE = useCreateGRETunnel(clusterId);
+  const updateGRE = useUpdateGRETunnel(clusterId);
+  const createIPsec = useCreateIPsecTunnel(clusterId);
+  const updateIPsec = useUpdateIPsecTunnel(clusterId);
+
+  // Reset form when drawer opens/closes or cluster routers change
   useEffect(() => {
     if (isOpen) {
       setActiveStep(0);
       setErrors({});
       setSubmitted(false);
       setSaving(false);
-      setGreState(getInitialGREState(editTunnel));
-      setIpsecState(getInitialIPsecState(editTunnel));
+      setSubmitError(null);
+      setGreState(getInitialGREState(editTunnel ?? null, clusterRouters));
+      setIpsecState(getInitialIPsecState(editTunnel ?? null, clusterRouters));
     }
-  }, [isOpen, editTunnel]);
+  }, [isOpen, editTunnel, clusterRouters]);
+
+  // ─── Endpoint updaters ──────────────────────────────────────────────────────
+
+  function updateGREEndpoint(routerId: string, field: 'localAddress' | 'remoteAddress', value: string) {
+    setGreState((prev) => ({
+      ...prev,
+      endpoints: prev.endpoints.map((ep) =>
+        ep.routerId === routerId ? { ...ep, [field]: value } : ep,
+      ),
+    }));
+    const errorKey = `endpoint-${routerId}-${field}`;
+    if (errors[errorKey]) {
+      setErrors((prev) => {
+        const next = { ...prev };
+        delete next[errorKey];
+        return next;
+      });
+    }
+  }
+
+  function updateIPsecEndpoint(routerId: string, field: 'localAddress' | 'remoteAddress', value: string) {
+    setIpsecState((prev) => ({
+      ...prev,
+      endpoints: prev.endpoints.map((ep) =>
+        ep.routerId === routerId ? { ...ep, [field]: value } : ep,
+      ),
+    }));
+    const errorKey = `endpoint-${routerId}-${field}`;
+    if (errors[errorKey]) {
+      setErrors((prev) => {
+        const next = { ...prev };
+        delete next[errorKey];
+        return next;
+      });
+    }
+  }
 
   // ─── GRE validation ────────────────────────────────────────────────────────
 
   function validateGRE(): boolean {
     const newErrors: Record<string, string> = {};
-    if (!greState.name.trim()) newErrors.name = 'Name is required';
-    if (!greState.remoteAddress.trim()) newErrors.remoteAddress = 'Remote address is required';
+    if (!(greState.name || '').trim()) newErrors.name = 'Name is required';
+    for (const ep of greState.endpoints) {
+      if (!(ep.remoteAddress || '').trim()) {
+        newErrors[`endpoint-${ep.routerId}-remoteAddress`] = 'Remote address is required';
+      } else if (!isValidIPv4((ep.remoteAddress || '').trim())) {
+        newErrors[`endpoint-${ep.routerId}-remoteAddress`] = 'Must be a valid IPv4 address';
+      }
+    }
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   }
@@ -255,9 +507,15 @@ export default function TunnelForm({
     const newErrors: Record<string, string> = {};
 
     if (step === 0) {
-      if (!ipsecState.name.trim()) newErrors.name = 'Name is required';
-      if (!ipsecState.remoteAddress.trim()) newErrors.remoteAddress = 'Remote address is required';
-      if (ipsecState.authMethod === 'pre-shared-key' && !ipsecState.ipsecSecret.trim()) {
+      if (!(ipsecState.name || '').trim()) newErrors.name = 'Name is required';
+      for (const ep of ipsecState.endpoints) {
+        if (!(ep.remoteAddress || '').trim()) {
+          newErrors[`endpoint-${ep.routerId}-remoteAddress`] = 'Remote address is required';
+        } else if (!isValidIPv4((ep.remoteAddress || '').trim())) {
+          newErrors[`endpoint-${ep.routerId}-remoteAddress`] = 'Must be a valid IPv4 address';
+        }
+      }
+      if (ipsecState.authMethod === 'pre-shared-key' && !(ipsecState.ipsecSecret || '').trim()) {
         newErrors.ipsecSecret = 'Pre-shared key is required';
       }
     }
@@ -299,37 +557,36 @@ export default function TunnelForm({
     if (!isValid) return;
 
     setSaving(true);
+    setSubmitError(null);
     try {
       if (tunnelType === 'gre') {
-        const tunnelData: Omit<GRETunnel, 'id'> = {
-          tunnelType: 'gre',
-          name: greState.name.trim(),
-          remoteAddress: greState.remoteAddress.trim(),
-          localAddress: greState.localAddress,
+        const payload: CreateGRETunnelPayload = {
+          name: (greState.name || '').trim(),
           mtu: greState.mtu,
           keepaliveInterval: greState.keepaliveInterval,
           keepaliveRetries: greState.keepaliveRetries,
           ipsecSecret: greState.ipsecSecret,
-          comment: greState.comment.trim(),
           disabled: false,
-          running: true,
+          comment: (greState.comment || '').trim(),
+          endpoints: greState.endpoints.map((ep) => ({
+            routerId: ep.routerId,
+            localAddress: ep.localAddress,
+            remoteAddress: (ep.remoteAddress || '').trim(),
+          })),
         };
 
         if (isEdit) {
-          await updateMutation.mutateAsync({ id: editTunnel!.id, updates: tunnelData });
+          const { name: _, ...body } = payload;
+          await updateGRE.mutateAsync({ name: editName, ...body });
         } else {
-          await addMutation.mutateAsync(tunnelData);
+          await createGRE.mutateAsync(payload);
         }
       } else {
-        const tunnelData: Omit<IPsecTunnel, 'id'> = {
-          tunnelType: 'ipsec',
-          name: ipsecState.name.trim(),
+        const payload: CreateIPsecTunnelPayload = {
+          name: (ipsecState.name || '').trim(),
           mode: ipsecState.mode,
-          remoteAddress: ipsecState.remoteAddress.trim(),
-          localAddress: ipsecState.localAddress,
-          authMethod: ipsecState.authMethod as 'pre-shared-key' | 'digital-signature',
+          authMethod: ipsecState.authMethod,
           ipsecSecret: ipsecState.ipsecSecret,
-          comment: ipsecState.comment.trim(),
           phase1: {
             encryption: ipsecState.p1Encryption,
             hash: ipsecState.p1Hash,
@@ -346,17 +603,26 @@ export default function TunnelForm({
           remoteSubnets: ipsecState.remoteSubnets,
           tunnelRoutes: ipsecState.tunnelRoutes,
           disabled: false,
-          established: false,
+          comment: (ipsecState.comment || '').trim(),
+          endpoints: ipsecState.endpoints.map((ep) => ({
+            routerId: ep.routerId,
+            localAddress: ep.localAddress,
+            remoteAddress: (ep.remoteAddress || '').trim(),
+          })),
         };
 
         if (isEdit) {
-          await updateMutation.mutateAsync({ id: editTunnel!.id, updates: tunnelData });
+          const { name: _, ...body } = payload;
+          await updateIPsec.mutateAsync({ name: editName, ...body });
         } else {
-          await addMutation.mutateAsync(tunnelData);
+          await createIPsec.mutateAsync(payload);
         }
       }
 
       onClose();
+    } catch (err: any) {
+      const msg = err?.response?.data?.error || err?.message || 'Failed to save tunnel';
+      setSubmitError(msg);
     } finally {
       setSaving(false);
     }
@@ -364,12 +630,12 @@ export default function TunnelForm({
 
   // ─── GRE field updater ────────────────────────────────────────────────────
 
-  function updateGRE<K extends keyof GREFormState>(field: K, value: GREFormState[K]) {
+  function updateGREField<K extends keyof GREFormState>(field: K, value: GREFormState[K]) {
     setGreState((prev) => ({ ...prev, [field]: value }));
-    if (errors[field]) {
+    if (errors[field as string]) {
       setErrors((prev) => {
         const next = { ...prev };
-        delete next[field];
+        delete next[field as string];
         return next;
       });
     }
@@ -377,12 +643,12 @@ export default function TunnelForm({
 
   // ─── IPsec field updater ──────────────────────────────────────────────────
 
-  function updateIPsec<K extends keyof IPsecFormState>(field: K, value: IPsecFormState[K]) {
+  function updateIPsecField<K extends keyof IPsecFormState>(field: K, value: IPsecFormState[K]) {
     setIpsecState((prev) => ({ ...prev, [field]: value }));
-    if (errors[field]) {
+    if (errors[field as string]) {
       setErrors((prev) => {
         const next = { ...prev };
-        delete next[field];
+        delete next[field as string];
         return next;
       });
     }
@@ -416,41 +682,37 @@ export default function TunnelForm({
             label="Name"
             placeholder="e.g. gre-to-branch"
             required
+            disabled={isEdit}
             size="sm"
             radius="sm"
             value={greState.name}
-            onChange={(e) => updateGRE('name', e.currentTarget.value)}
+            onChange={(e) => updateGREField('name', e.currentTarget.value)}
             error={submitted ? errors.name : undefined}
           />
-          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 'var(--mantine-spacing-sm)' }}>
-            <Select
-              label="Local Tunnel Endpoint"
-              size="sm"
-              radius="sm"
-              data={addressOptions}
-              value={greState.localAddress}
-              onChange={(val) => updateGRE('localAddress', val ?? '0.0.0.0')}
-            />
+          {/* Router endpoint cards */}
+          <Stack gap="sm">
+            <Text size="sm" fw={500}>Router Endpoints</Text>
+            {greState.endpoints.map((ep) => (
+              <RouterEndpointCard
+                key={ep.routerId}
+                endpoint={ep}
+                addressOptions={addressOptionsByRouter[ep.routerId] ?? [{ value: '0.0.0.0', label: 'Auto (0.0.0.0)' }]}
+                errors={errors}
+                submitted={submitted}
+                onLocalAddressChange={(val) => updateGREEndpoint(ep.routerId, 'localAddress', val)}
+                onRemoteAddressChange={(val) => updateGREEndpoint(ep.routerId, 'remoteAddress', val)}
+              />
+            ))}
+          </Stack>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 'var(--mantine-spacing-sm)' }}>
             <NumberInput
               label="MTU"
               size="sm"
               radius="sm"
               value={greState.mtu}
-              onChange={(val) => updateGRE('mtu', typeof val === 'number' ? val : 1476)}
+              onChange={(val) => updateGREField('mtu', typeof val === 'number' ? val : 1476)}
               min={68}
               max={65535}
-            />
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: 'var(--mantine-spacing-sm)' }}>
-            <TextInput
-              label="Remote Tunnel Endpoint"
-              placeholder="e.g. 172.16.10.1"
-              required
-              size="sm"
-              radius="sm"
-              value={greState.remoteAddress}
-              onChange={(e) => updateGRE('remoteAddress', e.currentTarget.value)}
-              error={submitted ? errors.remoteAddress : undefined}
             />
             <NumberInput
               label="Keepalive"
@@ -459,7 +721,7 @@ export default function TunnelForm({
               size="sm"
               radius="sm"
               value={greState.keepaliveInterval}
-              onChange={(val) => updateGRE('keepaliveInterval', typeof val === 'number' ? val : 10)}
+              onChange={(val) => updateGREField('keepaliveInterval', typeof val === 'number' ? val : 10)}
               min={0}
             />
             <NumberInput
@@ -467,7 +729,7 @@ export default function TunnelForm({
               size="sm"
               radius="sm"
               value={greState.keepaliveRetries}
-              onChange={(val) => updateGRE('keepaliveRetries', typeof val === 'number' ? val : 10)}
+              onChange={(val) => updateGREField('keepaliveRetries', typeof val === 'number' ? val : 10)}
               min={0}
             />
           </div>
@@ -477,7 +739,7 @@ export default function TunnelForm({
             size="sm"
             radius="sm"
             value={greState.ipsecSecret}
-            onChange={(e) => updateGRE('ipsecSecret', e.currentTarget.value)}
+            onChange={(e) => updateGREField('ipsecSecret', e.currentTarget.value)}
           />
           <TextInput
             label="Comment"
@@ -485,8 +747,13 @@ export default function TunnelForm({
             size="sm"
             radius="sm"
             value={greState.comment}
-            onChange={(e) => updateGRE('comment', e.currentTarget.value)}
+            onChange={(e) => updateGREField('comment', e.currentTarget.value)}
           />
+          {submitError && (
+            <Alert variant="light" color="red" radius="sm" title="Error">
+              {submitError}
+            </Alert>
+          )}
           <Group justify="space-between" mt="xs">
             <Button variant="default" size="sm" onClick={onClose}>
               Cancel
@@ -507,16 +774,31 @@ export default function TunnelForm({
           </Stepper>
 
           {activeStep === 0 && (
-            <IPsecConnectionStep state={ipsecState} errors={errors} onUpdate={updateIPsec} addressOptions={addressOptions} />
+            <IPsecConnectionStep
+              state={ipsecState}
+              errors={errors}
+              submitted={submitted}
+              isEdit={isEdit}
+              onUpdate={updateIPsecField}
+              endpoints={ipsecState.endpoints}
+              addressOptionsByRouter={addressOptionsByRouter}
+              onEndpointChange={updateIPsecEndpoint}
+            />
           )}
           {activeStep === 1 && (
-            <IPsecPhase1Step state={ipsecState} onUpdate={updateIPsec} />
+            <IPsecPhase1Step state={ipsecState} onUpdate={updateIPsecField} />
           )}
           {activeStep === 2 && (
-            <IPsecPhase2Step state={ipsecState} onUpdate={updateIPsec} />
+            <IPsecPhase2Step state={ipsecState} onUpdate={updateIPsecField} />
           )}
           {activeStep === 3 && (
-            <IPsecNetworksStep state={ipsecState} errors={errors} onUpdate={updateIPsec} />
+            <IPsecNetworksStep state={ipsecState} errors={errors} onUpdate={updateIPsecField} />
+          )}
+
+          {submitError && (
+            <Alert variant="light" color="red" radius="sm" title="Error">
+              {submitError}
+            </Alert>
           )}
 
           <Group justify="space-between">
@@ -551,16 +833,29 @@ export default function TunnelForm({
 interface IPsecStepProps {
   state: IPsecFormState;
   errors?: Record<string, string>;
+  submitted?: boolean;
+  isEdit?: boolean;
   onUpdate: <K extends keyof IPsecFormState>(field: K, value: IPsecFormState[K]) => void;
-  addressOptions?: { value: string; label: string }[];
+  endpoints?: EndpointState[];
+  addressOptionsByRouter?: Record<string, { value: string; label: string }[]>;
+  onEndpointChange?: (routerId: string, field: 'localAddress' | 'remoteAddress', value: string) => void;
 }
 
-function IPsecConnectionStep({ state, errors = {}, onUpdate, addressOptions = [] }: IPsecStepProps) {
+function IPsecConnectionStep({
+  state,
+  errors = {},
+  submitted = false,
+  isEdit = false,
+  onUpdate,
+  endpoints = [],
+  addressOptionsByRouter = {},
+  onEndpointChange,
+}: IPsecStepProps) {
   return (
     <Stack gap="md">
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--mantine-spacing-sm)' }}>
         <TextInput
-          label="Name" required size="sm" radius="sm"
+          label="Name" required disabled={isEdit} size="sm" radius="sm"
           value={state.name}
           onChange={(e) => onUpdate('name', e.currentTarget.value)}
           error={errors.name}
@@ -579,21 +874,21 @@ function IPsecConnectionStep({ state, errors = {}, onUpdate, addressOptions = []
           />
         </div>
       </div>
-      <SimpleGrid cols={2} spacing="sm">
-        <TextInput
-          label="Remote Address" required size="sm" radius="sm"
-          placeholder="e.g. 172.16.10.1"
-          value={state.remoteAddress}
-          onChange={(e) => onUpdate('remoteAddress', e.currentTarget.value)}
-          error={errors.remoteAddress}
-        />
-        <Select
-          label="Local Address" size="sm" radius="sm"
-          data={addressOptions}
-          value={state.localAddress}
-          onChange={(val) => onUpdate('localAddress', val ?? '0.0.0.0')}
-        />
-      </SimpleGrid>
+      {/* Router endpoint cards */}
+      <Stack gap="sm">
+        <Text size="sm" fw={500}>Router Endpoints</Text>
+        {endpoints.map((ep) => (
+          <RouterEndpointCard
+            key={ep.routerId}
+            endpoint={ep}
+            addressOptions={addressOptionsByRouter[ep.routerId] ?? [{ value: '0.0.0.0', label: 'Auto (0.0.0.0)' }]}
+            errors={errors}
+            submitted={submitted}
+            onLocalAddressChange={(val) => onEndpointChange?.(ep.routerId, 'localAddress', val)}
+            onRemoteAddressChange={(val) => onEndpointChange?.(ep.routerId, 'remoteAddress', val)}
+          />
+        ))}
+      </Stack>
       <SimpleGrid cols={2} spacing="sm">
         <Select
           label="Auth Method" size="sm" radius="sm"
@@ -814,4 +1109,3 @@ function IPsecNetworksStep({ state, errors = {}, onUpdate }: IPsecStepProps) {
     </Stack>
   );
 }
-
