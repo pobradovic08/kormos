@@ -14,14 +14,15 @@ import { IconPencil, IconChevronDown, IconTrash } from '@tabler/icons-react';
 import MonoText from '../../components/common/MonoText';
 import StatusIndicator from '../../components/common/StatusIndicator';
 import { getStatus } from './TunnelTable';
-import type { Tunnel, GRETunnel, IPsecTunnel } from '../../api/types';
+import type { GRETunnel, IPsecTunnel } from '../../api/types';
+import type { DisplayTunnel } from './TunnelsPage';
 
 interface TunnelDetailProps {
-  tunnel: Tunnel | null;
+  tunnel: DisplayTunnel | null;
   isOpen: boolean;
   onClose: () => void;
-  onEdit: (tunnel: Tunnel) => void;
-  onDelete: (tunnel: Tunnel) => void;
+  onEdit: (tunnel: DisplayTunnel) => void;
+  onDelete: (tunnel: DisplayTunnel) => void;
 }
 
 function DetailField({ label, children }: { label: string; children: React.ReactNode }) {
@@ -80,12 +81,27 @@ export default function TunnelDetail({
                 {tunnel.tunnelType === 'gre' ? 'GRE' : 'IPsec'}
               </Badge>
             </DetailField>
-            <DetailField label="Local Address">
-              <MonoText>{tunnel.localAddress}</MonoText>
-            </DetailField>
-            <DetailField label="Remote Address">
-              <MonoText>{tunnel.remoteAddress || '\u2014'}</MonoText>
-            </DetailField>
+            {/* Per-router endpoints */}
+            {tunnel.displayEndpoints.map((ep) => (
+              <Box key={ep.routerName}>
+                <Group gap="xs" mb={4}>
+                  <Text size="xs" fw={500}>{ep.routerName}</Text>
+                  <Badge variant="light" size="xs" radius="sm" color={ep.role === 'master' ? 'blue' : 'orange'}>
+                    {ep.role}
+                  </Badge>
+                </Group>
+                <Stack gap={2} ml="sm">
+                  <Group gap="xs">
+                    <Text size="xs" c="dimmed" style={{ minWidth: 100 }}>Local Address</Text>
+                    <MonoText size="xs">{ep.localAddress}</MonoText>
+                  </Group>
+                  <Group gap="xs">
+                    <Text size="xs" c="dimmed" style={{ minWidth: 100 }}>Remote Address</Text>
+                    <MonoText size="xs">{ep.remoteAddress || '\u2014'}</MonoText>
+                  </Group>
+                </Stack>
+              </Box>
+            ))}
             <DetailField label="Status">
               <StatusIndicator status={status} label={label} />
             </DetailField>
