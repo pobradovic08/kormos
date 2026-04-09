@@ -13,6 +13,7 @@ import {
   IconPlayerPause,
   IconPlayerPlay,
   IconInfoCircle,
+  IconLock,
 } from '@tabler/icons-react';
 import { Link } from 'react-router-dom';
 import MonoText from '../../components/common/MonoText';
@@ -142,6 +143,15 @@ export const routeColumns: RouteColumn[] = [
     width: 120,
     render: (route, actions) => {
       if (route.routeType !== 'static') return null;
+      if (route.comment?.startsWith('ipsec:')) {
+        return (
+          <Tooltip label={`Managed by tunnel ${route.comment.slice(6)}`} fz="xs" radius="sm">
+            <Badge variant="light" color="gray" size="sm" radius="sm" leftSection={<IconLock size={12} />}>
+              tunnel
+            </Badge>
+          </Tooltip>
+        );
+      }
       return (
         <Group gap={6} wrap="nowrap">
           <Button.Group>

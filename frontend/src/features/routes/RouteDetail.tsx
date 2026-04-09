@@ -8,8 +8,9 @@ import {
   Button,
   Divider,
   Box,
+  Alert,
 } from '@mantine/core';
-import { IconPencil } from '@tabler/icons-react';
+import { IconPencil, IconLock } from '@tabler/icons-react';
 import MonoText from '../../components/common/MonoText';
 import StatusIndicator from '../../components/common/StatusIndicator';
 import type { Route } from '../../api/types';
@@ -150,15 +151,21 @@ export default function RouteDetail({
         <Divider />
 
         {/* Action buttons */}
-        <Group>
-          <Button
-            variant="default"
-            leftSection={<IconPencil size={16} />}
-            onClick={onClose}
-          >
-            Edit
-          </Button>
-        </Group>
+        {route.comment?.startsWith('ipsec:') ? (
+          <Alert variant="light" color="gray" radius="sm" icon={<IconLock size={16} />}>
+            <Text size="sm">Managed by IPsec tunnel <strong>{route.comment.slice(6)}</strong>. Edit through the tunnel configuration.</Text>
+          </Alert>
+        ) : (
+          <Group>
+            <Button
+              variant="default"
+              leftSection={<IconPencil size={16} />}
+              onClick={onClose}
+            >
+              Edit
+            </Button>
+          </Group>
+        )}
       </Stack>
     </Drawer>
   );
