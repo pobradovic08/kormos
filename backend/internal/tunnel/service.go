@@ -419,6 +419,56 @@ func (s *Service) UpdateIPsec(ctx context.Context, tenantID, userID, clusterID, 
 				Body:          identityBody,
 			})
 		}
+
+		// Diff tunnel routes: delete removed, add new.
+		if len(req.TunnelRoutes) > 0 || len(a.RouteIDs) > 0 {
+			existingRoutes := map[string]string{} // dst -> routeID
+			for i, dst := range a.TunnelRoutes {
+				if i < len(a.RouteIDs) {
+					existingRoutes[dst] = a.RouteIDs[i]
+				}
+			}
+			desiredRoutes := map[string]bool{}
+			for _, dst := range req.TunnelRoutes {
+				desiredRoutes[dst] = true
+			}
+
+			// Delete routes no longer desired.
+			for dst, rid := range existingRoutes {
+				if !desiredRoutes[dst] {
+					ops = append(ops, operation.ExecuteOperation{
+						RouterID:      ri.ID,
+						Module:        "tunnels",
+						OperationType: operation.OpDelete,
+						ResourcePath:  "/ip/route",
+						ResourceID:    rid,
+					})
+				}
+			}
+
+			// Determine gateway from endpoint or existing peer.
+			gateway := a.RemoteAddress
+			if epInput != nil && epInput.RemoteAddress != nil {
+				gateway = *epInput.RemoteAddress
+			}
+
+			// Add new routes.
+			for _, dst := range req.TunnelRoutes {
+				if _, exists := existingRoutes[dst]; !exists {
+					ops = append(ops, operation.ExecuteOperation{
+						RouterID:      ri.ID,
+						Module:        "tunnels",
+						OperationType: operation.OpAdd,
+						ResourcePath:  "/ip/route",
+						Body: map[string]interface{}{
+							"dst-address": dst,
+							"gateway":     gateway,
+							"comment":     ipsecRouteCommentPrefix + name,
+						},
+					})
+				}
+			}
+		}
 	}
 
 	if len(ops) == 0 {
