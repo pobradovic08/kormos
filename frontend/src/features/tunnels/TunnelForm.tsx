@@ -876,6 +876,18 @@ function IPsecConnectionStep({
           />
         </div>
       </div>
+      {state.mode === 'route-based' && (
+        <Alert variant="light" color="yellow" radius="sm" title="No tunnel interface" icon={false}
+          styles={{
+            title: { fontSize: 'var(--mantine-font-size-sm)' },
+            message: { fontSize: 'var(--mantine-font-size-xs)' },
+          }}>
+          MikroTik route-based IPsec uses policy templates without a tunnel interface.
+          The remote side cannot ping a P2P tunnel address on this router. If you need
+          a pingable tunnel link (e.g. for BGP or health checks), use a GRE tunnel with
+          IPsec encryption instead.
+        </Alert>
+      )}
       {/* Router endpoint cards */}
       <Stack gap="sm">
         <Text size="sm" fw={500}>Router Endpoints</Text>
