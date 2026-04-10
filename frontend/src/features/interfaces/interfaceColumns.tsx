@@ -43,33 +43,34 @@ export interface InterfaceColumn {
   ) => React.ReactNode;
 }
 
-function EndpointField({ endpoints, field }: { endpoints: MergedInterfaceEndpoint[]; field: 'macAddress' }) {
-  if (endpoints.length === 0) return <Text size="xs" c="dimmed">&mdash;</Text>;
-  if (endpoints.length === 1) {
-    return <MonoText size="xs" c="dimmed">{endpoints[0][field] || '\u2014'}</MonoText>;
+// Per-endpoint values stacked by position (no router name — that's in the first column).
+function PerEndpointText({ endpoints, getValue }: {
+  endpoints: MergedInterfaceEndpoint[];
+  getValue: (ep: MergedInterfaceEndpoint) => string;
+}) {
+  if (endpoints.length <= 1) {
+    const val = endpoints[0] ? getValue(endpoints[0]) : '';
+    return <MonoText size="xs" c="dimmed">{val || '\u2014'}</MonoText>;
   }
   return (
     <Stack gap={2}>
       {endpoints.map((ep) => (
-        <Group key={ep.routerName} gap={6} wrap="nowrap">
-          <Text size="xs" c="dimmed" style={{ minWidth: 0, flexShrink: 0 }}>{ep.routerName}</Text>
-          <MonoText size="xs" c="dimmed">{ep[field] || '\u2014'}</MonoText>
-        </Group>
+        <MonoText key={ep.routerName} size="xs" c="dimmed">
+          {getValue(ep) || '\u2014'}
+        </MonoText>
       ))}
     </Stack>
   );
 }
 
 function EndpointAddresses({ endpoints }: { endpoints: MergedInterfaceEndpoint[] }) {
-  const allAddrs = endpoints.flatMap((ep) =>
-    ep.addresses.map((a) => ({ ...a, routerName: ep.routerName })),
-  );
-  if (allAddrs.length === 0) return <Text size="xs" c="dimmed">&mdash;</Text>;
+  const hasAny = endpoints.some((ep) => ep.addresses.length > 0);
+  if (!hasAny) return <Text size="xs" c="dimmed">&mdash;</Text>;
 
-  if (endpoints.length === 1) {
+  if (endpoints.length <= 1) {
     return (
       <Stack gap={2}>
-        {endpoints[0].addresses.map((addr) => (
+        {(endpoints[0]?.addresses ?? []).map((addr) => (
           <MonoText key={addr.id} size="xs">{addr.address}</MonoText>
         ))}
       </Stack>
@@ -78,14 +79,11 @@ function EndpointAddresses({ endpoints }: { endpoints: MergedInterfaceEndpoint[]
 
   return (
     <Stack gap={2}>
-      {endpoints.map((ep) =>
-        ep.addresses.map((addr) => (
-          <Group key={`${ep.routerName}-${addr.id}`} gap={6} wrap="nowrap">
-            <Text size="xs" c="dimmed" style={{ minWidth: 0, flexShrink: 0 }}>{ep.routerName}</Text>
-            <MonoText size="xs">{addr.address}</MonoText>
-          </Group>
-        )),
-      )}
+      {endpoints.map((ep) => (
+        <MonoText key={ep.routerName} size="xs">
+          {ep.addresses.map((a) => a.address).join(', ') || '\u2014'}
+        </MonoText>
+      ))}
     </Stack>
   );
 }
@@ -101,8 +99,8 @@ function EndpointStatus({ endpoints, disabled }: { endpoints: MergedInterfaceEnd
     );
   }
 
-  if (endpoints.length === 1) {
-    const running = endpoints[0].running;
+  if (endpoints.length <= 1) {
+    const running = endpoints[0]?.running ?? false;
     return (
       <Group justify="center">
         <Tooltip label={running ? 'Running' : 'Stopped'} fz="xs" radius="sm">
@@ -117,14 +115,11 @@ function EndpointStatus({ endpoints, disabled }: { endpoints: MergedInterfaceEnd
   return (
     <Stack gap={2} align="center">
       {endpoints.map((ep) => (
-        <Group key={ep.routerName} gap={4} wrap="nowrap">
-          <Text size="xs" c="dimmed">{ep.routerName}</Text>
-          <Tooltip label={ep.running ? 'Running' : 'Stopped'} fz="xs" radius="sm">
-            {ep.running
-              ? <IconCircleCheck size={14} color="var(--mantine-color-green-6)" />
-              : <IconCircleX size={14} color="var(--mantine-color-red-6)" />}
-          </Tooltip>
-        </Group>
+        <Tooltip key={ep.routerName} label={ep.running ? 'Running' : 'Stopped'} fz="xs" radius="sm">
+          {ep.running
+            ? <IconCircleCheck size={14} color="var(--mantine-color-green-6)" />
+            : <IconCircleX size={14} color="var(--mantine-color-red-6)" />}
+        </Tooltip>
       ))}
     </Stack>
   );
@@ -136,6 +131,7 @@ export const interfaceColumns: InterfaceColumn[] = [
     header: 'Interface',
     render: (iface) => {
       const badgeColor = typeBadgeColors[iface.type] ?? 'gray';
+      const multiRouter = iface.endpoints.length > 1;
       return (
         <div>
           <Group gap={6} wrap="nowrap">
@@ -155,6 +151,19 @@ export const interfaceColumns: InterfaceColumn[] = [
             <Text size="xs" c="dimmed" lineClamp={1}>
               {iface.comment}
             </Text>
+          )}
+          {multiRouter && (
+            <Stack gap={0} mt={4}>
+              {iface.endpoints.map((ep) => (
+                <Group key={ep.routerName} gap={4} wrap="nowrap">
+                  <Text size="xs" c="dimmed">{ep.routerName}</Text>
+                  <Badge variant="light" size="xs" radius="sm"
+                    color={ep.role === 'master' ? 'blue' : 'orange'}>
+                    {ep.role}
+                  </Badge>
+                </Group>
+              ))}
+            </Stack>
           )}
         </div>
       );
@@ -199,7 +208,7 @@ export const interfaceColumns: InterfaceColumn[] = [
     accessor: 'mac_address',
     header: 'MAC Address',
     width: 200,
-    render: (iface) => <EndpointField endpoints={iface.endpoints} field="macAddress" />,
+    render: (iface) => <PerEndpointText endpoints={iface.endpoints} getValue={(ep) => ep.macAddress} />,
   },
   {
     accessor: 'actions',
