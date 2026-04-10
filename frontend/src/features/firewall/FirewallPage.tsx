@@ -19,7 +19,7 @@ import {
 import FirewallTable, { FirewallTableSkeleton } from './FirewallTable';
 import FirewallDetail from './FirewallDetail';
 import FirewallForm from './FirewallForm';
-import { useInterfaces } from '../interfaces/interfacesApi';
+import { useMergedInterfaces } from '../interfaces/interfacesApi';
 import { useAddressLists } from '../address-lists/addressListsApi';
 import EmptyState from '../../components/common/EmptyState';
 import ErrorBanner from '../../components/common/ErrorBanner';
@@ -49,9 +49,27 @@ export default function FirewallPage() {
   const updateMutation = useUpdateFirewallRule(clusterId);
   const deleteMutation = useDeleteFirewallRule(clusterId);
   const moveMutation = useMoveFirewallRule(clusterId);
-  const { data: interfaces } = useInterfaces(clusterId);
+  const { data: interfaces } = useMergedInterfaces(clusterId);
 
-  const routerInterfaces = interfaces ?? [];
+  const routerInterfaces = useMemo(() => {
+    if (!interfaces) return [];
+    return interfaces.map((m) => {
+      const ep = m.endpoints[0];
+      return {
+        id: ep?.rosId ?? m.name,
+        name: m.name,
+        default_name: m.defaultName,
+        type: m.type,
+        running: ep?.running ?? false,
+        disabled: m.disabled,
+        comment: m.comment,
+        mtu: m.mtu,
+        mac_address: ep?.macAddress ?? '',
+        addresses: ep?.addresses ?? [],
+        properties: {},
+      };
+    });
+  }, [interfaces]);
 
   const { data: addressLists } = useAddressLists(clusterId);
   const addressListNames = useMemo(() => {

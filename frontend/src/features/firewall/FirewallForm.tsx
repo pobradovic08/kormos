@@ -30,7 +30,7 @@ import type { FirewallRule, FirewallChain, FirewallAction, ConnectionState } fro
 import { looksLikeCIDR } from '../../utils/cidr';
 import { useAddFirewallRule, useUpdateFirewallRule } from './firewallApi';
 import { useAddressLists } from '../address-lists/addressListsApi';
-import { useInterfaces } from '../interfaces/interfacesApi';
+import { useMergedInterfaces } from '../interfaces/interfacesApi';
 import { ACTION_OPTIONS, PROTOCOL_OPTIONS, CONNECTION_STATE_OPTIONS } from './FirewallDetail';
 
 // ─── Form state ───────────────────────────────────────────────────────────────
@@ -187,7 +187,7 @@ export default function FirewallForm({
   const updateMutation = useUpdateFirewallRule(routerId);
 
   const { data: addressLists } = useAddressLists(routerId);
-  const { data: interfaces } = useInterfaces(routerId);
+  const { data: interfaces } = useMergedInterfaces(routerId);
 
   const addressListNames = useMemo(() => {
     if (!addressLists) return [];
