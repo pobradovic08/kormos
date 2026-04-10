@@ -13,6 +13,7 @@ import {
   IconCircleX,
   IconCircleMinus,
   IconPointFilled,
+  IconLock,
 } from '@tabler/icons-react';
 import MonoText from '../../components/common/MonoText';
 import type { MergedInterface, MergedInterfaceEndpoint } from '../../api/types';
@@ -211,19 +212,32 @@ export const interfaceColumns: InterfaceColumn[] = [
     accessor: 'actions',
     header: 'Actions',
     width: 100,
-    render: (iface, actions) => (
-      <Button
-        variant="light"
-        color="gray"
-        size="xs"
-        leftSection={<IconPencil size={14} />}
-        onClick={(e: React.MouseEvent) => {
-          e.stopPropagation();
-          actions?.onEdit(iface);
-        }}
-      >
-        Edit
-      </Button>
-    ),
+    render: (iface, actions) => {
+      const tunnelTypes = ['gre', 'wireguard'];
+      const isTunnel = tunnelTypes.includes(iface.type) || iface.name.startsWith('br-ipsec-');
+      if (isTunnel) {
+        return (
+          <Tooltip label="Managed by tunnel configuration" fz="xs" radius="sm">
+            <Badge variant="light" color="gray" size="sm" radius="sm" leftSection={<IconLock size={12} />}>
+              tunnel
+            </Badge>
+          </Tooltip>
+        );
+      }
+      return (
+        <Button
+          variant="light"
+          color="gray"
+          size="xs"
+          leftSection={<IconPencil size={14} />}
+          onClick={(e: React.MouseEvent) => {
+            e.stopPropagation();
+            actions?.onEdit(iface);
+          }}
+        >
+          Edit
+        </Button>
+      );
+    },
   },
 ];
