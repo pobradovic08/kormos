@@ -61,7 +61,7 @@ function DottedPerEndpoint({ endpoints, getValue }: {
     <Stack gap={2}>
       {endpoints.map((ep) => (
         <Group key={ep.routerName} gap={4} wrap="nowrap">
-          <IconPointFilled size={8} color={roleDotColor(ep.role)} style={{ flexShrink: 0 }} />
+          <IconPointFilled size={14} color={roleDotColor(ep.role)} style={{ flexShrink: 0 }} />
           <MonoText size="xs" c="dimmed">{getValue(ep) || '\u2014'}</MonoText>
         </Group>
       ))}
@@ -87,7 +87,7 @@ function EndpointAddresses({ endpoints }: { endpoints: MergedInterfaceEndpoint[]
     <Stack gap={2}>
       {endpoints.map((ep) => (
         <Group key={ep.routerName} gap={4} wrap="nowrap">
-          <IconPointFilled size={8} color={roleDotColor(ep.role)} style={{ flexShrink: 0 }} />
+          <IconPointFilled size={14} color={roleDotColor(ep.role)} style={{ flexShrink: 0 }} />
           <MonoText size="xs">
             {ep.addresses.map((a) => a.address).join(', ') || '\u2014'}
           </MonoText>
