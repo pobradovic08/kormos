@@ -116,15 +116,14 @@ func TestCreateIPsec_RouteBased(t *testing.T) {
 		"address", "10.255.0.0/31")
 
 	// Verify policy for tunnel has tunnel=true and correct SA addresses.
-	// Find by proposal name since peer field is not returned by RouterOS REST API.
 	testutil.AssertResourceField(t, ctx, tc.Router1Client,
-		"/ip/ipsec/policy", "proposal", "test-ipsec-route",
+		"/ip/ipsec/policy", "peer", "test-ipsec-route",
 		"tunnel", "true")
 	testutil.AssertResourceField(t, ctx, tc.Router1Client,
-		"/ip/ipsec/policy", "proposal", "test-ipsec-route",
+		"/ip/ipsec/policy", "peer", "test-ipsec-route",
 		"sa-src-address", "10.20.0.1")
 	testutil.AssertResourceField(t, ctx, tc.Router1Client,
-		"/ip/ipsec/policy", "proposal", "test-ipsec-route",
+		"/ip/ipsec/policy", "peer", "test-ipsec-route",
 		"sa-dst-address", "10.20.0.2")
 
 	// Verify static route with correct gateway.
