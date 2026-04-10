@@ -131,7 +131,6 @@ export const interfaceColumns: InterfaceColumn[] = [
     header: 'Interface',
     render: (iface) => {
       const badgeColor = typeBadgeColors[iface.type] ?? 'gray';
-      const multiRouter = iface.endpoints.length > 1;
       return (
         <div>
           <Group gap={6} wrap="nowrap">
@@ -152,20 +151,30 @@ export const interfaceColumns: InterfaceColumn[] = [
               {iface.comment}
             </Text>
           )}
-          {multiRouter && (
-            <Stack gap={0} mt={4}>
-              {iface.endpoints.map((ep) => (
-                <Group key={ep.routerName} gap={4} wrap="nowrap">
-                  <Text size="xs" c="dimmed">{ep.routerName}</Text>
-                  <Badge variant="light" size="xs" radius="sm"
-                    color={ep.role === 'master' ? 'blue' : 'orange'}>
-                    {ep.role}
-                  </Badge>
-                </Group>
-              ))}
-            </Stack>
-          )}
         </div>
+      );
+    },
+  },
+  {
+    accessor: 'router',
+    header: 'Router',
+    width: 140,
+    render: (iface) => {
+      if (iface.endpoints.length <= 1) {
+        return null;
+      }
+      return (
+        <Stack gap={2}>
+          {iface.endpoints.map((ep) => (
+            <Group key={ep.routerName} gap={4} wrap="nowrap">
+              <Text size="xs" c="dimmed">{ep.routerName}</Text>
+              <Badge variant="light" size="xs" radius="sm"
+                color={ep.role === 'master' ? 'blue' : 'orange'}>
+                {ep.role}
+              </Badge>
+            </Group>
+          ))}
+        </Stack>
       );
     },
   },
