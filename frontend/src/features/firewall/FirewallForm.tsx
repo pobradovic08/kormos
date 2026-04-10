@@ -233,23 +233,23 @@ export default function FirewallForm({
       const srcIsList = isAddressList(state.src);
       const dstIsList = isAddressList(state.dst);
 
-      // RouterOS expects kebab-case field names
+      // Backend uses camelCase JSON field names.
       const ruleData: Record<string, unknown> = {
         chain: isEdit ? editRule!.chain : chain,
         action: state.action,
-        disabled: state.disabled ? 'true' : 'false',
+        disabled: state.disabled,
       };
-      if (state.comment) ruleData['comment'] = state.comment;
-      if (state.protocol) ruleData['protocol'] = state.protocol;
-      if (!srcIsList && state.src) ruleData['src-address'] = state.src;
-      if (srcIsList) ruleData['src-address-list'] = state.src;
-      if (!dstIsList && state.dst) ruleData['dst-address'] = state.dst;
-      if (dstIsList) ruleData['dst-address-list'] = state.dst;
-      if (portsEnabled && state.srcPort) ruleData['src-port'] = state.srcPort;
-      if (portsEnabled && state.dstPort) ruleData['dst-port'] = state.dstPort;
-      if (state.inInterface) ruleData['in-interface'] = state.inInterface;
-      if (state.outInterface) ruleData['out-interface'] = state.outInterface;
-      if (state.connectionState.length > 0) ruleData['connection-state'] = state.connectionState.join(',');
+      if (state.comment) ruleData.comment = state.comment;
+      if (state.protocol) ruleData.protocol = state.protocol;
+      if (!srcIsList && state.src) ruleData.srcAddress = state.src;
+      if (srcIsList) ruleData.srcAddressList = state.src;
+      if (!dstIsList && state.dst) ruleData.dstAddress = state.dst;
+      if (dstIsList) ruleData.dstAddressList = state.dst;
+      if (portsEnabled && state.srcPort) ruleData.srcPort = state.srcPort;
+      if (portsEnabled && state.dstPort) ruleData.dstPort = state.dstPort;
+      if (state.inInterface) ruleData.inInterface = state.inInterface;
+      if (state.outInterface) ruleData.outInterface = state.outInterface;
+      if (state.connectionState.length > 0) ruleData.connectionState = state.connectionState.join(',');
 
       if (isEdit) {
         await updateMutation.mutateAsync({ id: editRule!.id, updates: ruleData as any });
