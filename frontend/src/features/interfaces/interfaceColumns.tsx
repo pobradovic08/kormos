@@ -121,17 +121,12 @@ function EndpointStatus({ endpoints, disabled }: { endpoints: MergedInterfaceEnd
     );
   }
 
-  // Multi-router: router name + badge + status icon per line.
   return (
     <Stack gap={2}>
       {endpoints.map((ep) => (
         <Group key={ep.routerName} gap={4} wrap="nowrap">
-          <Text size="xs" c="dimmed">{ep.routerName}</Text>
-          <Badge variant="light" size="xs" radius="sm"
-            color={ep.role === 'master' ? 'blue' : 'orange'}>
-            {ep.role}
-          </Badge>
-          <Tooltip label={ep.running ? 'Running' : 'Stopped'} fz="xs" radius="sm">
+          <IconPointFilled size={14} color={roleDotColor(ep.role)} style={{ flexShrink: 0 }} />
+          <Tooltip label={`${ep.routerName} (${ep.role}) — ${ep.running ? 'Running' : 'Stopped'}`} fz="xs" radius="sm">
             {ep.running
               ? <IconCircleCheck size={14} color="var(--mantine-color-green-6)" />
               : <IconCircleX size={14} color="var(--mantine-color-red-6)" />}
@@ -192,7 +187,7 @@ export const interfaceColumns: InterfaceColumn[] = [
   {
     accessor: 'status',
     header: 'Status',
-    width: 180,
+    width: 90,
     render: (iface) => <EndpointStatus endpoints={iface.endpoints} disabled={iface.disabled} />,
   },
   {
